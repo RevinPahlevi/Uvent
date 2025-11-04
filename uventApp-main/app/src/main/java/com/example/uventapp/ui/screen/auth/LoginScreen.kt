@@ -1,5 +1,6 @@
 package com.example.uventapp.ui.screen.auth
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.uventapp.data.network.ApiClient
+import com.example.uventapp.data.network.LoginRequest
+import com.example.uventapp.data.network.LoginResponse
 import com.example.uventapp.ui.components.AuthInputField
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -26,11 +30,57 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    // State untuk loading dan pesan error
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Fungsi untuk memanggil API
+    fun startLogin() {
+        isLoading = true
+        errorMessage = null
+
+        val request = LoginRequest(email = email, password = password)
+
+        ApiClient.instance.login(request).enqueue(object : Callback<LoginResponse> {
+
+            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                isLoading = false
+                if (response.isSuccessful) {
+                    // SUKSES
+                    val token = response.body()?.token
+                    Log.d("LoginSuccess", "Login Berhasil! Token: $token")
+
+                    // (Nanti di sini Anda bisa simpan tokennya)
+
+                    // Navigasi ke Home
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+
+                } else {
+                    // ERROR (misal server error)
+                    Log.e("LoginError", "Code: ${response.code()}, Msg: ${response.message()}")
+                    errorMessage = "Login Gagal. (Kode: ${response.code()})"
+                }
+            }
+
+            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                // GAGAL (tidak ada internet, URL salah)
+                isLoading = false
+                Log.e("LoginFailure", "Error: ${t.message}")
+                errorMessage = "Gagal terhubung ke server. Periksa koneksi internet."
+            }
+        })
+    }
 
     Box(
         modifier = Modifier
@@ -81,15 +131,26 @@ fun LoginScreen(navController: NavController) {
                         isPassword = true
                     )
 
+                    // Tampilkan pesan error jika ada
+                    errorMessage?.let {
+                        Text(
+                            text = it,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     PrimaryButton(
-                        text = "MASUK",
+                        text = if (isLoading) "LOADING..." else "MASUK",
                         onClick = {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
+                            if (!isLoading) {
+                                startLogin() // Panggil fungsi API
                             }
-                        }
+                        },
+                        enabled = !isLoading // Nonaktifkan tombol saat loading
                     )
                 }
             }

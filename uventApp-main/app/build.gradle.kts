@@ -56,6 +56,13 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
+    // --- DEPENDENSI UNTUK API (SAYA TAMBAHKAN) ---
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp.logging.interceptor)
+    // ---------------------------------------------
+
+
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
 
@@ -74,4 +81,5 @@ dependencies {
 
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
 }
