@@ -24,34 +24,45 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.uventapp.R // Pastikan R di-import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
-import com.example.uventapp.ui.theme.DisabledBackground
-import com.example.uventapp.ui.theme.LightBackground
-import com.example.uventapp.ui.theme.PrimaryGreen
-import com.example.uventapp.ui.theme.White
-// Import Event dan dummyEvents dari paket data.model
+import com.example.uventapp.ui.theme.* // Import semua theme
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.dummyEvents
 
-
-// --- DEFINISI LOKAL DIHAPUS ---
-// data class Event(...) dan val dummyEvents DIHAPUS dari sini
-
 @Composable
-fun EventListScreen(navController: NavController) {
+fun EventListScreen(
+    navController: NavController,
+    viewModel: EventManagementViewModel // PERBAIKAN: Menerima ViewModel
+) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
 
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Semua") }
-    // Gunakan 'dummyEvents' yang diimpor
-    var filteredEvents by remember { mutableStateOf(dummyEvents) }
 
-    fun filterEvents(category: String) {
-        filteredEvents = when (category) {
-            "Semua" -> dummyEvents // Gunakan data dummy impor
-            else -> dummyEvents.filter { it.type.equals(category, ignoreCase = true) } // Gunakan data dummy impor
+    // --- PERBAIKAN: Menggabungkan event dummy dengan event buatan ---
+    val createdEvents by viewModel.createdEvents
+    // Gabungkan 2 daftar & hapus duplikat (jika ada, berdasarkan ID)
+    val allEvents = remember(createdEvents, dummyEvents) {
+        (createdEvents + dummyEvents).distinctBy { it.id }
+    }
+    // ------------------------------------------------------------
+
+    var filteredEvents by remember(allEvents) { mutableStateOf(allEvents) }
+
+    // Fungsi filter yang diperbarui untuk mencari dari 'allEvents'
+    fun applyFilter() {
+        filteredEvents = allEvents.filter { event ->
+            val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
+            val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
+            categoryMatch && searchMatch
         }
+    }
+
+    // Panggil applyFilter saat 'allEvents' atau filter berubah
+    LaunchedEffect(allEvents, selectedCategory, searchText) {
+        applyFilter()
     }
 
     Scaffold(
@@ -68,18 +79,12 @@ fun EventListScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-
             TextField(
                 value = searchText,
                 onValueChange = {
                     searchText = it
-                    filteredEvents = dummyEvents.filter { event ->
-                        event.title.contains(searchText, ignoreCase = true)
-                    }.filter { event ->
-                        selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true)
-                    }
-                }
-                ,
+                    // applyFilter() dipanggil oleh LaunchedEffect
+                },
                 placeholder = { Text("Cari Event..", color = Color.Gray) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", tint = Color.Gray) },
                 singleLine = true,
@@ -110,21 +115,27 @@ fun EventListScreen(navController: NavController) {
                         isSelected = selectedCategory == category,
                         onClick = {
                             selectedCategory = category
-                            filterEvents(category)
+                            // applyFilter() dipanggil oleh LaunchedEffect
                         }
                     )
                 }
             }
 
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredEvents) { event ->
-                    EventCard(
-                        event = event,
-                        onClick = { navController.navigate("${Screen.DetailEvent}/${event.id}") }
-                    )
+            if (filteredEvents.isNotEmpty()) {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredEvents, key = { it.id }) { event ->
+                        EventCard(
+                            event = event,
+                            onClick = { navController.navigate(Screen.DetailEvent.createRoute(event.id)) }
+                        )
+                    }
+                }
+            } else {
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                    Text("Tidak ada event ditemukan", color = Color.Gray)
                 }
             }
         }
@@ -152,8 +163,9 @@ fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+// Pastikan fungsi ini TIDAK private agar bisa diakses MyRegisteredEventScreen.kt
 @Composable
-fun EventCard(event: Event, onClick: () -> Unit) { // 'Event' di sini akan merujuk ke model yang diimpor
+fun EventCard(event: Event, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -167,7 +179,8 @@ fun EventCard(event: Event, onClick: () -> Unit) { // 'Event' di sini akan meruj
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = painterResource(id = event.thumbnailResId),
+                // Menggunakan try-catch untuk jaga-jaga jika thumbnailResId salah
+                painter = painterResource(id = try { event.thumbnailResId } catch (_: Exception) { R.drawable.placeholder_poster }),
                 contentDescription = "Event Poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

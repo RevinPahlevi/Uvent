@@ -23,9 +23,13 @@ import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
+// Import ViewModel dan data
+import com.example.uventapp.data.model.dummyEvents
+import com.example.uventapp.ui.screen.event.EventManagementViewModel
+import com.example.uventapp.ui.theme.PrimaryGreen
 
 // ---------------------------
-// Helper Composables
+// Helper Composables (Tetap sama)
 // ---------------------------
 
 @Composable
@@ -110,7 +114,16 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun RegistrationFormScreen(navController: NavController, eventName: String) {
+fun RegistrationFormScreen(
+    navController: NavController,
+    viewModel: EventManagementViewModel, // Menerima ViewModel
+    eventId: Int? // Menerima eventId (Int)
+) {
+    // Cari event berdasarkan ID dari semua event yang ada
+    val eventToRegister = remember(eventId, viewModel.createdEvents.value) {
+        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    }
+
     var name by remember { mutableStateOf("") }
     var nim by remember { mutableStateOf("") }
     var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
@@ -130,7 +143,8 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
                 phone.isNotEmpty() &&
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan" &&
-                selectedFileUri != null
+                selectedFileUri != null &&
+                eventToRegister != null // Pastikan event ada
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -143,7 +157,7 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
     }
 
     Scaffold(
-        topBar = { CustomAppBar(title = "Daftar", onBack = { navController.popBackStack() }) },
+        topBar = { CustomAppBar(title = "Daftar Event", onBack = { navController.popBackStack() }) },
         containerColor = LightBackground
     ) { paddingValues ->
         Column(
@@ -155,6 +169,24 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Tampilkan nama event di atas form
+            if (eventToRegister != null) {
+                Text(
+                    text = eventToRegister.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryGreen
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Text(
+                    text = "Event Tidak Ditemukan",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Red
+                )
+            }
+
             FormInputField("Nama Lengkap", name) { name = it }
             FormInputField("NIM", nim) { nim = it }
 
@@ -192,15 +224,15 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
                 text = "Daftar",
                 onClick = {
                     if (isFormValid) {
-                        // --- INI BAGIAN YANG DIPERBAIKI ---
-                        // Menggunakan createRoute untuk membuat rute dengan parameter opsional
-                        val finalEventName = eventName.ifEmpty { "Event" }
-                        navController.navigate(Screen.MyRegisteredEvent.createRoute(finalEventName)) {
-                            // PopUp ke start destination agar tombol back kembali ke home
+                        // --- PERBAIKAN LOGIKA PENDAFTARAN ---
+                        // 1. Tambahkan event ini ke daftar 'followedEvents' di ViewModel
+                        viewModel.addFollowedEvent(eventToRegister!!)
+
+                        // 2. Navigasi ke "Event Saya" dan kirim nama event untuk Snackbar
+                        navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
                             popUpTo(navController.graph.startDestinationId) {
                                 inclusive = false
                             }
-                            // Set start destination baru ke Home
                             navController.graph.setStartDestination(Screen.Home.route)
                             launchSingleTop = true
                         }

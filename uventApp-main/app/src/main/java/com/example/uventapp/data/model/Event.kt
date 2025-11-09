@@ -3,7 +3,7 @@ package com.example.uventapp.data.model
 import com.example.uventapp.R
 
 /**
- * Data class ini harus menjadi SATU-SATUNYA definisi Event di seluruh aplikasi.
+ * Data class ini sekarang menjadi SATU-SATUNYA definisi Event di seluruh aplikasi.
  */
 data class Event(
     val id: Int, // Gunakan Int untuk ID agar konsisten
@@ -12,12 +12,12 @@ data class Event(
     val date: String,
     val time: String,
     val location: String,
-    val quota: String, // Ubah ke String agar konsisten dengan EditEventScreen
+    val quota: String, // Ubah ke String agar konsisten
     val status: String,
-    val thumbnailResId: Int
+    val thumbnailResId: Int // Gunakan ResId agar konsisten
 )
 
-// Pindahkan dummy data ke sini juga agar bisa diakses secara global
+// Pindahkan dummy data ke sini agar bisa diakses secara global
 val dummyEvents = listOf(
     Event(
         id = 1,
