@@ -17,9 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.uventapp.R
+// PERBAIKAN: Impor Event dan dummyEvents (plural)
 import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.repository.EventRepository
+import com.example.uventapp.data.model.dummyEvents
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -29,8 +29,30 @@ import com.example.uventapp.ui.theme.White
 
 @Composable
 fun DetailEventScreen(navController: NavController, eventId: String?) {
-    val event = EventRepository.events.find { it.id == eventId }
 
+    // PERBAIKAN: Cari event yang benar dari daftar dummyEvents (plural)
+    // Kita ubah eventId string menjadi Int untuk perbandingan
+    val event = dummyEvents.find { it.id == eventId?.toIntOrNull() }
+
+    // Jika event tidak ditemukan (misal ID salah), tampilkan pesan
+    if (event == null) {
+        Scaffold(
+            topBar = {
+                CustomAppBar(
+                    title = "Error",
+                    onBack = { navController.popBackStack() }
+                )
+            },
+            containerColor = LightBackground
+        ) { paddingValues ->
+            Box(modifier = Modifier.padding(paddingValues).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Event tidak ditemukan.")
+            }
+        }
+        return // Hentikan eksekusi Composable
+    }
+
+    // Jika event DITEMUKAN, lanjutkan tampilkan UI
     Scaffold(
         topBar = {
             CustomAppBar(
@@ -47,64 +69,33 @@ fun DetailEventScreen(navController: NavController, eventId: String?) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            if (event != null) {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-
-                        val posterRes = when (event.id) {
-                            "1" -> R.drawable.event_talkshow
-                            "2" -> R.drawable.event_seminar
-                            "3" -> R.drawable.event_skill_lab
-                            else -> R.drawable.placeholder_poster
-                        }
-
-                        Image(
-                            painter = painterResource(id = posterRes),
-                            contentDescription = "Poster Event",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 400.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Fit
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        EventDetailTable(event)
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        PrimaryButton(
-                            text = "Daftar Sekarang",
-                            onClick = {
-                                // Navigasi ke RegistrationFormScreen (form pendaftaran event)
-                                navController.navigate(Screen.RegistrationFormScreen.route)
-                            }
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Event tidak ditemukan",
-                        fontSize = 18.sp,
-                        color = Color.Gray
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Banner Event
+                    Image(painter = painterResource(id = event.thumbnailResId), // Gunakan data dari event yang ditemukan
+                        contentDescription = "Event Banner",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp))
                     )
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Tabel Detail Event
+                    EventDetailTable(event = event) // Gunakan data dari event yang ditemukan
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Tombol Daftar Sekarang
                     PrimaryButton(
-                        text = "Kembali",
-                        onClick = { navController.popBackStack() }
+                        text = "Daftar Sekarang",
+                        onClick = { navController.navigate(Screen.RegistrationForm) },
                     )
                 }
             }
@@ -113,22 +104,21 @@ fun DetailEventScreen(navController: NavController, eventId: String?) {
 }
 
 @Composable
-fun EventDetailTable(event: Event) {
+fun EventDetailTable(event: Event) { // Tipe 'Event' sekarang jelas
     val details = listOf(
         "Judul Event" to event.title,
         "Jenis Event" to event.type,
         "Tanggal" to event.date,
         "Waktu" to event.time,
-        "Lokasi" to event.location,
-        "Kuota" to event.quota.toString(),
+        "Lokasi/Platform" to event.location,
+        "Kuota" to event.quota, // Kuota sudah String di model baru
         "Status" to event.status
     )
 
+    // Header (kolom kiri) dan Nilai (kolom kanan)
     Row(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.width(130.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        // Kolom Label
+        Column(modifier = Modifier.width(120.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             details.forEach { (label, _) ->
                 Text(
                     text = label,
@@ -139,17 +129,11 @@ fun EventDetailTable(event: Event) {
             }
         }
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        // Kolom Nilai
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             details.forEach { (_, value) ->
                 Row {
-                    Text(
-                        text = ": ",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
+                    Text(text = ": ", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Text(
                         text = value,
                         fontSize = 14.sp,

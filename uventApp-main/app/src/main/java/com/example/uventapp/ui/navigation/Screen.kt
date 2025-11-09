@@ -15,7 +15,13 @@ sealed class Screen(val route: String) {
     object DetailEvent : Screen("detail_event/{eventId}") {
         fun createRoute(eventId: Int) = "detail_event/$eventId"
     }
-    object MyRegisteredEvent : Screen("my_registered_event/{eventName}") {
-        fun createRoute(eventName: String) = "my_registered_event/$eventName"
+
+    // --- INI BAGIAN YANG DIPERBAIKI ---
+    // Rute diubah menjadi "my_events" agar sama dengan BottomNavBar.
+    // eventName dijadikan parameter opsional (query parameter)
+    object MyRegisteredEvent : Screen("my_events?eventName={eventName}") {
+        // Fungsi createRoute diperbarui untuk membuat URL dengan parameter opsional
+        fun createRoute(eventName: String) = "my_events?eventName=$eventName"
     }
+    // ------------------------------------
 }

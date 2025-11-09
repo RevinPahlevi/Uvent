@@ -36,6 +36,9 @@ fun RegistrationScreen(navController: NavController) {
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    // (Nantinya, di sini Anda akan menambahkan logika untuk memanggil API
+    // pendaftaran, mirip seperti yang kita lakukan untuk Login)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -103,13 +106,17 @@ fun RegistrationScreen(navController: NavController) {
                     PrimaryButton(
                         text = "DAFTAR",
                         onClick = {
-                            // Navigasi ke Home setelah daftar
-                            navController.navigate(Screen.Home.route) {
-                                // Pop semua rute hingga daftar agar tidak kembali ke halaman ini
+                            // --- INI BAGIAN YANG DIPERBAIKI ---
+                            // Navigasi ke Login setelah daftar
+                            navController.navigate(Screen.Login.route) {
+                                // Hapus halaman Register dari tumpukan (back stack)
                                 popUpTo(Screen.Register.route) {
                                     inclusive = true
                                 }
+                                // Pastikan LoginScreen tidak ditumpuk jika sudah ada
+                                launchSingleTop = true
                             }
+                            // ------------------------------------
                         }
                     )
                 }
@@ -129,7 +136,13 @@ fun RegistrationScreen(navController: NavController) {
                     text = "Masuk",
                     color = TextLink,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { navController.navigate(Screen.Login.route) }
+                    modifier = Modifier.clickable {
+                        // Jika pengguna klik "Masuk", navigasi ke Login
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Register.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
         }

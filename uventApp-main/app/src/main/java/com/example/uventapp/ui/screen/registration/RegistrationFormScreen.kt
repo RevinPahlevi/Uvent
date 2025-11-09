@@ -1,5 +1,6 @@
 package com.example.uventapp.ui.screen.registration
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -107,6 +108,7 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
 // Main Registration Form
 // ---------------------------
 
+@SuppressLint("UnrememberedMutableState")
 @Composable
 fun RegistrationFormScreen(navController: NavController, eventName: String) {
     var name by remember { mutableStateOf("") }
@@ -127,7 +129,8 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
                 email.isNotEmpty() &&
                 phone.isNotEmpty() &&
                 selectedFakultas != "Pilih Fakultas" &&
-                selectedJurusan != "Pilih Jurusan"
+                selectedJurusan != "Pilih Jurusan" &&
+                selectedFileUri != null
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -162,14 +165,14 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
                 onOptionSelected = { newFakultas ->
                     selectedFakultas = newFakultas
                     selectedJurusan = "Pilih Jurusan"
-                    availableJurusan = fakultasList.find { it.nama == newFakultas }?.jurusan ?: emptyList()
+                    availableJurusan = fakultasList.find { it.nama == newFakultas }?.jurusan.orEmpty()
                 }
             )
 
             DropdownInput(
                 label = "Jurusan",
                 selectedOption = selectedJurusan,
-                options = if (availableJurusan.isEmpty()) listOf("Pilih Jurusan") else availableJurusan,
+                options = availableJurusan.ifEmpty { listOf("Pilih Jurusan") },
                 onOptionSelected = { selectedJurusan = it },
                 enabled = availableJurusan.isNotEmpty()
             )
@@ -189,8 +192,19 @@ fun RegistrationFormScreen(navController: NavController, eventName: String) {
                 text = "Daftar",
                 onClick = {
                     if (isFormValid) {
-                        // Navigasi ke MyRegisteredEventScreen
-                        navController.navigate(Screen.MyRegisteredEvent.route)
+                        // --- INI BAGIAN YANG DIPERBAIKI ---
+                        // Menggunakan createRoute untuk membuat rute dengan parameter opsional
+                        val finalEventName = eventName.ifEmpty { "Event" }
+                        navController.navigate(Screen.MyRegisteredEvent.createRoute(finalEventName)) {
+                            // PopUp ke start destination agar tombol back kembali ke home
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = false
+                            }
+                            // Set start destination baru ke Home
+                            navController.graph.setStartDestination(Screen.Home.route)
+                            launchSingleTop = true
+                        }
+                        // ------------------------------------
                     }
                 },
                 enabled = isFormValid,

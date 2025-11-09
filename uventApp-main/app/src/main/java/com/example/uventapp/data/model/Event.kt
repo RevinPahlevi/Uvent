@@ -1,71 +1,55 @@
 package com.example.uventapp.data.model
 
+import com.example.uventapp.R
+
+/**
+ * Data class ini harus menjadi SATU-SATUNYA definisi Event di seluruh aplikasi.
+ */
 data class Event(
-    val id: String,
+    val id: Int, // Gunakan Int untuk ID agar konsisten
     val title: String,
     val type: String,
     val date: String,
     val time: String,
     val location: String,
-    val quota: String,
+    val quota: String, // Ubah ke String agar konsisten dengan EditEventScreen
     val status: String,
-    val posterUrl: String
+    val thumbnailResId: Int
 )
 
+// Pindahkan dummy data ke sini juga agar bisa diakses secara global
 val dummyEvents = listOf(
     Event(
-        id = "1",
-        title = "Business Talkshow: Future Entrepreneur",
+        id = 1,
+        title = "Business Talkshow",
         type = "Talkshow",
-        date = "Kamis, 16 Oktober 2025",
+        date = "16 Okt 2025",
         time = "09:00 - 12:00",
         location = "Auditorium Unand",
-        quota = "500 Peserta",
-        status = "Gratis",
-        posterUrl = "https://i.ibb.co/4j3yY5d/eventposter1.jpg"
+        quota = "500",
+        status = "Aktif",
+        thumbnailResId = R.drawable.event_talkshow
     ),
     Event(
-        id = "2",
-        title = "Seminar Nasional Teknologi & Inovasi",
+        id = 2,
+        title = "Seminar Nasional AI",
         type = "Seminar",
-        date = "Kamis, 23 Oktober 2025",
-        time = "08:30 - 12:00",
-        location = "Convention Hall FTI UNAND",
-        quota = "300 Peserta",
-        status = "Tersedia",
-        posterUrl = "https://i.ibb.co/GW3Q4sC/eventposter2.jpg"
+        date = "20 Okt 2025",
+        time = "13:00 - 15:00",
+        location = "Convention Hall Unand",
+        quota = "1000",
+        status = "Aktif",
+        thumbnailResId = R.drawable.event_seminar
     ),
     Event(
-        id = "3",
-        title = "Workshop UI/UX Design for Beginner",
-        type = "Workshop",
-        date = "Jumat, 31 Oktober 2025",
-        time = "13:00 - 16:00",
-        location = "Lab Multimedia FTI UNAND",
-        quota = "60 Peserta",
-        status = "Kuota Habis",
-        posterUrl = "https://i.ibb.co/JB5WTbM/eventposter3.jpg"
-    ),
-    Event(
-        id = "4",
-        title = "Bootcamp: Data Science & AI",
-        type = "Bootcamp",
-        date = "Senin, 03 November 2025",
-        time = "09:00 - 17:00",
-        location = "Aula Fakultas MIPA Unand",
-        quota = "120 Peserta",
-        status = "Early Bird",
-        posterUrl = "https://i.ibb.co/C9wC8bV/eventposter4.jpg"
-    ),
-    Event(
-        id = "5",
-        title = "Webinar: Career in Tech Industry",
-        type = "Webinar",
-        date = "Selasa, 11 November 2025",
-        time = "19:00 - 21:00 WIB",
-        location = "Zoom Meeting",
-        quota = "1000 Peserta",
-        status = "Gratis",
-        posterUrl = "https://i.ibb.co/pjtq3kC/eventposter5.jpg"
+        id = 3,
+        title = "UI/UX Skill Lab",
+        type = "Skill Lab",
+        date = "28 Okt 2025",
+        time = "10:00 - 14:00",
+        location = "Lab Komputer FTI",
+        quota = "50",
+        status = "Aktif",
+        thumbnailResId = R.drawable.event_skill_lab
     )
 )

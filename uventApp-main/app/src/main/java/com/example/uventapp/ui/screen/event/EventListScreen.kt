@@ -24,40 +24,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.uventapp.R
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
-import com.example.uventapp.ui.theme.*
+import com.example.uventapp.ui.theme.DisabledBackground
+import com.example.uventapp.ui.theme.LightBackground
+import com.example.uventapp.ui.theme.PrimaryGreen
+import com.example.uventapp.ui.theme.White
+// Import Event dan dummyEvents dari paket data.model
+import com.example.uventapp.data.model.Event
+import com.example.uventapp.data.model.dummyEvents
 
-data class Event(
-    val id: Int,
-    val title: String,
-    val type: String,
-    val date: String,
-    val time: String,
-    val location: String,
-    val quota: String,
-    val status: String,
-    val thumbnailResId: Int
-)
 
-val dummyEvents = listOf(
-    Event(1, "Business Talkshow", "Talkshow", "16 Okt 2025", "", "Auditorium Unand", "", "", R.drawable.event_talkshow),
-    Event(2, "Seminar Nasional AI", "Seminar", "20 Okt 2025", "", "Convention Hall Unand", "", "", R.drawable.event_seminar),
-    Event(3, "UI/UX Skill Lab", "Skill Lab", "28 Okt 2025", "", "Lab Komputer FTI", "", "", R.drawable.event_skill_lab)
-)
+// --- DEFINISI LOKAL DIHAPUS ---
+// data class Event(...) dan val dummyEvents DIHAPUS dari sini
 
 @Composable
 fun EventListScreen(navController: NavController) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
+
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Semua") }
+    // Gunakan 'dummyEvents' yang diimpor
     var filteredEvents by remember { mutableStateOf(dummyEvents) }
 
-    fun applyFilter() {
-        filteredEvents = dummyEvents.filter {
-            (selectedCategory == "Semua" || it.type.equals(selectedCategory, ignoreCase = true)) &&
-                    it.title.contains(searchText, ignoreCase = true)
+    fun filterEvents(category: String) {
+        filteredEvents = when (category) {
+            "Semua" -> dummyEvents // Gunakan data dummy impor
+            else -> dummyEvents.filter { it.type.equals(category, ignoreCase = true) } // Gunakan data dummy impor
         }
     }
 
@@ -75,14 +68,20 @@ fun EventListScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+
             TextField(
                 value = searchText,
                 onValueChange = {
                     searchText = it
-                    applyFilter()
-                },
+                    filteredEvents = dummyEvents.filter { event ->
+                        event.title.contains(searchText, ignoreCase = true)
+                    }.filter { event ->
+                        selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true)
+                    }
+                }
+                ,
                 placeholder = { Text("Cari Event..", color = Color.Gray) },
-                leadingIcon = { Icon(Icons.Filled.Search, null, tint = Color.Gray) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", tint = Color.Gray) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
@@ -108,33 +107,24 @@ fun EventListScreen(navController: NavController) {
                 items(categories) { category ->
                     CategoryButton(
                         text = category,
-                        isSelected = selectedCategory == category
-                    ) {
-                        selectedCategory = category
-                        applyFilter()
-                    }
+                        isSelected = selectedCategory == category,
+                        onClick = {
+                            selectedCategory = category
+                            filterEvents(category)
+                        }
+                    )
                 }
             }
 
-            if (filteredEvents.isNotEmpty()) {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredEvents) { event ->
-                        EventCard(event) {
-                            navController.navigate("${Screen.DetailEvent.route}/${event.id}")
-                        }
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Tidak ada event ditemukan", color = Color.Gray)
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filteredEvents) { event ->
+                    EventCard(
+                        event = event,
+                        onClick = { navController.navigate("${Screen.DetailEvent}/${event.id}") }
+                    )
                 }
             }
         }
@@ -163,7 +153,7 @@ fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun EventCard(event: Event, onClick: () -> Unit) {
+fun EventCard(event: Event, onClick: () -> Unit) { // 'Event' di sini akan merujuk ke model yang diimpor
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -176,28 +166,27 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val painter = runCatching { painterResource(id = event.thumbnailResId) }.getOrNull()
-            if (painter != null) {
-                Image(
-                    painter = painter,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                )
-            }
+            Image(
+                painter = painterResource(id = event.thumbnailResId),
+                contentDescription = "Event Poster",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
             Spacer(modifier = Modifier.width(12.dp))
+
             Column {
                 Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                 Text(event.type, fontSize = 14.sp, color = PrimaryGreen, modifier = Modifier.padding(bottom = 4.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CalendarToday, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.CalendarToday, contentDescription = "Tanggal", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(event.date, fontSize = 12.sp, color = Color.Gray)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Lokasi", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(event.location, fontSize = 12.sp, color = Color.Gray)
                 }
