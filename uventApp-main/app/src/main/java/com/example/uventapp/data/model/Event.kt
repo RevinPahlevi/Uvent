@@ -14,7 +14,10 @@ data class Event(
     val location: String,
     val quota: String, // Ubah ke String agar konsisten
     val status: String,
-    val thumbnailResId: Int // Gunakan ResId agar konsisten
+    // --- PERBAIKAN UTAMA DI SINI ---
+    val thumbnailResId: Int?, // Dibuat nullable
+    val thumbnailUri: String? = null // Ditambahkan untuk menampung URI poster
+    // ---------------------------------
 )
 
 // Pindahkan dummy data ke sini agar bisa diakses secara global
@@ -28,7 +31,8 @@ val dummyEvents = listOf(
         location = "Auditorium Unand",
         quota = "500",
         status = "Aktif",
-        thumbnailResId = R.drawable.event_talkshow
+        thumbnailResId = R.drawable.event_talkshow, // Data lama tetap pakai ResId
+        thumbnailUri = null // (default)
     ),
     Event(
         id = 2,
@@ -39,7 +43,8 @@ val dummyEvents = listOf(
         location = "Convention Hall Unand",
         quota = "1000",
         status = "Aktif",
-        thumbnailResId = R.drawable.event_seminar
+        thumbnailResId = R.drawable.event_seminar,
+        thumbnailUri = null
     ),
     Event(
         id = 3,
@@ -50,6 +55,7 @@ val dummyEvents = listOf(
         location = "Lab Komputer FTI",
         quota = "50",
         status = "Aktif",
-        thumbnailResId = R.drawable.event_skill_lab
+        thumbnailResId = R.drawable.event_skill_lab,
+        thumbnailUri = null
     )
 )

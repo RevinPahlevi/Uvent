@@ -35,22 +35,18 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Register.route) { RegistrationScreen(navController) }
         composable(Screen.Home.route) { HomeScreen(navController) }
 
-        // --- PERBAIKAN: Mengirim ViewModel ke EventListScreen ---
         composable(Screen.EventList.route) {
             EventListScreen(navController = navController, viewModel = eventViewModel)
         }
-        // ------------------------------------------------------
 
         composable(
             route = Screen.DetailEvent.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            // Kirim ViewModel agar bisa mencari di semua event
             DetailEventScreen(navController = navController, eventId = eventId, viewModel = eventViewModel)
         }
 
-        // --- PERBAIKAN: Mengirim ViewModel ke RegistrationFormScreen ---
         composable(
             route = Screen.RegistrationFormScreen.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType }) // Gunakan Int
@@ -62,15 +58,21 @@ fun NavGraph(navController: NavHostController) {
                 eventId = eventId
             )
         }
-        // -----------------------------------------------------------
 
+        // --- PERBAIKAN: Rute EditRegistration ---
         composable(
             route = Screen.EditRegistration.route,
-            arguments = listOf(navArgument("eventName") { type = NavType.StringType })
+            // Ambil eventId (Int) dari rute
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val eventName = backStackEntry.arguments?.getString("eventName") ?: ""
-            EditRegistrationScreen(navController = navController, eventName = eventName)
+            val eventId = backStackEntry.arguments?.getInt("eventId")
+            EditRegistrationScreen(
+                navController = navController,
+                viewModel = eventViewModel, // Kirim ViewModel
+                eventId = eventId
+            )
         }
+        // ----------------------------------------
 
         composable(
             route = Screen.MyRegisteredEvent.route,
@@ -87,8 +89,6 @@ fun NavGraph(navController: NavHostController) {
                 viewModel = eventViewModel // Kirim ViewModel
             )
         }
-
-        // Rute MyEvents dihapus karena sudah digabung
 
         composable(Screen.AddEvent.route) {
             AddEventScreen(navController = navController, viewModel = eventViewModel)

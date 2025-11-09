@@ -1,5 +1,6 @@
 package com.example.uventapp.ui.screen.registration
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,25 +18,59 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.example.uventapp.data.model.fakultasList
+// --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
+import com.example.uventapp.data.model.Registration
+import com.example.uventapp.data.model.dummyEvents
+import com.example.uventapp.ui.screen.event.EventManagementViewModel
+// -----------------------------
 import com.example.uventapp.ui.components.*
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import kotlinx.coroutines.delay
 
+@SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditRegistrationScreen(navController: NavController, eventName: String) {
-    var name by remember { mutableStateOf("Nama Contoh") }
-    var nim by remember { mutableStateOf("123456789") }
-    var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
-    var selectedJurusan by remember { mutableStateOf("Pilih Jurusan") }
-    var availableJurusan by remember { mutableStateOf(listOf<String>()) }
-    var email by remember { mutableStateOf("contoh@email.com") }
-    var phone by remember { mutableStateOf("08123456789") }
-    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedFileName by remember { mutableStateOf("krs.pdf") }
+fun EditRegistrationScreen(
+    navController: NavController,
+    viewModel: EventManagementViewModel, // Terima ViewModel
+    eventId: Int? // Terima eventId
+) {
+    // --- PENGAMBILAN DATA ---
+    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
+        // Cari di semua list yang mungkin
+        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    }
+    val existingData = remember(eventId) {
+        viewModel.getRegistrationData(eventId ?: -1) // <-- Perbaikan tipe
+    }
+    // ------------------------
+
+    // --- ISI STATE DARI VIEWMODEL, BUKAN DUMMY ---
+    var name by remember { mutableStateOf(existingData?.name ?: "") }
+    var nim by remember { mutableStateOf(existingData?.nim ?: "") }
+    var selectedFakultas by remember { mutableStateOf(existingData?.fakultas ?: "Pilih Fakultas") }
+    var selectedJurusan by remember { mutableStateOf(existingData?.jurusan ?: "Pilih Jurusan") }
+
+    // Logika untuk mengisi daftar jurusan berdasarkan fakultas yang ada
+    var availableJurusan by remember(selectedFakultas) { // <- Tambah key 'selectedFakultas'
+        mutableStateOf(fakultasList.find { it.nama == selectedFakultas }?.jurusan ?: emptyList())
+    }
+
+    var email by remember { mutableStateOf(existingData?.email ?: "") }
+    var phone by remember { mutableStateOf(existingData?.phone ?: "") }
+
+    // Logika untuk file KRS
+    var selectedFileUri by remember { mutableStateOf(existingData?.krsUri?.toUri()) }
+    var selectedFileName by remember(selectedFileUri) {
+        mutableStateOf(
+            selectedFileUri?.lastPathSegment?.substringAfterLast("/") ?: "File KRS Sebelumnya"
+        )
+    }
+    // ----------------------------------------------
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
@@ -46,6 +81,7 @@ fun EditRegistrationScreen(navController: NavController, eventName: String) {
                 phone.isNotEmpty() &&
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan"
+        // (Kita anggap KRS tidak wajib di-upload ulang)
     }
 
     var showSuccessBanner by remember { mutableStateOf(false) }
@@ -55,7 +91,7 @@ fun EditRegistrationScreen(navController: NavController, eventName: String) {
     ) { uri: Uri? ->
         uri?.let {
             selectedFileUri = it
-            selectedFileName = it.lastPathSegment?.substringAfterLast("/") ?: "File dipilih"
+            // Nama file diperbarui oleh state 'remember(selectedFileUri)' di atas
         }
     }
 
@@ -73,76 +109,101 @@ fun EditRegistrationScreen(navController: NavController, eventName: String) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (showSuccessBanner) {
-                    RegistrationSuccessBanner(
-                        eventName = eventName,
-                        successText = "Pendaftaran Event Diperbarui"
-                    )
+            // Tampilkan error jika data tidak ditemukan
+            if (existingData == null || event == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Data pendaftaran tidak ditemukan.", color = Color.Red)
                 }
-
-                FormInputField(
-                    label = "Nama Lengkap",
-                    value = name,
-                    onValueChange = { name = it }
-                )
-                FormInputField(
-                    label = "NIM",
-                    value = nim,
-                    onValueChange = { nim = it }
-                )
-                DropdownInput(
-                    label = "Fakultas",
-                    selectedOption = selectedFakultas,
-                    options = fakultasOptions,
-                    onOptionSelected = { newFakultas ->
-                        selectedFakultas = newFakultas
-                        selectedJurusan = "Pilih Jurusan"
-                        availableJurusan = fakultasList.find { it.nama == newFakultas }?.jurusan ?: emptyList()
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (showSuccessBanner) {
+                        RegistrationSuccessBanner(
+                            // Tampilkan nama event yang benar
+                            eventName = event.title,
+                            successText = "Pendaftaran Event Diperbarui"
+                        )
                     }
-                )
-                DropdownInput(
-                    label = "Jurusan",
-                    selectedOption = selectedJurusan,
-                    options = if (availableJurusan.isEmpty()) listOf("Pilih Jurusan") else availableJurusan,
-                    onOptionSelected = { selectedJurusan = it },
-                    enabled = availableJurusan.isNotEmpty()
-                )
-                FormInputField(
-                    label = "Email",
-                    value = email,
-                    onValueChange = { email = it }
-                )
-                FormInputField(
-                    label = "No Telepon",
-                    value = phone,
-                    onValueChange = { phone = it }
-                )
-                UploadKRSInput(
-                    label = "KRS",
-                    fileName = selectedFileName,
-                    onUploadClick = { filePickerLauncher.launch("application/pdf") }
-                )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    // Gunakan FormInputField dari RegistrationFormScreen (atau definisikan di components)
+                    FormInputField(
+                        label = "Nama Lengkap",
+                        value = name,
+                        onValueChange = { name = it }
+                    )
+                    FormInputField(
+                        label = "NIM",
+                        value = nim,
+                        onValueChange = { nim = it }
+                    )
+                    DropdownInput(
+                        label = "Fakultas",
+                        selectedOption = selectedFakultas,
+                        options = fakultasOptions,
+                        onOptionSelected = { newFakultas ->
+                            selectedFakultas = newFakultas
+                            selectedJurusan = "Pilih Jurusan"
+                            availableJurusan =
+                                fakultasList.find { it.nama == newFakultas }?.jurusan ?: emptyList()
+                        }
+                    )
+                    DropdownInput(
+                        label = "Jurusan",
+                        selectedOption = selectedJurusan,
+                        options = if (availableJurusan.isEmpty()) listOf(selectedJurusan) else (listOf("Pilih Jurusan") + availableJurusan),
+                        onOptionSelected = { selectedJurusan = it },
+                        enabled = availableJurusan.isNotEmpty()
+                    )
+                    FormInputField(
+                        label = "Email",
+                        value = email,
+                        onValueChange = { email = it }
+                    )
+                    FormInputField(
+                        label = "No Telepon",
+                        value = phone,
+                        onValueChange = { phone = it }
+                    )
+                    UploadKRSInput(
+                        label = "KRS (Klik untuk mengganti)",
+                        fileName = selectedFileName,
+                        onUploadClick = { filePickerLauncher.launch("application/pdf") }
+                    )
 
-                PrimaryButton(
-                    text = "Simpan Perubahan",
-                    onClick = {
-                        if (isFormValid) showSuccessBanner = true
-                    },
-                    enabled = isFormValid,
-                    modifier = Modifier.fillMaxWidth(0.6f)
-                )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(40.dp))
+                    PrimaryButton(
+                        text = "Simpan Perubahan",
+                        onClick = {
+                            if (isFormValid && eventId != null) {
+                                // --- SIMPAN DATA BARU KE VIEWMODEL ---
+                                val updatedData = Registration( // <-- Perbaikan tipe
+                                    eventId = eventId,
+                                    name = name,
+                                    nim = nim,
+                                    fakultas = selectedFakultas,
+                                    jurusan = selectedJurusan,
+                                    email = email,
+                                    phone = phone,
+                                    krsUri = selectedFileUri.toString()
+                                )
+                                viewModel.updateRegistrationData(eventId, updatedData) // <-- Perbaikan tipe
+                                showSuccessBanner = true
+                                // -------------------------------------
+                            }
+                        },
+                        enabled = isFormValid,
+                        modifier = Modifier.fillMaxWidth(0.6f)
+                    )
+
+                    Spacer(modifier = Modifier.height(40.dp))
+                }
             }
 
             // Auto-close success banner dan kembali ke layar sebelumnya

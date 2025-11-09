@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext // Import Coil
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
+import coil.compose.AsyncImage // Import Coil
+import coil.request.ImageRequest // Import Coil
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event // Import dari data.model
 import com.example.uventapp.ui.components.BottomNavBar
@@ -52,25 +55,6 @@ import com.example.uventapp.ui.screen.event.EventCard
 import com.example.uventapp.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// Data class tiruan untuk UI (Event Diikuti)
-data class MyEvent(
-    val id: Int,
-    val title: String,
-    val type: String,
-    val date: String,
-    val location: String,
-    val status: String, // "Terdaftar", "Selesai", "Berakhir", "Dibatalkan"
-    val posterResId: Int,
-    val review: String? = null
-)
-
-// Data tiruan (Event Diikuti)
-val dummyMyEvents = listOf(
-    MyEvent(1, "Business Talkshow", "Talkshow", "Kamis, 31/12/2025", "Auditorium Unand", "Terdaftar", R.drawable.event_talkshow),
-    MyEvent(2, "Workshop Social Media Marketing", "Workshop", "Rabu, 04/05/2025", "Auditorium Unand", "Berakhir", R.drawable.event_seminar, "Sangat bermanfaat!"),
-    MyEvent(3, "UI/UX Skill Lab", "Skill Lab", "28 Okt 2025", "Lab Komputer FTI", "Selesai", R.drawable.event_skill_lab)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,8 +73,10 @@ fun MyRegisteredEventScreen(
     // ---------------------------------
 
     // --- LOGIKA DARI MyRegisteredEventScreen ---
-    val followedEvents = remember { mutableStateListOf(*dummyMyEvents.toTypedArray()) }
-    var showCancelDialog by remember { mutableStateOf<MyEvent?>(null) }
+    val followedEvents by remember(viewModel.followedEvents) {
+        derivedStateOf { viewModel.followedEvents }
+    }
+    var showCancelDialog by remember { mutableStateOf<Event?>(null) } // Ganti ke tipe Event
     var showSuccessBanner by remember { mutableStateOf<String?>(null) }
     // ---------------------------------------
 
@@ -271,14 +257,16 @@ fun MyRegisteredEventScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // PERBAIKAN: Gunakan list dari ViewModel
                         if (followedEvents.any { it.status == "Selesai" }) {
                             item {
                                 FeedbackBanner()
                             }
                         }
+                        // PERBAIKAN: Gunakan list dari ViewModel
                         items(followedEvents, key = { it.id }) { event ->
                             MyEventCard(
-                                event = event,
+                                event = event, // Kirim objek Event
                                 navController = navController,
                                 onCancelClick = { showCancelDialog = event },
                                 onReviewClick = { /* TODO */ }
@@ -304,7 +292,9 @@ fun MyRegisteredEventScreen(
                     onDismiss = { showCancelDialog = null },
                     onConfirm = {
                         showSuccessBanner = eventToCancel.title
-                        followedEvents.remove(eventToCancel)
+                        // TODO: Anda perlu menambahkan fungsi di ViewModel untuk
+                        // menghapus event dari _followedEvents
+                        // viewModel.unfollowEvent(eventToCancel.id)
                         showCancelDialog = null
                     }
                 )
@@ -382,7 +372,7 @@ fun FeedbackBanner() {
 
 @Composable
 fun MyEventCard(
-    event: MyEvent,
+    event: Event, // PERBAIKAN: Ganti dari MyEvent ke Event
     navController: NavController,
     onCancelClick: () -> Unit,
     onReviewClick: () -> Unit
@@ -398,14 +388,21 @@ fun MyEventCard(
         Box {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
-                    Image(
-                        painter = painterResource(id = try { event.posterResId } catch (_: Exception) { R.drawable.placeholder_poster }),
-                        contentDescription = event.title,
+                    // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
+                            .crossfade(true)
+                            .build(),
+                        placeholder = painterResource(R.drawable.placeholder_poster),
+                        contentDescription = "Event Poster",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(60.dp)
                             .clip(RoundedCornerShape(8.dp))
                     )
+                    // ----------------------------------------
+
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
@@ -422,17 +419,30 @@ fun MyEventCard(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (event.status == "Terdaftar") {
-                        IconButton(
+                    // PERBAIKAN: Sesuaikan logika status
+                    if (event.status == "Aktif" || event.status == "Terdaftar" || event.status == "Baru") {
+
+                        // --- PERBAIKAN UNTUK REQUEST 1 ---
+                        // Ganti IconButton menjadi Button agar ukurannya sama
+                        Button(
                             onClick = {
-                                navController.navigate(Screen.EditRegistration.createRoute(event.title))
+                                navController.navigate(Screen.EditRegistration.createRoute(event.id))
                             },
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(PrimaryGreen, RoundedCornerShape(8.dp))
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                            // Terapkan modifier & padding yang sama dengan tombol "Batal"
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = White, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = White,
+                                modifier = Modifier.size(16.dp) // Ukuran ikon tetap
+                            )
                         }
+                        // ---------------------------------
+
                         Spacer(Modifier.width(8.dp))
                         Button(
                             onClick = onCancelClick,
@@ -469,6 +479,8 @@ fun MyEventCard(
                             "Selesai" -> PrimaryGreen
                             "Berakhir" -> Color(0xFFE53935)
                             "Terdaftar" -> Color(0xFF1E88E5) // Biru
+                            "Aktif" -> Color(0xFF1E88E5) // Biru
+                            "Baru" -> Color(0xFF1E88E5) // Biru
                             else -> Color.Gray
                         },
                         shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp)
@@ -518,54 +530,97 @@ fun EventInfoRow(icon: ImageVector, text: String) {
     }
 }
 
+// --- PERBAIKAN UNTUK REQUEST 2 ---
+// Mengganti AlertDialog dengan Dialog Kustom
 @Composable
 fun CancelConfirmationDialog(
-    eventName: String,
+    eventName: String, // eventName tidak dipakai di UI baru, tapi kita biarkan
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(16.dp),
-        containerColor = White,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = White,
+    // Gunakan Dialog standar untuk overlay
+    Dialog(onDismissRequest = onDismiss) {
+        // Card kustom sesuai gambar
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = White),
+            modifier = Modifier.width(300.dp) // Beri lebar tetap agar tidak terlalu lebar
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Ikon X di lingkaran hijau
+                Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .background(PrimaryGreen, CircleShape)
-                        .padding(4.dp)
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryGreen),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close, // Ikon 'X'
+                        contentDescription = null,
+                        tint = White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                // 2. Teks Judul
+                Text(
+                    text = "Batalkan Pendaftaran?",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
                 )
-                Spacer(Modifier.width(8.dp))
-                Text("Batalkan Pendaftaran?", fontWeight = FontWeight.Bold, color = Color.Black)
-            }
-        },
-        text = {
-            Text("Apakah anda yakin ingin membatalkan pesanan?", color = Color.DarkGray, fontSize = 14.sp)
-        },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Ya")
-            }
-        },
-        dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Tidak")
+
+                // 3. Teks Subjudul
+                Text(
+                    text = "Apakah anda yakin ingin membatalkan pesanan?",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center, // Teks di tengah
+                    color = Color.DarkGray
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 4. Tombol Ya / Tidak
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Tombol Ya (Hijau)
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryGreen,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Ya")
+                    }
+
+                    // Tombol Tidak (Merah)
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935), // Warna merah
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Tidak")
+                    }
+                }
             }
         }
-    )
+    }
 }
+// ------------------------------------
 
 @Composable
 fun CancelSuccessBanner(

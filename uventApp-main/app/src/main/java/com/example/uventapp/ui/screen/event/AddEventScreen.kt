@@ -1,5 +1,6 @@
 package com.example.uventapp.ui.screen.event
 
+import android.app.DatePickerDialog
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -7,9 +8,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
@@ -24,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -35,7 +39,11 @@ import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.ui.theme.LightBackground
+// --- IMPORT DUMMY EVENTS DARI LOKASI BARU ---
+import com.example.uventapp.data.model.dummyEvents
+import java.util.Calendar // Import untuk Kalender
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEventScreen(navController: NavController, viewModel: EventManagementViewModel) {
     // State untuk menyimpan data form
@@ -53,6 +61,31 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
     ) { uri: Uri? ->
         imageUri = uri
     }
+
+    // --- PERSIAPAN UNTUK REQUEST 1 (KALENDER) ---
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year: Int, month: Int, dayOfMonth: Int ->
+            // Format tanggal: DD/MM/YYYY (Month + 1 karena indexnya 0)
+            tanggal = "$dayOfMonth/${month + 1}/$year"
+            showDatePicker = false
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+
+    // Tampilkan dialog jika showDatePicker true
+    if (showDatePicker) {
+        datePickerDialog.show()
+        // Handle jika pengguna menekan "Cancel"
+        datePickerDialog.setOnDismissListener { showDatePicker = false }
+    }
+    // ---------------------------------------------
 
     Scaffold(
         topBar = {
@@ -77,23 +110,37 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
             // 2. Input Fields
             FormInputTextField(label = "Judul Event", value = judul, onValueChange = { judul = it })
             FormInputTextField(label = "Jenis Event", value = jenis, onValueChange = { jenis = it })
+
+            // --- PERUBAHAN UNTUK REQUEST 1 (KALENDER) ---
             FormInputTextField(
                 label = "Tanggal Event",
                 value = tanggal,
                 onValueChange = { tanggal = it },
                 placeholder = "DD/MM/YYYY",
-                trailingIcon = { Icon(Icons.Filled.CalendarToday, "Kalender") }
+                trailingIcon = { Icon(Icons.Filled.CalendarToday, "Kalender") },
+                readOnly = true, // Kunci input manual
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null // Hilangkan efek ripple
+                ) {
+                    showDatePicker = true // Tampilkan dialog saat diklik
+                }
             )
+            // ------------------------------------------
+
             FormInputTextField(label = "Waktu", value = waktu, onValueChange = { waktu = it }, placeholder = "09:00 - 12:00")
             FormInputTextField(label = "Lokasi/Platform", value = lokasi, onValueChange = { lokasi = it })
-            FormInputTextField(label = "Kuota", value = kuota, onValueChange = { kuota = it })
+            FormInputTextField(label = "Kuota", value = kuota, onValueChange = { kuota = it }, keyboardType = KeyboardType.Number)
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // 3. Tombol Simpan
             PrimaryButton(text = "Simpan Event", onClick = {
-                // Buat ID unik sementara (dalam aplikasi nyata, ini dari database)
-                val newId = (viewModel.createdEvents.value.maxOfOrNull { it.id } ?: 0) + 1
+                // --- PERBAIKAN LOGIKA ID UNIK ---
+                val maxDummyId = dummyEvents.maxOfOrNull { it.id } ?: 0
+                val maxCreatedId = viewModel.createdEvents.value.maxOfOrNull { it.id } ?: 0
+                val newId = maxOf(maxDummyId, maxCreatedId) + 1
+                // --------------------------------
 
                 // Buat objek Event baru
                 val newEvent = Event(
@@ -105,9 +152,13 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                     location = lokasi,
                     quota = kuota,
                     status = "Baru", // Status default
-                    // Jika ada gambar, gunakan. Jika tidak, pakai placeholder
-                    // (Logika ini perlu disesuaikan jika gambar disimpan di server)
-                    thumbnailResId = R.drawable.placeholder_poster
+
+                    // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
+                    // Jika imageUri null, pakai placeholder. Jika tidak, set ResId ke null
+                    thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
+                    // Simpan Uri sebagai String
+                    thumbnailUri = imageUri?.toString()
+                    // ---------------------------------------
                 )
 
                 viewModel.addEvent(newEvent)
@@ -166,6 +217,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormInputTextField(
     label: String,
@@ -173,8 +225,11 @@ private fun FormInputTextField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String? = null,
-    trailingIcon: @Composable (() -> Unit)? = null
+    trailingIcon: @Composable (() -> Unit)? = null,
+    readOnly: Boolean = false, // Tambahan untuk Request 1
+    keyboardType: KeyboardType = KeyboardType.Text // Tambahan untuk Kuota
 ) {
+
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
         OutlinedTextField(
@@ -184,8 +239,13 @@ private fun FormInputTextField(
             placeholder = { if (placeholder != null) Text(placeholder) },
             trailingIcon = trailingIcon,
             shape = RoundedCornerShape(8.dp),
-            singleLine = true
+            singleLine = true,
+            readOnly = readOnly, // Terapkan readOnly
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType) // Terapkan keyboardType
+
+            // --- PERBAIKAN: BLOK 'colors' DIHAPUS ---
+            // Blok ini yang menyebabkan error "Unresolved reference"
+            //
         )
     }
 }
-

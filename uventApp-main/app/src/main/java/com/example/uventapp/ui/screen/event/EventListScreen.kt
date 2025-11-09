@@ -19,11 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext // Import Coil
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage // Import Coil
+import coil.request.ImageRequest // Import Coil
 import com.example.uventapp.R // Pastikan R di-import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
@@ -45,11 +48,11 @@ fun EventListScreen(
     val createdEvents by viewModel.createdEvents
     // Gabungkan 2 daftar & hapus duplikat (jika ada, berdasarkan ID)
     val allEvents = remember(createdEvents, dummyEvents) {
-        (createdEvents + dummyEvents).distinctBy { it.id }
+        (dummyEvents + createdEvents).distinctBy { it.id } // <-- Perbaikan urutan
     }
     // ------------------------------------------------------------
 
-    var filteredEvents by remember(allEvents) { mutableStateOf(allEvents) }
+    var filteredEvents by remember { mutableStateOf(allEvents) } // Inisialisasi awal
 
     // Fungsi filter yang diperbarui untuk mencari dari 'allEvents'
     fun applyFilter() {
@@ -178,15 +181,23 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                // Menggunakan try-catch untuk jaga-jaga jika thumbnailResId salah
-                painter = painterResource(id = try { event.thumbnailResId } catch (_: Exception) { R.drawable.placeholder_poster }),
+            // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
+            // Gunakan AsyncImage (Coil) untuk memuat dari URI atau ResId
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    // Logika: Coba URI dulu, lalu ResId, lalu placeholder
+                    .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
+                    .crossfade(true)
+                    .build(),
+                placeholder = painterResource(R.drawable.placeholder_poster),
                 contentDescription = "Event Poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp))
             )
+            // ----------------------------------------
+
             Spacer(modifier = Modifier.width(12.dp))
 
             Column {

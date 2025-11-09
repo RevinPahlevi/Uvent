@@ -15,6 +15,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -25,11 +27,13 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 // Import ViewModel dan data
 import com.example.uventapp.data.model.dummyEvents
+// --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
+import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.theme.PrimaryGreen
 
 // ---------------------------
-// Helper Composables (Tetap sama)
+// Helper Composables (JANGAN HAPUS)
 // ---------------------------
 
 @Composable
@@ -63,7 +67,7 @@ fun DropdownInput(
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    modifier = Modifier.clickable { expanded = !expanded }
+                    modifier = Modifier.clickable { if (enabled) expanded = !expanded }
                 )
             },
             modifier = Modifier.fillMaxWidth()
@@ -120,7 +124,7 @@ fun RegistrationFormScreen(
     eventId: Int? // Menerima eventId (Int)
 ) {
     // Cari event berdasarkan ID dari semua event yang ada
-    val eventToRegister = remember(eventId, viewModel.createdEvents.value) {
+    val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
         (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
     }
 
@@ -225,10 +229,22 @@ fun RegistrationFormScreen(
                 onClick = {
                     if (isFormValid) {
                         // --- PERBAIKAN LOGIKA PENDAFTARAN ---
-                        // 1. Tambahkan event ini ke daftar 'followedEvents' di ViewModel
-                        viewModel.addFollowedEvent(eventToRegister!!)
+                        // 1. Buat objek Registration
+                        val registrationData = Registration(
+                            eventId = eventToRegister!!.id,
+                            name = name,
+                            nim = nim,
+                            fakultas = selectedFakultas,
+                            jurusan = selectedJurusan,
+                            email = email,
+                            phone = phone,
+                            krsUri = selectedFileUri.toString()
+                        )
 
-                        // 2. Navigasi ke "Event Saya" dan kirim nama event untuk Snackbar
+                        // 2. Kirim event DAN data pendaftaran ke ViewModel
+                        viewModel.registerForEvent(eventToRegister, registrationData)
+
+                        // 3. Navigasi ke "Event Saya" dan kirim nama event untuk Snackbar
                         navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
                             popUpTo(navController.graph.startDestinationId) {
                                 inclusive = false

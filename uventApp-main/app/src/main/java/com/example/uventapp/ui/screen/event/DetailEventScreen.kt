@@ -7,16 +7,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext // Import Coil
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage // Import Coil
+import coil.request.ImageRequest // Import Coil
+import com.example.uventapp.R
 // PERBAIKAN: Impor Event dan dummyEvents yang benar
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.dummyEvents
@@ -26,12 +31,20 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
+// TAMBAHKAN: Import ViewModel
+import com.example.uventapp.ui.screen.event.EventManagementViewModel
 
 @Composable
-fun DetailEventScreen(navController: NavController, eventId: Int?) { // PERBAIKAN: eventId sekarang Int?
+fun DetailEventScreen(
+    navController: NavController,
+    eventId: Int?,
+    viewModel: EventManagementViewModel // PERBAIKAN: Terima ViewModel
+) {
 
-    // PERBAIKAN: Cari event yang benar dari daftar dummyEvents
-    val event = dummyEvents.find { it.id == eventId }
+    // PERBAIKAN: Cari event dari gabungan dummyEvents dan event buatan di ViewModel
+    val event = remember(eventId, viewModel.createdEvents.value) {
+        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    }
 
     Scaffold(
         topBar = {
@@ -58,15 +71,23 @@ fun DetailEventScreen(navController: NavController, eventId: Int?) { // PERBAIKA
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Banner Event
-                        Image(painter = painterResource(id = event.thumbnailResId), // Gunakan data dari event yang ditemukan
+                        // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
+                        // Banner Event (Gunakan AsyncImage)
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
+                                .crossfade(true)
+                                .build(),
+                            placeholder = painterResource(R.drawable.placeholder_poster),
                             contentDescription = "Event Banner",
-                            contentScale = ContentScale.Crop, // Diubah menjadi Crop agar lebih pas
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(200.dp) // Beri tinggi tetap
                                 .clip(RoundedCornerShape(8.dp))
                         )
+                        // ---------------------------------------
+
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Tabel Detail Event
@@ -79,8 +100,8 @@ fun DetailEventScreen(navController: NavController, eventId: Int?) { // PERBAIKA
                             text = "Daftar Sekarang",
                             onClick = {
                                 // --- PERBAIKAN ERROR ---
-                                // Nama rute yang benar adalah RegistrationFormScreen
-                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.title))
+                                // Navigasi menggunakan event.id (Int) sesuai perbaikan di Screen.kt
+                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
                             },
                         )
                     }
