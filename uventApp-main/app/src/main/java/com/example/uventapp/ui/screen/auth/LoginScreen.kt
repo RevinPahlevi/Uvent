@@ -33,6 +33,10 @@ import com.example.uventapp.ui.theme.White
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+// --- PERBAIKAN: TAMBAHKAN IMPORT YANG HILANG ---
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+// ---------------------------------------------
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -47,6 +51,36 @@ fun LoginScreen(navController: NavController) {
     fun startLogin() {
         isLoading = true
         errorMessage = null
+
+        // --- PERBAIKAN: LOGIN DEFAULT (HARDCODED) ---
+        // Email & Password ini sekarang dijadikan "kunci"
+        val defaultEmail = "aldi@gmail.com"
+        val defaultPassword = "aldi123"
+
+        // Hapus delay jika ada, atau tambahkan delay singkat untuk simulasi
+        kotlinx.coroutines.MainScope().launch {
+            delay(500) // Simulasi loading 0.5 detik
+
+            // Logika bypass: Cek apakah input cocok dengan data default
+            if (email == defaultEmail && password == defaultPassword) {
+                Log.d("LoginBypass", "Login default berhasil.")
+                // Navigasi ke Home
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            } else {
+                // Jika tidak cocok, tampilkan error
+                Log.d("LoginBypass", "Email atau password salah.")
+                errorMessage = "Email atau password salah."
+            }
+            isLoading = false // Selesaikan loading
+        }
+        // ----------------------------------------
+
+
+        /*
+        // --- KODE API ASLI DIKOMENTARI SEMENTARA ---
+        // (Anda bisa mengaktifkan ini kembali jika Mock API sudah diperbaiki)
 
         val request = LoginRequest(email = email, password = password)
 
@@ -80,6 +114,7 @@ fun LoginScreen(navController: NavController) {
                 errorMessage = "Gagal terhubung ke server. Periksa koneksi internet."
             }
         })
+        */
     }
 
     Box(
@@ -147,7 +182,7 @@ fun LoginScreen(navController: NavController) {
                         text = if (isLoading) "LOADING..." else "MASUK",
                         onClick = {
                             if (!isLoading) {
-                                startLogin() // Panggil fungsi API
+                                startLogin() // Panggil fungsi (yang sudah dimodifikasi)
                             }
                         },
                         enabled = !isLoading // Nonaktifkan tombol saat loading

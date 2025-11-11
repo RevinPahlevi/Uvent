@@ -37,20 +37,18 @@ import com.example.uventapp.data.model.dummyEvents
 @Composable
 fun EventListScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel // PERBAIKAN: Menerima ViewModel
+    viewModel: EventManagementViewModel
 ) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
 
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Semua") }
 
-    // --- PERBAIKAN: Menggabungkan event dummy dengan event buatan ---
     val createdEvents by viewModel.createdEvents
     // Gabungkan 2 daftar & hapus duplikat (jika ada, berdasarkan ID)
     val allEvents = remember(createdEvents, dummyEvents) {
-        (dummyEvents + createdEvents).distinctBy { it.id } // <-- Perbaikan urutan
+        (dummyEvents + createdEvents).distinctBy { it.id }
     }
-    // ------------------------------------------------------------
 
     var filteredEvents by remember { mutableStateOf(allEvents) } // Inisialisasi awal
 
@@ -86,7 +84,6 @@ fun EventListScreen(
                 value = searchText,
                 onValueChange = {
                     searchText = it
-                    // applyFilter() dipanggil oleh LaunchedEffect
                 },
                 placeholder = { Text("Cari Event..", color = Color.Gray) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", tint = Color.Gray) },
@@ -118,7 +115,6 @@ fun EventListScreen(
                         isSelected = selectedCategory == category,
                         onClick = {
                             selectedCategory = category
-                            // applyFilter() dipanggil oleh LaunchedEffect
                         }
                     )
                 }
@@ -181,11 +177,8 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
-            // Gunakan AsyncImage (Coil) untuk memuat dari URI atau ResId
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    // Logika: Coba URI dulu, lalu ResId, lalu placeholder
                     .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
                     .crossfade(true)
                     .build(),
@@ -196,7 +189,6 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp))
             )
-            // ----------------------------------------
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -207,12 +199,15 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.CalendarToday, contentDescription = "Tanggal", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(event.date, fontSize = 12.sp, color = Color.Gray)
+                    Text("${event.date} - ${event.timeStart}", fontSize = 12.sp, color = Color.Gray)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.LocationOn, contentDescription = "Lokasi", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(event.location, fontSize = 12.sp, color = Color.Gray)
+                    // --- PERBAIKAN DI SINI ---
+                    // Ganti dari event.location menjadi event.locationDetail
+                    Text(event.locationDetail, fontSize = 12.sp, color = Color.Gray)
+                    // -------------------------
                 }
             }
         }

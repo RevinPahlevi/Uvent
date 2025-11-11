@@ -22,7 +22,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage // Import Coil
 import coil.request.ImageRequest // Import Coil
 import com.example.uventapp.R
-// PERBAIKAN: Impor Event dan dummyEvents yang benar
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.dummyEvents
 import com.example.uventapp.ui.components.CustomAppBar
@@ -31,18 +30,15 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
-// TAMBAHKAN: Import ViewModel
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 
 @Composable
 fun DetailEventScreen(
     navController: NavController,
     eventId: Int?,
-    viewModel: EventManagementViewModel // PERBAIKAN: Terima ViewModel
+    viewModel: EventManagementViewModel
 ) {
-
-    // PERBAIKAN: Cari event dari gabungan dummyEvents dan event buatan di ViewModel
-    val event = remember(eventId, viewModel.createdEvents.value) {
+    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
         (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
     }
 
@@ -62,7 +58,6 @@ fun DetailEventScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // PERBAIKAN: Cek jika event ditemukan
             if (event != null) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -71,8 +66,6 @@ fun DetailEventScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
-                        // Banner Event (Gunakan AsyncImage)
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
@@ -83,31 +76,25 @@ fun DetailEventScreen(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp) // Beri tinggi tetap
+                                .height(200.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
-                        // ---------------------------------------
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Tabel Detail Event
-                        EventDetailTable(event = event) // Gunakan data dari event yang ditemukan
+                        EventDetailTable(event = event) // <-- PERBAIKAN DI SINI
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Tombol Daftar Sekarang
                         PrimaryButton(
                             text = "Daftar Sekarang",
                             onClick = {
-                                // --- PERBAIKAN ERROR ---
-                                // Navigasi menggunakan event.id (Int) sesuai perbaikan di Screen.kt
                                 navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
                             },
                         )
                     }
                 }
             } else {
-                // Tampilan jika event tidak ditemukan
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Event tidak ditemukan.")
                 }
@@ -117,20 +104,22 @@ fun DetailEventScreen(
 }
 
 @Composable
-fun EventDetailTable(event: Event) { // Tipe 'Event' sekarang jelas
+fun EventDetailTable(event: Event) {
+    // --- PERBAIKAN: Perbarui daftar detail ---
     val details = listOf(
         "Judul Event" to event.title,
         "Jenis Event" to event.type,
         "Tanggal" to event.date,
-        "Waktu" to event.time,
-        "Lokasi/Platform" to event.location,
-        "Kuota" to event.quota, // Kuota sudah String di model baru
+        "Waktu Mulai" to event.timeStart,
+        "Waktu Selesai" to event.timeEnd,
+        "Tipe Lokasi" to event.platformType, // <-- BARU
+        "Lokasi/Link" to event.locationDetail, // <-- BARU
+        "Kuota" to event.quota,
         "Status" to event.status
     )
+    // ----------------------------------------
 
-    // Header (kolom kiri) dan Nilai (kolom kanan)
     Row(modifier = Modifier.fillMaxWidth()) {
-        // Kolom Label
         Column(modifier = Modifier.width(120.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             details.forEach { (label, _) ->
                 Text(
@@ -142,7 +131,6 @@ fun EventDetailTable(event: Event) { // Tipe 'Event' sekarang jelas
             }
         }
 
-        // Kolom Nilai
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             details.forEach { (_, value) ->
                 Row {

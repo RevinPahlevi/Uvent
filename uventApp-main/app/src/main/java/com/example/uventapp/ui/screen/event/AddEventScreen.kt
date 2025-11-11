@@ -1,6 +1,7 @@
 package com.example.uventapp.ui.screen.event
 
 import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,7 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.MutableInteractionSource // Import
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.KeyboardArrowDown // Import Ikon Dropdown
+import androidx.compose.material.icons.filled.Schedule // Import ikon jam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,10 +51,20 @@ import java.util.Calendar // Import untuk Kalender
 fun AddEventScreen(navController: NavController, viewModel: EventManagementViewModel) {
     // State untuk menyimpan data form
     var judul by remember { mutableStateOf("") }
-    var jenis by remember { mutableStateOf("") }
+
+    var jenis by remember { mutableStateOf("Pilih Jenis Event") }
+    val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
+
     var tanggal by remember { mutableStateOf("") }
-    var waktu by remember { mutableStateOf("") }
-    var lokasi by remember { mutableStateOf("") }
+    var waktuMulai by remember { mutableStateOf("") }
+    var waktuSelesai by remember { mutableStateOf("") }
+
+    // --- PERBAIKAN: State untuk Lokasi ---
+    var platformType by remember { mutableStateOf("Pilih Tipe Lokasi") }
+    val platformOptions = listOf("Offline", "Online")
+    var locationDetail by remember { mutableStateOf("") }
+    // ----------------------------------
+
     var kuota by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -62,7 +75,7 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         imageUri = uri
     }
 
-    // --- PERSIAPAN UNTUK REQUEST 1 (KALENDER) ---
+    // --- KALENDER ---
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     var showDatePicker by remember { mutableStateOf(false) }
@@ -70,7 +83,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year: Int, month: Int, dayOfMonth: Int ->
-            // Format tanggal: DD/MM/YYYY (Month + 1 karena indexnya 0)
             tanggal = "$dayOfMonth/${month + 1}/$year"
             showDatePicker = false
         },
@@ -79,13 +91,36 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    // Tampilkan dialog jika showDatePicker true
     if (showDatePicker) {
         datePickerDialog.show()
-        // Handle jika pengguna menekan "Cancel"
         datePickerDialog.setOnDismissListener { showDatePicker = false }
     }
-    // ---------------------------------------------
+
+    // --- TIME PICKER (BARU) ---
+    var showTimePicker by remember { mutableStateOf(false) }
+    var isPickingStartTime by remember { mutableStateOf(true) }
+
+    val timePickerDialog = TimePickerDialog(
+        context,
+        { _, hourOfDay: Int, minute: Int ->
+            val formattedTime = String.format("%02d:%02d", hourOfDay, minute) // Format HH:mm
+            if (isPickingStartTime) {
+                waktuMulai = formattedTime
+            } else {
+                waktuSelesai = formattedTime
+            }
+            showTimePicker = false
+        },
+        calendar.get(Calendar.HOUR_OF_DAY),
+        calendar.get(Calendar.MINUTE),
+        true // true untuk format 24 jam
+    )
+
+    if (showTimePicker) {
+        timePickerDialog.show()
+        timePickerDialog.setOnDismissListener { showTimePicker = false }
+    }
+    // ---------------------------
 
     Scaffold(
         topBar = {
@@ -100,69 +135,120 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Poster Event (Upload)
             Text("Poster Event", fontWeight = FontWeight.SemiBold)
             PosterUploadBox(
                 imageUri = imageUri,
                 onClick = { galleryLauncher.launch("image/*") }
             )
 
-            // 2. Input Fields
             FormInputTextField(label = "Judul Event", value = judul, onValueChange = { judul = it })
-            FormInputTextField(label = "Jenis Event", value = jenis, onValueChange = { jenis = it })
 
-            // --- PERUBAHAN UNTUK REQUEST 1 (KALENDER) ---
+            FormDropdownField(
+                label = "Jenis Event",
+                selectedValue = jenis,
+                options = jenisEventOptions,
+                onOptionSelected = { jenis = it }
+            )
+
             FormInputTextField(
                 label = "Tanggal Event",
                 value = tanggal,
-                onValueChange = { tanggal = it },
+                onValueChange = { },
                 placeholder = "DD/MM/YYYY",
-                trailingIcon = { Icon(Icons.Filled.CalendarToday, "Kalender") },
-                readOnly = true, // Kunci input manual
-                modifier = Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null // Hilangkan efek ripple
-                ) {
-                    showDatePicker = true // Tampilkan dialog saat diklik
-                }
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarToday, "Kalender")
+                    }
+                },
+                readOnly = true
             )
-            // ------------------------------------------
 
-            FormInputTextField(label = "Waktu", value = waktu, onValueChange = { waktu = it }, placeholder = "09:00 - 12:00")
-            FormInputTextField(label = "Lokasi/Platform", value = lokasi, onValueChange = { lokasi = it })
+            FormInputTextField(
+                label = "Waktu Mulai",
+                value = waktuMulai,
+                onValueChange = { },
+                placeholder = "HH:MM",
+                trailingIcon = {
+                    IconButton(onClick = {
+                        isPickingStartTime = true
+                        showTimePicker = true
+                    }) {
+                        Icon(Icons.Filled.Schedule, "Jam Mulai")
+                    }
+                },
+                readOnly = true
+            )
+
+            FormInputTextField(
+                label = "Waktu Selesai",
+                value = waktuSelesai,
+                onValueChange = { },
+                placeholder = "HH:MM",
+                trailingIcon = {
+                    IconButton(onClick = {
+                        isPickingStartTime = false
+                        showTimePicker = true
+                    }) {
+                        Icon(Icons.Filled.Schedule, "Jam Selesai")
+                    }
+                },
+                readOnly = true
+            )
+
+            // --- PERBAIKAN: Ganti Input Lokasi ---
+            FormDropdownField(
+                label = "Tipe Lokasi",
+                selectedValue = platformType,
+                options = platformOptions,
+                onOptionSelected = { platformType = it }
+            )
+
+            // Label dinamis berdasarkan pilihan dropdown
+            val locationLabel = when (platformType) {
+                "Online" -> "Link Meet (Zoom/GMeet)"
+                "Offline" -> "Nama Lokasi (Gedung/Ruangan)"
+                else -> "Lokasi/Link"
+            }
+
+            FormInputTextField(
+                label = locationLabel,
+                value = locationDetail,
+                onValueChange = { locationDetail = it },
+                // Tampilkan field ini hanya jika "Pilih Tipe Lokasi" *tidak* dipilih
+                enabled = platformType != "Pilih Tipe Lokasi"
+            )
+            // ------------------------------------
+
             FormInputTextField(label = "Kuota", value = kuota, onValueChange = { kuota = it }, keyboardType = KeyboardType.Number)
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Tombol Simpan
             PrimaryButton(text = "Simpan Event", onClick = {
-                // --- PERBAIKAN LOGIKA ID UNIK ---
                 val maxDummyId = dummyEvents.maxOfOrNull { it.id } ?: 0
                 val maxCreatedId = viewModel.createdEvents.value.maxOfOrNull { it.id } ?: 0
                 val newId = maxOf(maxDummyId, maxCreatedId) + 1
-                // --------------------------------
 
-                // Buat objek Event baru
                 val newEvent = Event(
                     id = newId,
                     title = judul,
                     type = jenis,
                     date = tanggal,
-                    time = waktu,
-                    location = lokasi,
-                    quota = kuota,
-                    status = "Baru", // Status default
+                    timeStart = waktuMulai,
+                    timeEnd = waktuSelesai,
 
-                    // --- PERUBAHAN UNTUK REQUEST 2 (URI) ---
-                    // Jika imageUri null, pakai placeholder. Jika tidak, set ResId ke null
+                    // --- PERBAIKAN: Simpan data lokasi baru ---
+                    platformType = platformType,
+                    locationDetail = locationDetail,
+                    // ----------------------------------------
+
+                    quota = kuota,
+                    status = "Aktif",
                     thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
-                    // Simpan Uri sebagai String
                     thumbnailUri = imageUri?.toString()
-                    // ---------------------------------------
                 )
 
                 viewModel.addEvent(newEvent)
-                navController.popBackStack() // Kembali ke MyEventsScreen
+                navController.popBackStack()
             })
         }
     }
@@ -183,7 +269,6 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         if (imageUri == null) {
-            // Tampilan placeholder jika belum ada gambar
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     Icons.Filled.AddPhotoAlternate,
@@ -203,7 +288,6 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
                 )
             }
         } else {
-            // Tampilkan gambar yang dipilih
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(imageUri)
@@ -226,8 +310,9 @@ private fun FormInputTextField(
     modifier: Modifier = Modifier,
     placeholder: String? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
-    readOnly: Boolean = false, // Tambahan untuk Request 1
-    keyboardType: KeyboardType = KeyboardType.Text // Tambahan untuk Kuota
+    readOnly: Boolean = false,
+    enabled: Boolean = true, // Tambahkan enabled
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -240,12 +325,71 @@ private fun FormInputTextField(
             trailingIcon = trailingIcon,
             shape = RoundedCornerShape(8.dp),
             singleLine = true,
-            readOnly = readOnly, // Terapkan readOnly
-            keyboardOptions = KeyboardOptions(keyboardType = keyboardType) // Terapkan keyboardType
-
-            // --- PERBAIKAN: BLOK 'colors' DIHAPUS ---
-            // Blok ini yang menyebabkan error "Unresolved reference"
-            //
+            readOnly = readOnly,
+            enabled = enabled, // Terapkan enabled
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
         )
+    }
+}
+
+// --- COMPOSABLE HELPER BARU UNTUK DROPDOWN JENIS EVENT ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FormDropdownField(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(text = label, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedValue,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(), // Penting untuk ExposedDropdownMenu
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Pilih Jenis",
+                        modifier = Modifier.clickable { expanded = true }
+                    )
+                },
+                shape = RoundedCornerShape(8.dp),
+            )
+
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Tambahkan opsi "Pilih Jenis Event" jika itu adalah nilai default
+                if (selectedValue == "Pilih Jenis Event" || selectedValue == "Pilih Tipe Lokasi") {
+                    DropdownMenuItem(
+                        text = { Text(selectedValue, color = Color.Gray) },
+                        onClick = { expanded = false },
+                        enabled = false
+                    )
+                }
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onOptionSelected(option)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
     }
 }

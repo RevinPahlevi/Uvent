@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateListOf // Import baru
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.example.uventapp.data.model.Event
-// --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
 
 class EventManagementViewModel : ViewModel() {
@@ -19,8 +18,6 @@ class EventManagementViewModel : ViewModel() {
     private val _notificationMessage = mutableStateOf<String?>(null)
     val notificationMessage: State<String?> = _notificationMessage
 
-    // --- LOGIKA BARU UNTUK MENYIMPAN DATA PENDAFTARAN ---
-    // --- PERBAIKAN: Menggunakan Map<Int, Registration> ---
     private val _registrations = mutableStateOf<Map<Int, Registration>>(emptyMap())
     val registrations: State<Map<Int, Registration>> = _registrations
 
@@ -28,13 +25,11 @@ class EventManagementViewModel : ViewModel() {
      * Dipanggil dari RegistrationFormScreen.
      * Mendaftarkan event DAN menyimpan data pendaftarannya.
      */
-    fun registerForEvent(event: Event, data: Registration) { // <-- Perbaikan tipe
-        // 1. Tambahkan event ke daftar "diikuti"
+    fun registerForEvent(event: Event, data: Registration) {
         if (followedEvents.none { it.id == event.id }) {
             _followedEvents.add(event)
         }
 
-        // 2. Simpan data pendaftaran ke Map
         val currentRegs = _registrations.value.toMutableMap()
         currentRegs[event.id] = data
         _registrations.value = currentRegs
@@ -43,28 +38,41 @@ class EventManagementViewModel : ViewModel() {
     /**
      * Dipanggil dari EditRegistrationScreen untuk mengambil data.
      */
-    fun getRegistrationData(eventId: Int): Registration? { // <-- Perbaikan tipe
+    fun getRegistrationData(eventId: Int): Registration? {
         return _registrations.value[eventId]
     }
 
     /**
      * Dipanggil dari EditRegistrationScreen untuk menyimpan perubahan.
      */
-    fun updateRegistrationData(eventId: Int, newData: Registration) { // <-- Perbaikan tipe
+    fun updateRegistrationData(eventId: Int, newData: Registration) {
         val currentRegs = _registrations.value.toMutableMap()
         if (currentRegs.containsKey(eventId)) {
             currentRegs[eventId] = newData
             _registrations.value = currentRegs
         }
     }
-    // ---------------------------------------------------
+
+    // --- FUNGSI BARU UNTUK MEMBATALKAN EVENT ---
+    /**
+     * Dipanggil dari MyRegisteredEventScreen untuk membatalkan pendaftaran.
+     */
+    fun unfollowEvent(eventId: Int) {
+        // 1. Hapus event dari daftar _followedEvents
+        _followedEvents.removeIf { it.id == eventId }
+
+        // 2. Hapus data pendaftaran terkait dari _registrations
+        val currentRegs = _registrations.value.toMutableMap()
+        currentRegs.remove(eventId)
+        _registrations.value = currentRegs
+    }
+    // ---------------------------------------------
 
     /**
      * Menambahkan event baru ke dalam daftar createdEvents.
      * Dipanggil dari AddEventScreen.
      */
     fun addEvent(event: Event) {
-        // Menggunakan " + listOf(event)" agar ditambahkan di AKHIR list
         _createdEvents.value = _createdEvents.value + listOf(event)
         _notificationMessage.value = "Event Berhasil Ditambahkan"
     }
@@ -93,7 +101,6 @@ class EventManagementViewModel : ViewModel() {
      * Mengambil satu event berdasarkan ID dari daftar createdEvents ATAU followedEvents.
      */
     fun getEventById(eventId: Int): Event? {
-        // Cari di kedua daftar (dummyEvents ditambahkan di screen)
         return _createdEvents.value.find { it.id == eventId } ?: followedEvents.find { it.id == eventId }
     }
 

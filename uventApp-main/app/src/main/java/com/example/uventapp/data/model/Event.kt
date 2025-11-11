@@ -6,18 +6,22 @@ import com.example.uventapp.R
  * Data class ini sekarang menjadi SATU-SATUNYA definisi Event di seluruh aplikasi.
  */
 data class Event(
-    val id: Int, // Gunakan Int untuk ID agar konsisten
+    val id: Int,
     val title: String,
     val type: String,
-    val date: String,
-    val time: String,
-    val location: String,
-    val quota: String, // Ubah ke String agar konsisten
-    val status: String,
-    // --- PERBAIKAN UTAMA DI SINI ---
-    val thumbnailResId: Int?, // Dibuat nullable
-    val thumbnailUri: String? = null // Ditambahkan untuk menampung URI poster
-    // ---------------------------------
+    val date: String, // Format: "d/M/yyyy" (contoh: "16/10/2025")
+    val timeStart: String, // Format: "HH:mm" (contoh: "09:00")
+    val timeEnd: String,   // Format: "HH:mm" (contoh: "12:00")
+
+    // --- PERBAIKAN: Ganti 'location' ---
+    val platformType: String, // "Online" atau "Offline"
+    val locationDetail: String, // Link Zoom or "Auditorium"
+    // ----------------------------------
+
+    val quota: String,
+    val status: String, // Ini akan jadi status default (misal "Aktif")
+    val thumbnailResId: Int?,
+    val thumbnailUri: String? = null
 )
 
 // Pindahkan dummy data ke sini agar bisa diakses secara global
@@ -26,21 +30,29 @@ val dummyEvents = listOf(
         id = 1,
         title = "Business Talkshow",
         type = "Talkshow",
-        date = "16 Okt 2025",
-        time = "09:00 - 12:00",
-        location = "Auditorium Unand",
+        date = "16/10/2025",
+        timeStart = "09:00",
+        timeEnd = "12:00",
+        // --- PERBAIKAN ---
+        platformType = "Offline",
+        locationDetail = "Auditorium Unand",
+        // -----------------
         quota = "500",
         status = "Aktif",
-        thumbnailResId = R.drawable.event_talkshow, // Data lama tetap pakai ResId
-        thumbnailUri = null // (default)
+        thumbnailResId = R.drawable.event_talkshow,
+        thumbnailUri = null
     ),
     Event(
         id = 2,
         title = "Seminar Nasional AI",
         type = "Seminar",
-        date = "20 Okt 2025",
-        time = "13:00 - 15:00",
-        location = "Convention Hall Unand",
+        date = "20/10/2025",
+        timeStart = "13:00",
+        timeEnd = "15:00",
+        // --- PERBAIKAN ---
+        platformType = "Offline",
+        locationDetail = "Convention Hall Unand",
+        // -----------------
         quota = "1000",
         status = "Aktif",
         thumbnailResId = R.drawable.event_seminar,
@@ -50,9 +62,13 @@ val dummyEvents = listOf(
         id = 3,
         title = "UI/UX Skill Lab",
         type = "Skill Lab",
-        date = "28 Okt 2025",
-        time = "10:00 - 14:00",
-        location = "Lab Komputer FTI",
+        date = "28/10/2025",
+        timeStart = "10:00",
+        timeEnd = "14:00",
+        // --- PERBAIKAN ---
+        platformType = "Online",
+        locationDetail = "Zoom Meeting",
+        // -----------------
         quota = "50",
         status = "Aktif",
         thumbnailResId = R.drawable.event_skill_lab,
