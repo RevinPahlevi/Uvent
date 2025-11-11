@@ -15,21 +15,26 @@ sealed class Screen(val route: String) {
         fun createRoute(eventId: Int) = "registration_form/$eventId"
     }
 
-    // --- PERBAIKAN DI SINI ---
-    // Ubah dari "eventName" (String) ke "eventId" (Int)
     object EditRegistration : Screen("edit_registration/{eventId}") {
         fun createRoute(eventId: Int) = "edit_registration/$eventId"
     }
-    // -------------------------
 
-    // Ini adalah satu-satunya layar "Event Saya"
     object MyRegisteredEvent : Screen("my_events?eventName={eventName}") {
         fun createRoute(eventName: String) = "my_events?eventName=$eventName"
     }
 
-    // Rute untuk membuat/mengedit event
     object AddEvent : Screen("add_event")
     object EditEvent : Screen("edit_event/{eventId}") {
         fun createRoute(eventId: Int) = "edit_event/$eventId"
     }
+
+    object AddFeedback : Screen("add_feedback/{eventId}") {
+        fun createRoute(eventId: Int) = "add_feedback/$eventId"
+    }
+
+    // --- RUTE BARU UNTUK LIHAT SEMUA FEEDBACK ---
+    object AllFeedback : Screen("all_feedback/{eventId}") {
+        fun createRoute(eventId: Int) = "all_feedback/$eventId"
+    }
+    // ------------------------------------------
 }

@@ -52,8 +52,10 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
     // State untuk menyimpan data form
     var judul by remember { mutableStateOf("") }
 
-    var jenis by remember { mutableStateOf("Pilih Jenis Event") }
+    // --- PERBAIKAN: State untuk Dropdown Jenis Event ---
+    var jenis by remember { mutableStateOf("Pilih Jenis Event") } // Nilai default
     val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
+    // -------------------------------------------------
 
     var tanggal by remember { mutableStateOf("") }
     var waktuMulai by remember { mutableStateOf("") }
@@ -143,12 +145,14 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
 
             FormInputTextField(label = "Judul Event", value = judul, onValueChange = { judul = it })
 
+            // --- PERBAIKAN: Ganti Input Teks jadi Dropdown ---
             FormDropdownField(
                 label = "Jenis Event",
                 selectedValue = jenis,
                 options = jenisEventOptions,
                 onOptionSelected = { jenis = it }
             )
+            // ------------------------------------------------
 
             FormInputTextField(
                 label = "Tanggal Event",
@@ -231,7 +235,7 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 val newEvent = Event(
                     id = newId,
                     title = judul,
-                    type = jenis,
+                    type = jenis, // jenis sekarang dari state dropdown
                     date = tanggal,
                     timeStart = waktuMulai,
                     timeEnd = waktuSelesai,
@@ -372,7 +376,7 @@ private fun FormDropdownField(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Tambahkan opsi "Pilih Jenis Event" jika itu adalah nilai default
+                // Tambahkan opsi "Pilih..." jika itu adalah nilai default
                 if (selectedValue == "Pilih Jenis Event" || selectedValue == "Pilih Tipe Lokasi") {
                     DropdownMenuItem(
                         text = { Text(selectedValue, color = Color.Gray) },

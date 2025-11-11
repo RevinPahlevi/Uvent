@@ -219,15 +219,23 @@ fun MyRegisteredEventScreen(
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         items(createdEvents, key = { it.id }) { event ->
+                            // --- PERBAIKAN: Cek status event ---
+                            val isFinished = isEventFinished(event.date, event.timeEnd)
                             CreatedEventCard(
                                 event = event,
+                                isFinished = isFinished, // Kirim status
                                 onEditClick = {
                                     navController.navigate(Screen.EditEvent.createRoute(event.id))
                                 },
                                 onDeleteClick = {
                                     showDeleteDialog = event.id
+                                },
+                                // Kirim handler baru
+                                onLihatFeedbackClick = {
+                                    navController.navigate(Screen.AllFeedback.createRoute(event.id))
                                 }
                             )
+                            // ------------------------------------
                         }
                     }
 
@@ -236,14 +244,19 @@ fun MyRegisteredEventScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val firstFinishedEvent = followedEvents.find {
-                            isEventFinished(it.date, it.timeEnd)
+                        // Cek apakah ada event yang selesai TAPI belum diulas oleh "Anda"
+                        val finishedEventNoReview = followedEvents.find {
+                            isEventFinished(it.date, it.timeEnd) &&
+                                    viewModel.getFeedbacksForEvent(it.id).none { f -> f.isAnda }
                         }
 
-                        if (firstFinishedEvent != null) {
+                        if (finishedEventNoReview != null) {
                             item {
                                 FeedbackBanner(
-                                    eventName = firstFinishedEvent.title
+                                    eventName = finishedEventNoReview.title,
+                                    onBannerClick = {
+                                        navController.navigate(Screen.AddFeedback.createRoute(finishedEventNoReview.id))
+                                    }
                                 )
                             }
                         }
@@ -255,7 +268,15 @@ fun MyRegisteredEventScreen(
                                 isFinished = isFinished,
                                 navController = navController,
                                 onCancelClick = { showCancelDialog = event },
-                                onReviewClick = { /* TODO: Navigasi ke Lihat Ulasan */ }
+                                onReviewClick = {
+                                    if (isFinished) {
+                                        // Jika selesai, lihat semua ulasan
+                                        navController.navigate(Screen.AllFeedback.createRoute(event.id))
+                                    } else {
+                                        // (Ini seharusnya tidak terjadi, tapi sebagai cadangan)
+                                        // navController.navigate(Screen.AddFeedback.createRoute(event.id))
+                                    }
+                                }
                             )
                         }
                     }
@@ -327,8 +348,10 @@ fun TabButton(
 @Composable
 private fun CreatedEventCard(
     event: Event,
+    isFinished: Boolean, // <-- Terima status
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onLihatFeedbackClick: () -> Unit // <-- Terima handler baru
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -374,39 +397,63 @@ private fun CreatedEventCard(
 
                 Spacer(modifier = Modifier.height(16.dp)) // Jarak
 
-                // Tombol Edit dan Hapus
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp) // Jarak antar tombol
-                ) {
-                    // Tombol Edit (Biru)
+                // --- PERBAIKAN: Tombol diganti berdasarkan status ---
+                if (isFinished) {
+                    // Jika event sudah selesai, tampilkan tombol "Lihat Feedback"
                     Button(
-                        onClick = onEditClick,
-                        modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
+                        onClick = onLihatFeedbackClick,
+                        modifier = Modifier.fillMaxWidth().height(36.dp), // Full width
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF1E88E5), // Biru
+                            containerColor = PrimaryGreen, // Warna hijau
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Text("Edit", fontSize = 12.sp)
+                        Text("Lihat Feedback", fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
-
-                    // Tombol Hapus (Merah)
-                    Button(
-                        onClick = onDeleteClick,
-                        modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE53935), // Merah
-                            contentColor = Color.White
-                        ),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                } else {
+                    // Jika event masih aktif, tampilkan "Edit" dan "Hapus"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp) // Jarak antar tombol
                     ) {
-                        Text("Hapus", fontSize = 12.sp)
+                        // Tombol Edit (Biru)
+                        Button(
+                            onClick = onEditClick,
+                            modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1E88E5), // Biru
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Edit", fontSize = 12.sp)
+                        }
+
+                        // Tombol Hapus (Merah)
+                        Button(
+                            onClick = onDeleteClick,
+                            modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFE53935), // Merah
+                                contentColor = Color.White
+                            ),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("Hapus", fontSize = 12.sp)
+                        }
                     }
                 }
+                // ---------------------------------------------
             }
         }
     }
@@ -414,7 +461,7 @@ private fun CreatedEventCard(
 
 // --- BANNER FEEDBACK ---
 @Composable
-fun FeedbackBanner(eventName: String) {
+fun FeedbackBanner(eventName: String, onBannerClick: () -> Unit) { // Tambahkan onClick
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F4E7)), // Warna hijau muda
@@ -456,7 +503,7 @@ fun FeedbackBanner(eventName: String) {
 
             // Tombol Beri Ulasan
             Button(
-                onClick = { /* TODO: Navigasi ke beri ulasan */ },
+                onClick = { onBannerClick() }, // Terapkan onClick
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 contentPadding = PaddingValues(horizontal = 10.dp)
@@ -490,7 +537,6 @@ fun MyEventCard(
     ) {
         Box { // Box diperlukan untuk menampung Status Tag
 
-            // --- PERBAIKAN 1: Layout Utama diubah menjadi Row ---
             Row(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.Top
@@ -505,7 +551,6 @@ fun MyEventCard(
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        // --- PERBAIKAN: Ukuran poster disesuaikan ---
                         .width(80.dp)
                         .height(90.dp)
                         .clip(RoundedCornerShape(8.dp))
@@ -525,9 +570,9 @@ fun MyEventCard(
                         EventInfoRow(icon = Icons.Default.CalendarToday, text = "${event.date} - ${event.timeStart}")
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp)) // Jarak antara teks dan baris bawah
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // --- PERBAIKAN 2: Baris Aksi (Lokasi & Ulasan / Tombol) ---
+                    // Baris Aksi (Lokasi & Ulasan / Tombol)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -536,7 +581,6 @@ fun MyEventCard(
                         EventInfoRow(
                             icon = Icons.Default.LocationOn,
                             text = event.locationDetail, // <-- Ganti ke locationDetail
-                            // Beri weight agar mendorong "Lihat Ulasan" ke kanan
                             modifier = Modifier.weight(1f)
                         )
 
@@ -553,7 +597,6 @@ fun MyEventCard(
                             )
                         }
                     }
-                    // ----------------------------------------------------
 
                     // Tampilkan tombol Edit/Batal HANYA jika BELUM selesai
                     if (!isFinished) {
@@ -592,7 +635,6 @@ fun MyEventCard(
                             }
                         }
                     }
-                    // ---------------------------------------
                 }
             } // Akhir Row Utama
 

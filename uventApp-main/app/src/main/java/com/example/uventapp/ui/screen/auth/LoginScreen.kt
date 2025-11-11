@@ -54,8 +54,8 @@ fun LoginScreen(navController: NavController) {
 
         // --- PERBAIKAN: LOGIN DEFAULT (HARDCODED) ---
         // Email & Password ini sekarang dijadikan "kunci"
-        val defaultEmail = "aldi@gmail.com"
-        val defaultPassword = "aldi123"
+        val defaultEmail = "rev@gamil.com"
+        val defaultPassword = "rev123"
 
         // Hapus delay jika ada, atau tambahkan delay singkat untuk simulasi
         kotlinx.coroutines.MainScope().launch {
@@ -76,45 +76,6 @@ fun LoginScreen(navController: NavController) {
             isLoading = false // Selesaikan loading
         }
         // ----------------------------------------
-
-
-        /*
-        // --- KODE API ASLI DIKOMENTARI SEMENTARA ---
-        // (Anda bisa mengaktifkan ini kembali jika Mock API sudah diperbaiki)
-
-        val request = LoginRequest(email = email, password = password)
-
-        ApiClient.instance.login(request).enqueue(object : Callback<LoginResponse> {
-
-            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
-                isLoading = false
-                if (response.isSuccessful) {
-                    // SUKSES
-                    val token = response.body()?.token
-                    Log.d("LoginSuccess", "Login Berhasil! Token: $token")
-
-                    // (Nanti di sini Anda bisa simpan tokennya)
-
-                    // Navigasi ke Home
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-
-                } else {
-                    // ERROR (misal server error)
-                    Log.e("LoginError", "Code: ${response.code()}, Msg: ${response.message()}")
-                    errorMessage = "Login Gagal. (Kode: ${response.code()})"
-                }
-            }
-
-            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                // GAGAL (tidak ada internet, URL salah)
-                isLoading = false
-                Log.e("LoginFailure", "Error: ${t.message}")
-                errorMessage = "Gagal terhubung ke server. Periksa koneksi internet."
-            }
-        })
-        */
     }
 
     Box(

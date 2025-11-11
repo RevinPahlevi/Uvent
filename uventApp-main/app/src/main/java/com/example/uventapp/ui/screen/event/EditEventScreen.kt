@@ -301,7 +301,7 @@ private fun EventInputField(
             singleLine = true,
             shape = RoundedCornerShape(8.dp),
             placeholder = { if (placeholder != null) Text(placeholder, color = Color.Gray) },
-            colors = OutlinedTextFieldDefaults.colors(
+            colors = OutlinedTextFieldDefaults.colors( // --- Ganti ke OutlinedTextFieldDefaults ---
                 focusedContainerColor = DisabledBackground,
                 unfocusedContainerColor = DisabledBackground,
                 disabledContainerColor = DisabledBackground,

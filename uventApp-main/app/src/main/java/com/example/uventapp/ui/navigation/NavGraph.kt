@@ -13,19 +13,19 @@ import com.example.uventapp.ui.screen.auth.SplashScreen
 import com.example.uventapp.ui.screen.event.AddEventScreen
 import com.example.uventapp.ui.screen.event.EditEventScreen
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
-// Hapus MyEventsScreen karena sudah digabung
-// import com.example.uventapp.ui.screen.event.MyEventsScreen
 import com.example.uventapp.ui.screen.registration.EditRegistrationScreen
 import com.example.uventapp.ui.screen.registration.MyRegisteredEventScreen
 import com.example.uventapp.ui.screen.registration.RegistrationFormScreen
 import com.example.uventapp.ui.screen.home.HomeScreen
 import com.example.uventapp.ui.screen.event.DetailEventScreen
 import com.example.uventapp.ui.screen.event.EventListScreen
+import com.example.uventapp.ui.screen.feedback.AddFeedbackScreen
+// --- IMPORT BARU ---
+import com.example.uventapp.ui.screen.feedback.AllFeedbackScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
 
-    // Inisialisasi ViewModel di sini agar bisa dipakai di beberapa layar
     val eventViewModel: EventManagementViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
@@ -49,30 +49,27 @@ fun NavGraph(navController: NavHostController) {
 
         composable(
             route = Screen.RegistrationFormScreen.route,
-            arguments = listOf(navArgument("eventId") { type = NavType.IntType }) // Gunakan Int
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
             RegistrationFormScreen(
                 navController = navController,
-                viewModel = eventViewModel, // Kirim ViewModel
+                viewModel = eventViewModel,
                 eventId = eventId
             )
         }
 
-        // --- PERBAIKAN: Rute EditRegistration ---
         composable(
             route = Screen.EditRegistration.route,
-            // Ambil eventId (Int) dari rute
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
             EditRegistrationScreen(
                 navController = navController,
-                viewModel = eventViewModel, // Kirim ViewModel
+                viewModel = eventViewModel,
                 eventId = eventId
             )
         }
-        // ----------------------------------------
 
         composable(
             route = Screen.MyRegisteredEvent.route,
@@ -86,7 +83,7 @@ fun NavGraph(navController: NavHostController) {
             MyRegisteredEventScreen(
                 navController = navController,
                 eventName = eventName,
-                viewModel = eventViewModel // Kirim ViewModel
+                viewModel = eventViewModel
             )
         }
 
@@ -101,5 +98,31 @@ fun NavGraph(navController: NavHostController) {
             val eventId = backStackEntry.arguments?.getInt("eventId")
             EditEventScreen(navController = navController, viewModel = eventViewModel, eventId = eventId)
         }
+
+        composable(
+            route = Screen.AddFeedback.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId")
+            AddFeedbackScreen(
+                navController = navController,
+                viewModel = eventViewModel,
+                eventId = eventId
+            )
+        }
+
+        // --- COMPOSABLE BARU UNTUK LIHAT SEMUA FEEDBACK ---
+        composable(
+            route = Screen.AllFeedback.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId")
+            AllFeedbackScreen(
+                navController = navController,
+                viewModel = eventViewModel,
+                eventId = eventId
+            )
+        }
+        // ---------------------------------------------
     }
 }
