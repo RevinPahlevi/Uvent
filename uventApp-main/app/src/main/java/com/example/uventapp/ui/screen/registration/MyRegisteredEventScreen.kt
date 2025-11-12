@@ -381,8 +381,10 @@ private fun CreatedEventCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             // Kolom untuk Teks dan Tombol
-            Column(modifier = Modifier.weight(1f)) {
-                // --- PERBAIKAN: Tambahkan Info Lengkap ---
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp) // Kurangi spasi antar item
+            ) {
                 Text(
                     text = event.title,
                     fontWeight = FontWeight.Bold,
@@ -393,76 +395,82 @@ private fun CreatedEventCard(
                     text = event.type,
                     fontSize = 13.sp,
                     color = PrimaryGreen,
-                    modifier = Modifier.padding(bottom = 4.dp)
                 )
                 EventInfoRow(
                     icon = Icons.Filled.CalendarToday,
                     text = "${event.date} - ${event.timeStart}"
                 )
-                EventInfoRow(
-                    icon = Icons.Filled.LocationOn,
-                    text = event.locationDetail
-                )
-                // ----------------------------------------
 
-                Spacer(modifier = Modifier.height(12.dp)) // Jarak
+                // --- PERBAIKAN 1 & 2: Baris Lokasi + Tombol Aksi ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Lokasi
+                    EventInfoRow(
+                        icon = Icons.Filled.LocationOn,
+                        text = event.locationDetail,
+                        modifier = Modifier.weight(1f, fill = false) // Agar bisa di-truncate
+                    )
 
-                // Tombol diganti berdasarkan status
-                if (isFinished) {
-                    // Jika event sudah selesai, tampilkan tombol "Lihat Feedback"
-                    Button(
-                        onClick = onLihatFeedbackClick,
-                        modifier = Modifier.fillMaxWidth().height(36.dp), // Full width
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryGreen, // Warna hijau
-                            contentColor = Color.White
-                        ),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Text("Lihat Feedback", fontSize = 12.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                } else {
-                    // Jika event masih aktif, tampilkan "Edit" dan "Hapus"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp) // Jarak antar tombol
-                    ) {
-                        // Tombol Edit (Biru)
+                    // Tombol Aksi (Edit/Hapus atau Lihat Feedback)
+                    if (isFinished) {
+                        // Tombol "Lihat Feedback" (Kecil)
                         Button(
-                            onClick = onEditClick,
-                            modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
+                            onClick = onLihatFeedbackClick,
+                            modifier = Modifier.height(32.dp), // <-- Lebih kecil
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E88E5), // Biru
+                                containerColor = PrimaryGreen,
                                 contentColor = Color.White
                             ),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 10.dp) // <-- Padding kecil
                         ) {
-                            Text("Edit", fontSize = 12.sp)
+                            Text("Lihat Feedback", fontSize = 11.sp) // <-- Font kecil
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp) // <-- Ikon kecil
+                            )
                         }
-
-                        // Tombol Hapus (Merah)
-                        Button(
-                            onClick = onDeleteClick,
-                            modifier = Modifier.weight(1f).height(36.dp), // Beri bobot dan tinggi
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE53935), // Merah
-                                contentColor = Color.White
-                            ),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                    } else {
+                        // Tombol "Edit" dan "Hapus" (Kecil)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp) // <-- Jarak kecil
                         ) {
-                            Text("Hapus", fontSize = 12.sp)
+                            // Tombol Edit (Biru)
+                            Button(
+                                onClick = onEditClick,
+                                modifier = Modifier.height(32.dp), // <-- Lebih kecil
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF1E88E5), // Biru
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp) // <-- Padding kecil
+                            ) {
+                                Text("Edit", fontSize = 11.sp) // <-- Font kecil
+                            }
+
+                            // Tombol Hapus (Merah)
+                            Button(
+                                onClick = onDeleteClick,
+                                modifier = Modifier.height(32.dp), // <-- Lebih kecil
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFE53935), // Merah
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp) // <-- Padding kecil
+                            ) {
+                                Text("Hapus", fontSize = 11.sp) // <-- Font kecil
+                            }
                         }
                     }
                 }
+                // --- AKHIR PERBAIKAN ---
             }
         }
     }
@@ -578,31 +586,29 @@ fun MyEventCard(
                 // Kolom Teks dan Aksi
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    verticalArrangement = Arrangement.spacedBy(4.dp) // Kurangi spasi
                 ) {
                     // Bagian Teks Info
-                    Column {
-                        Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-                        Text(event.type, fontSize = 13.sp, color = PrimaryGreen, modifier = Modifier.padding(bottom = 4.dp))
-                        EventInfoRow(icon = Icons.Default.CalendarToday, text = "${event.date} - ${event.timeStart}")
-                    }
+                    Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+                    Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
+                    EventInfoRow(icon = Icons.Default.CalendarToday, text = "${event.date} - ${event.timeStart}")
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Baris Aksi (Lokasi & Ulasan / Tombol)
+                    // --- PERBAIKAN 3: Baris Lokasi + Tombol Aksi ---
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         // Bagian Lokasi
                         EventInfoRow(
                             icon = Icons.Default.LocationOn,
                             text = event.locationDetail, // <-- Ganti ke locationDetail
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f, fill = false) // Agar bisa di-truncate
                         )
 
-                        // Tampilkan "Lihat ulasan" HANYA jika sudah selesai
+                        // Bagian Aksi (Ulasan atau Tombol Edit/Batal)
                         if (isFinished) {
+                            // Tampilkan "Lihat ulasan" HANYA jika sudah selesai
                             Text(
                                 text = "Lihat ulasan >",
                                 color = PrimaryGreen,
@@ -612,46 +618,43 @@ fun MyEventCard(
                                     .clickable { onReviewClick() }
                                     .padding(start = 8.dp) // Beri jarak
                             )
-                        }
-                    }
-
-                    // Tampilkan tombol Edit/Batal HANYA jika BELUM selesai
-                    if (!isFinished) {
-                        Spacer(modifier = Modifier.height(12.dp)) // Jarak
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            // Tombol Edit
-                            Button(
-                                onClick = {
-                                    navController.navigate(Screen.EditRegistration.createRoute(event.id))
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                                modifier = Modifier.height(32.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp)
+                        } else {
+                            // Tampilkan tombol Edit/Batal HANYA jika BELUM selesai
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp) // Jarak kecil
                             ) {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    tint = White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                                // Tombol Edit (Ikon)
+                                Button(
+                                    onClick = {
+                                        navController.navigate(Screen.EditRegistration.createRoute(event.id))
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                                    modifier = Modifier.height(32.dp), // <-- Lebih kecil
+                                    contentPadding = PaddingValues(horizontal = 8.dp) // <-- Padding kecil
+                                ) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = "Edit",
+                                        tint = White,
+                                        modifier = Modifier.size(16.dp) // <-- Ikon kecil
+                                    )
+                                }
 
-                            // Tombol Batal
-                            Button(
-                                onClick = onCancelClick,
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), // Merah
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text("Batal", fontSize = 12.sp)
+                                // Tombol Batal
+                                Button(
+                                    onClick = onCancelClick,
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), // Merah
+                                    contentPadding = PaddingValues(horizontal = 10.dp), // <-- Padding kecil
+                                    modifier = Modifier.height(32.dp) // <-- Lebih kecil
+                                ) {
+                                    Text("Batal", fontSize = 11.sp) // <-- Font kecil
+                                }
                             }
                         }
                     }
+                    // --- AKHIR PERBAIKAN ---
                 }
             } // Akhir Row Utama
 

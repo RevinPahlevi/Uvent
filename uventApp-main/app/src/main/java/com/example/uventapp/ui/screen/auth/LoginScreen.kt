@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext // <-- Diperlukan
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -30,10 +31,11 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
+import com.example.uventapp.utils.isNetworkAvailable // <-- DIperlukan
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-// --- PERBAIKAN: TAMBAHKAN IMPORT YANG HILANG ---
+// --- Import untuk Coroutine ---
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 // ---------------------------------------------
@@ -47,35 +49,37 @@ fun LoginScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Ambil context untuk pengecekan jaringan
+    val context = LocalContext.current
+
     // Fungsi untuk memanggil API
     fun startLogin() {
+
+        // --- PERBAIKAN: CEK KONEKSI INTERNET ---
+        // Pengecekan ini dilakukan SEBELUM memulai loading
+        if (!isNetworkAvailable(context)) {
+            errorMessage = "Tidak ada koneksi internet."
+            return // Hentikan fungsi di sini jika offline
+        }
+        // ----------------------------------------
+
+
+        // Jika lolos (online), jalankan simulasi login
         isLoading = true
         errorMessage = null
 
-        // --- PERBAIKAN: LOGIN DEFAULT (HARDCODED) ---
-        // Email & Password ini sekarang dijadikan "kunci"
-        val defaultEmail = "aldi@gmail.com"
-        val defaultPassword = "aldi123"
-
-        // Hapus delay jika ada, atau tambahkan delay singkat untuk simulasi
         kotlinx.coroutines.MainScope().launch {
             delay(500) // Simulasi loading 0.5 detik
 
-            // Logika bypass: Cek apakah input cocok dengan data default
-            if (email == defaultEmail && password == defaultPassword) {
-                Log.d("LoginBypass", "Login default berhasil.")
-                // Navigasi ke Home
-                navController.navigate(Screen.Home.route) {
-                    popUpTo(Screen.Login.route) { inclusive = true }
-                }
-            } else {
-                // Jika tidak cocok, tampilkan error
-                Log.d("LoginBypass", "Email atau password salah.")
-                errorMessage = "Email atau password salah."
+            Log.d("LoginBypass", "Login bypass (Online), navigasi ke Home.")
+
+            // Langsung navigasi ke Home
+            navController.navigate(Screen.Home.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
             }
+
             isLoading = false // Selesaikan loading
         }
-        // ----------------------------------------
     }
 
     Box(

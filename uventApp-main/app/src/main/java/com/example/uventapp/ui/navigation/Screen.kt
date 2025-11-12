@@ -49,4 +49,8 @@ sealed class Screen(val route: String) {
         fun createEditRoute(eventId: Int, docId: Int) = "add_documentation/$eventId?docId=$docId"
     }
     // -------------------------
+
+    // --- RUTE BARU DITAMBAHKAN ---
+    object Profile : Screen("profile")
+    // ---------------------------
 }

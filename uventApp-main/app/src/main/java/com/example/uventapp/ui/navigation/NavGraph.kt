@@ -24,11 +24,16 @@ import com.example.uventapp.ui.screen.feedback.AllFeedbackScreen
 // --- Import untuk Dokumentasi ---
 import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
+// --- IMPORT BARU UNTUK PROFIL ---
+import com.example.uventapp.ui.screen.profile.ProfileScreen
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
 
 @Composable
 fun NavGraph(navController: NavHostController) {
 
+    // Daftarkan kedua ViewModel di sini
     val eventViewModel: EventManagementViewModel = viewModel()
+    val profileViewModel: ProfileViewModel = viewModel() // <-- VIEWMODEL BARU
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
 
@@ -165,5 +170,14 @@ fun NavGraph(navController: NavHostController) {
             )
         }
         // -------------------------
+
+        // --- LAYAR BARU DITAMBAHKAN ---
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                navController = navController,
+                profileViewModel = profileViewModel // <-- Kirim ViewModel yang sudah ada
+            )
+        }
+        // ------------------------------
     }
 }
