@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,30 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
+// --- IMPORT BARU UNTUK LOGIKA WAKTU ---
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+// ------------------------------------
+
+// --- FUNGSI HELPER (DICOPY DARI MyRegisteredEventScreen) ---
+private fun isEventFinished(date: String, timeEnd: String): Boolean {
+    return try {
+        val eventEndString = "$date $timeEnd"
+        val formatter = SimpleDateFormat("d/M/yyyy HH:mm", Locale.getDefault())
+        val eventEndDate: Date = formatter.parse(eventEndString) ?: return false
+        val now = Date()
+        now.after(eventEndDate)
+    } catch (e: ParseException) {
+        e.printStackTrace()
+        false
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
+    }
+}
+// ---------------------------------------------------------
 
 @Composable
 fun DetailEventScreen(
@@ -38,8 +64,19 @@ fun DetailEventScreen(
     eventId: Int?,
     viewModel: EventManagementViewModel
 ) {
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
-        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
+        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    }
+
+    val isRegistered by remember(eventId, viewModel.followedEvents) {
+        derivedStateOf {
+            viewModel.followedEvents.any { it.id == eventId }
+        }
+    }
+
+    // --- PERBAIKAN: Hitung status selesai/belum ---
+    val isFinished = remember(event) {
+        event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
     }
 
     Scaffold(
@@ -82,16 +119,53 @@ fun DetailEventScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        EventDetailTable(event = event) // <-- PERBAIKAN DI SINI
+                        EventDetailTable(event = event) // <-- Tabel detail event
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        PrimaryButton(
-                            text = "Daftar Sekarang",
-                            onClick = {
-                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                            },
-                        )
+                        // --- Tombol dinamis ---
+                        if (isRegistered) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Tombol Feedback (hanya muncul jika event selesai)
+                                if (isFinished) {
+                                    Button(
+                                        onClick = {
+                                            navController.navigate(Screen.AllFeedback.createRoute(event.id))
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                                    ) {
+                                        Text("Feedback")
+                                    }
+                                }
+
+                                // Tombol Dokumentasi (selalu muncul jika terdaftar)
+                                Button(
+                                    onClick = {
+                                        // --- INI BAGIAN PENTING ---
+                                        navController.navigate(Screen.AllDocumentation.createRoute(event.id))
+                                        // -------------------------
+                                    },
+                                    modifier = if (isFinished) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                                ) {
+                                    Text("Dokumentasi")
+                                }
+                            }
+                        } else {
+                            // Jika belum terdaftar, tampilkan tombol Daftar
+                            PrimaryButton(
+                                text = "Daftar Sekarang",
+                                onClick = {
+                                    navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                },
+                            )
+                        }
                     }
                 }
             } else {
@@ -105,19 +179,17 @@ fun DetailEventScreen(
 
 @Composable
 fun EventDetailTable(event: Event) {
-    // --- PERBAIKAN: Perbarui daftar detail ---
     val details = listOf(
         "Judul Event" to event.title,
         "Jenis Event" to event.type,
         "Tanggal" to event.date,
         "Waktu Mulai" to event.timeStart,
         "Waktu Selesai" to event.timeEnd,
-        "Tipe Lokasi" to event.platformType, // <-- BARU
-        "Lokasi/Link" to event.locationDetail, // <-- BARU
+        "Tipe Lokasi" to event.platformType,
+        "Lokasi/Link" to event.locationDetail,
         "Kuota" to event.quota,
         "Status" to event.status
     )
-    // ----------------------------------------
 
     Row(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.width(120.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

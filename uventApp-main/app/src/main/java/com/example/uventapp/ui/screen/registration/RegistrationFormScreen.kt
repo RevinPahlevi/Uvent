@@ -228,7 +228,6 @@ fun RegistrationFormScreen(
                 text = "Daftar",
                 onClick = {
                     if (isFormValid) {
-                        // --- PERBAIKAN LOGIKA PENDAFTARAN ---
                         // 1. Buat objek Registration
                         val registrationData = Registration(
                             eventId = eventToRegister!!.id,
@@ -244,15 +243,15 @@ fun RegistrationFormScreen(
                         // 2. Kirim event DAN data pendaftaran ke ViewModel
                         viewModel.registerForEvent(eventToRegister, registrationData)
 
-                        // 3. Navigasi ke "Event Saya" dan kirim nama event untuk Snackbar
+                        // --- PERBAIKAN NAVIGASI ---
+                        // 3. Navigasi ke "Event Saya" dan bersihkan back stack
                         navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                inclusive = false
-                            }
-                            navController.graph.setStartDestination(Screen.Home.route)
+                            // Hapus semua layar di atas Home dari tumpukan
+                            popUpTo(Screen.Home.route)
+                            // Pastikan hanya ada satu instance "Event Saya" di tumpukan
                             launchSingleTop = true
                         }
-                        // ------------------------------------
+                        // --------------------------
                     }
                 },
                 enabled = isFormValid,

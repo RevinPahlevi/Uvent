@@ -54,8 +54,8 @@ fun LoginScreen(navController: NavController) {
 
         // --- PERBAIKAN: LOGIN DEFAULT (HARDCODED) ---
         // Email & Password ini sekarang dijadikan "kunci"
-        val defaultEmail = "rev@gamil.com"
-        val defaultPassword = "rev123"
+        val defaultEmail = "aldi@gmail.com"
+        val defaultPassword = "aldi123"
 
         // Hapus delay jika ada, atau tambahkan delay singkat untuk simulasi
         kotlinx.coroutines.MainScope().launch {

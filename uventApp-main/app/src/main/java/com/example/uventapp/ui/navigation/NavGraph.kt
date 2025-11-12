@@ -20,8 +20,10 @@ import com.example.uventapp.ui.screen.home.HomeScreen
 import com.example.uventapp.ui.screen.event.DetailEventScreen
 import com.example.uventapp.ui.screen.event.EventListScreen
 import com.example.uventapp.ui.screen.feedback.AddFeedbackScreen
-// --- IMPORT BARU ---
 import com.example.uventapp.ui.screen.feedback.AllFeedbackScreen
+// --- Import untuk Dokumentasi ---
+import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
+import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -29,6 +31,8 @@ fun NavGraph(navController: NavHostController) {
     val eventViewModel: EventManagementViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
+
+        // ... (Semua composable lainnya tetap sama) ...
 
         composable(Screen.Splash.route) { SplashScreen(navController) }
         composable(Screen.Login.route) { LoginScreen(navController) }
@@ -111,7 +115,6 @@ fun NavGraph(navController: NavHostController) {
             )
         }
 
-        // --- COMPOSABLE BARU UNTUK LIHAT SEMUA FEEDBACK ---
         composable(
             route = Screen.AllFeedback.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
@@ -123,6 +126,44 @@ fun NavGraph(navController: NavHostController) {
                 eventId = eventId
             )
         }
-        // ---------------------------------------------
+
+        composable(
+            route = Screen.AllDocumentation.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId")
+            AllDocumentationScreen(
+                navController = navController,
+                viewModel = eventViewModel,
+                eventId = eventId
+            )
+        }
+
+        // --- PERBAIKAN DI SINI ---
+        composable(
+            route = Screen.AddDocumentation.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.IntType },
+                // Tambahkan argumen docId yang opsional
+                navArgument("docId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId")
+            // Ambil docId sebagai String, lalu konversi ke Int?
+            val docIdString = backStackEntry.arguments?.getString("docId")
+            val docId = docIdString?.toIntOrNull()
+
+            AddDocumentationScreen(
+                navController = navController,
+                viewModel = eventViewModel,
+                eventId = eventId,
+                docId = docId // <-- Kirim docId ke layar
+            )
+        }
+        // -------------------------
     }
 }

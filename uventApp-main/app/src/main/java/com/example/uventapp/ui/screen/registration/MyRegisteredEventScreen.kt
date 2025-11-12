@@ -344,7 +344,7 @@ fun TabButton(
     }
 }
 
-// --- CARD UNTUK TAB "DIBUAT" ---
+// --- CARD UNTUK TAB "DIBUAT" (PERBAIKAN TAMPILAN) ---
 @Composable
 private fun CreatedEventCard(
     event: Event,
@@ -373,7 +373,8 @@ private fun CreatedEventCard(
                 contentDescription = "Event Poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(80.dp) // Ukuran poster
+                    .width(80.dp) // <-- Samakan dengan MyEventCard
+                    .height(90.dp) // <-- Samakan dengan MyEventCard
                     .clip(RoundedCornerShape(8.dp))
             )
 
@@ -381,23 +382,32 @@ private fun CreatedEventCard(
 
             // Kolom untuk Teks dan Tombol
             Column(modifier = Modifier.weight(1f)) {
-                // Judul
+                // --- PERBAIKAN: Tambahkan Info Lengkap ---
                 Text(
                     text = event.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = Color.Black
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                // Tanggal
+                Text(
+                    text = event.type,
+                    fontSize = 13.sp,
+                    color = PrimaryGreen,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
                 EventInfoRow(
                     icon = Icons.Filled.CalendarToday,
                     text = "${event.date} - ${event.timeStart}"
                 )
+                EventInfoRow(
+                    icon = Icons.Filled.LocationOn,
+                    text = event.locationDetail
+                )
+                // ----------------------------------------
 
-                Spacer(modifier = Modifier.height(16.dp)) // Jarak
+                Spacer(modifier = Modifier.height(12.dp)) // Jarak
 
-                // --- PERBAIKAN: Tombol diganti berdasarkan status ---
+                // Tombol diganti berdasarkan status
                 if (isFinished) {
                     // Jika event sudah selesai, tampilkan tombol "Lihat Feedback"
                     Button(
@@ -453,11 +463,11 @@ private fun CreatedEventCard(
                         }
                     }
                 }
-                // ---------------------------------------------
             }
         }
     }
 }
+
 
 // --- BANNER FEEDBACK ---
 @Composable
@@ -533,7 +543,14 @@ fun MyEventCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            // --- PERBAIKAN: Buat kartu bisa diklik ---
+            .clickable {
+                // Navigasi ke DetailEventScreen
+                navController.navigate(Screen.DetailEvent.createRoute(event.id))
+            }
+        // ----------------------------------------
     ) {
         Box { // Box diperlukan untuk menampung Status Tag
 

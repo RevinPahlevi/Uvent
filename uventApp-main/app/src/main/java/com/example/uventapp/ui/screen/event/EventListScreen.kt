@@ -45,24 +45,39 @@ fun EventListScreen(
     var selectedCategory by remember { mutableStateOf("Semua") }
 
     val createdEvents by viewModel.createdEvents
-    // Gabungkan 2 daftar & hapus duplikat (jika ada, berdasarkan ID)
-    val allEvents = remember(createdEvents, dummyEvents) {
-        (dummyEvents + createdEvents).distinctBy { it.id }
+
+    // --- PERBAIKAN 1: Ambil daftar event yang diikuti ---
+    // 'followedEvents' adalah State<List<Event>> atau list, kita perlu nilainya
+    // Di ViewModel, 'followedEvents' adalah List, jadi kita bisa baca langsung
+    val followedEvents = viewModel.followedEvents
+
+    // --- PERBAIKAN 2: Gabungkan event dan filter yang sudah diikuti ---
+    // 'remember' akan mengkalkulasi ulang jika createdEvents, dummyEvents, atau followedEvents berubah
+    val allAvailableEvents = remember(createdEvents, dummyEvents, followedEvents) {
+        // 1. Buat daftar ID event yang sudah diikuti
+        val followedEventIds = followedEvents.map { it.id }.toSet()
+
+        // 2. Gabungkan event dummy dan event buatan
+        val allEvents = (dummyEvents + createdEvents).distinctBy { it.id }
+
+        // 3. Filter: HANYA tampilkan event yang ID-nya TIDAK ADA di 'followedEventIds'
+        allEvents.filter { it.id !in followedEventIds }
     }
 
-    var filteredEvents by remember { mutableStateOf(allEvents) } // Inisialisasi awal
+    // 'filteredEvents' sekarang akan di-trigger oleh 'allAvailableEvents'
+    var filteredEvents by remember { mutableStateOf(allAvailableEvents) } // Inisialisasi awal
 
-    // Fungsi filter yang diperbarui untuk mencari dari 'allEvents'
+    // Fungsi filter yang diperbarui untuk mencari dari 'allAvailableEvents'
     fun applyFilter() {
-        filteredEvents = allEvents.filter { event ->
+        filteredEvents = allAvailableEvents.filter { event -> // <-- Gunakan 'allAvailableEvents'
             val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
             val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
             categoryMatch && searchMatch
         }
     }
 
-    // Panggil applyFilter saat 'allEvents' atau filter berubah
-    LaunchedEffect(allEvents, selectedCategory, searchText) {
+    // Panggil applyFilter saat 'allAvailableEvents' atau filter berubah
+    LaunchedEffect(allAvailableEvents, selectedCategory, searchText) { // <-- Ganti 'allEvents' jadi 'allAvailableEvents'
         applyFilter()
     }
 

@@ -32,9 +32,21 @@ sealed class Screen(val route: String) {
         fun createRoute(eventId: Int) = "add_feedback/$eventId"
     }
 
-    // --- RUTE BARU UNTUK LIHAT SEMUA FEEDBACK ---
     object AllFeedback : Screen("all_feedback/{eventId}") {
         fun createRoute(eventId: Int) = "all_feedback/$eventId"
     }
-    // ------------------------------------------
+
+    object AllDocumentation : Screen("all_documentation/{eventId}") {
+        fun createRoute(eventId: Int) = "all_documentation/$eventId"
+    }
+
+    // --- PERBAIKAN DI SINI ---
+    object AddDocumentation : Screen("add_documentation/{eventId}?docId={docId}") {
+        // Rute untuk Tambah Baru
+        fun createRoute(eventId: Int) = "add_documentation/$eventId"
+
+        // Rute untuk Edit
+        fun createEditRoute(eventId: Int, docId: Int) = "add_documentation/$eventId?docId=$docId"
+    }
+    // -------------------------
 }

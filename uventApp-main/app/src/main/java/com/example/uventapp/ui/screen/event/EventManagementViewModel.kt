@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.data.model.Feedback
+// --- IMPORT BARU ---
+import com.example.uventapp.data.model.Documentation
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,6 +48,31 @@ private val dummyFeedbacks = mutableListOf(
 )
 // ----------------------------
 
+// --- DATA DUMMY DOKUMENTASI (DIPERBARUI) ---
+private val dummyDocumentation = mutableListOf(
+    Documentation(
+        id = 200,
+        eventId = 1,
+        description = "Event sangat bagus! Pembicaranya inspiratif dan materi sangat bermanfaat.",
+        photoUri = null,
+        userName = "Loly Amelia Nurza",
+        postDate = "17 Oktober 2025",
+        postTime = "14:30", // <-- TAMBAHAN BARU
+        isAnda = false
+    ),
+    Documentation(
+        id = 201,
+        eventId = 1,
+        description = "Suasana event-nya seru banget!",
+        photoUri = null,
+        userName = "Aldo Francisco",
+        postDate = "17 Oktober 2025",
+        postTime = "15:01", // <-- TAMBAHAN BARU
+        isAnda = false
+    )
+)
+// ----------------------------------------
+
 
 class EventManagementViewModel : ViewModel() {
 
@@ -61,12 +88,23 @@ class EventManagementViewModel : ViewModel() {
     private val _registrations = mutableStateOf<Map<Int, Registration>>(emptyMap())
     val registrations: State<Map<Int, Registration>> = _registrations
 
-    // --- PERBAIKAN: Ubah Map untuk menampung BANYAK feedback per event ---
+    // --- State untuk Feedback ---
     private val _feedbacks = mutableStateOf<Map<Int, List<Feedback>>>(
         // Inisialisasi dengan data dummy
         mapOf(1 to dummyFeedbacks)
     )
     val feedbacks: State<Map<Int, List<Feedback>>> = _feedbacks
+
+    // --- State untuk Dokumentasi ---
+    private val _documentations = mutableStateOf<Map<Int, List<Documentation>>>(
+        mapOf(1 to dummyDocumentation)
+    )
+    val documentations: State<Map<Int, List<Documentation>>> = _documentations
+
+    // --- STATE BARU UNTUK MELACAK LIKE DOKUMENTASI ---
+    private val _likedDocIds = mutableStateOf(setOf<Int>())
+    val likedDocIds: State<Set<Int>> = _likedDocIds
+    // -------------------------------------------------
 
     /**
      * Mengambil semua feedback untuk eventId tertentu.
@@ -110,6 +148,54 @@ class EventManagementViewModel : ViewModel() {
         currentFeedbacksMap[eventId] = currentList
         _feedbacks.value = currentFeedbacksMap
     }
+
+    // --- FUNGSI BARU UNTUK DOKUMENTASI ---
+    /**
+     * Mengambil semua dokumentasi untuk eventId tertentu.
+     */
+    fun getDocumentationForEvent(eventId: Int): List<Documentation> {
+        return _documentations.value[eventId] ?: emptyList()
+    }
+
+    /**
+     * Mengirim dokumentasi baru dari pengguna.
+     */
+    fun submitDocumentation(eventId: Int, doc: Documentation) {
+        val currentDocsMap = _documentations.value.toMutableMap()
+        val currentList = (currentDocsMap[eventId] ?: emptyList()).toMutableList()
+
+        // Hapus jika sudah ada (untuk edit)
+        currentList.removeIf { it.id == doc.id && it.isAnda }
+
+        // Tambahkan dokumentasi baru ke list
+        currentList.add(0, doc.copy(isAnda = true))
+
+        currentDocsMap[eventId] = currentList
+        _documentations.value = currentDocsMap
+    }
+
+    // --- FUNGSI BARU UNTUK HAPUS DOKUMENTASI ---
+    fun deleteDocumentation(eventId: Int, docId: Int) {
+        val currentDocsMap = _documentations.value.toMutableMap()
+        val currentList = (currentDocsMap[eventId] ?: emptyList()).toMutableList()
+
+        currentList.removeIf { it.id == docId } // Hapus berdasarkan ID
+
+        currentDocsMap[eventId] = currentList
+        _documentations.value = currentDocsMap
+    }
+    // -----------------------------------------
+
+    fun toggleDocumentationLike(docId: Int) {
+        val currentLikes = _likedDocIds.value.toMutableSet()
+        if (docId in currentLikes) {
+            currentLikes.remove(docId)
+        } else {
+            currentLikes.add(docId)
+        }
+        _likedDocIds.value = currentLikes
+    }
+    // -------------------------------
 
     // --- Sisa fungsi ViewModel (tetap sama) ---
 
@@ -161,8 +247,11 @@ class EventManagementViewModel : ViewModel() {
     }
 
     fun getEventById(eventId: Int): Event? {
+        // --- Diperbarui untuk mencari di semua list ---
         return _createdEvents.value.find { it.id == eventId }
             ?: _followedEvents.find { it.id == eventId }
+        // Anda mungkin juga ingin mencari di dummyEvents jika diperlukan
+        // ?: dummyEvents.find { it.id == eventId }
     }
 
     fun clearNotification() {
