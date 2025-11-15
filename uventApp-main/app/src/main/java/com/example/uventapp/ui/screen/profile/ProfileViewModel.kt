@@ -3,8 +3,10 @@ package com.example.uventapp.ui.screen.profile
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+// --- Import data class User dari paket network ---
+import com.example.uventapp.data.network.User
 
-// Data class untuk menampung info pengguna
+// Data class untuk menampung info pengguna di UI
 data class UserProfile(
     val name: String,
     val email: String,
@@ -17,21 +19,26 @@ class ProfileViewModel : ViewModel() {
     private val _profile = mutableStateOf<UserProfile?>(null)
     val profile: State<UserProfile?> = _profile
 
-    init {
-        // Panggil fungsi untuk memuat data
-        loadUserProfile()
-    }
+    // --- HAPUS BLOK init ---
+    // Kita tidak ingin memuat data dummy lagi
+    // init {
+    //     loadUserProfile()
+    // }
 
-    private fun loadUserProfile() {
-        // --- SIMULASI ---
-        // Nanti, di sinilah tempat Anda memanggil API untuk mendapatkan
-        // data pengguna setelah mereka login.
+    // --- HAPUS FUNGSI loadUserProfile() ---
+    // private fun loadUserProfile() { ... }
 
-        // Untuk saat ini, kita gunakan data hardcoded dari screenshot Anda.
+    // --- FUNGSI BARU ---
+    /**
+     * Dipanggil oleh LoginScreen untuk menyimpan data pengguna
+     * setelah login API berhasil.
+     */
+    fun saveUserProfile(user: User) {
+        // Kita petakan data dari 'User' (Network) ke 'UserProfile' (UI)
         _profile.value = UserProfile(
-            name = "LOLY AMELIA NURZA",
-            email = "2311521016_loly@student.unand.ac.id",
-            phone = "082268251708"
+            name = user.name,
+            email = user.email,
+            phone = user.phone
         )
     }
 }

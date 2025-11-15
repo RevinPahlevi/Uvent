@@ -16,32 +16,35 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext // <-- Diperlukan
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+// --- Import yang Diperlukan ---
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.LoginRequest
 import com.example.uventapp.data.network.LoginResponse
 import com.example.uventapp.ui.components.AuthInputField
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
+// --- Import ViewModel ---
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
-import com.example.uventapp.utils.isNetworkAvailable // <-- DIperlukan
+// --- Import Pengecek Jaringan ---
+import com.example.uventapp.utils.isNetworkAvailable
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-// --- Import untuk Coroutine ---
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-// ---------------------------------------------
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(
+    navController: NavController,
+    profileViewModel: ProfileViewModel // <-- Terima ViewModel
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -49,38 +52,57 @@ fun LoginScreen(navController: NavController) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Ambil context untuk pengecekan jaringan
     val context = LocalContext.current
 
-    // Fungsi untuk memanggil API
+    // --- Fungsi untuk memanggil API Login ---
     fun startLogin() {
-
-        // --- PERBAIKAN: CEK KONEKSI INTERNET ---
-        // Pengecekan ini dilakukan SEBELUM memulai loading
+        // 1. Cek koneksi internet
         if (!isNetworkAvailable(context)) {
             errorMessage = "Tidak ada koneksi internet."
-            return // Hentikan fungsi di sini jika offline
+            return
         }
-        // ----------------------------------------
 
-
-        // Jika lolos (online), jalankan simulasi login
         isLoading = true
         errorMessage = null
 
-        kotlinx.coroutines.MainScope().launch {
-            delay(500) // Simulasi loading 0.5 detik
+        // 2. Buat request body
+        val request = LoginRequest(email = email, password = password)
 
-            Log.d("LoginBypass", "Login bypass (Online), navigasi ke Home.")
+        // 3. Panggil API (Logika bypass dihapus)
+        ApiClient.instance.login(request).enqueue(object : Callback<LoginResponse> {
+            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                isLoading = false
+                val body = response.body()
 
-            // Langsung navigasi ke Home
-            navController.navigate(Screen.Home.route) {
-                popUpTo(Screen.Login.route) { inclusive = true }
+                // 4. Cek jika API sukses DAN status-nya "success"
+                if (response.isSuccessful && body?.status == "success" && body.data != null) {
+
+                    // --- PENTING: Simpan data user ke ViewModel ---
+                    profileViewModel.saveUserProfile(body.data.user)
+                    // ----------------------------------------------
+
+                    Log.d("LoginScreen", "Login API berhasil. User: ${body.data.user.name}")
+                    // 5. Navigasi ke Home
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                } else {
+                    // Jika gagal (data salah / server error)
+                    val errorMsg = response.body()?.message ?: "Email atau password salah."
+                    Log.e("LoginScreen", "API Error: ${response.code()} - $errorMsg")
+                    errorMessage = errorMsg
+                }
             }
 
-            isLoading = false // Selesaikan loading
-        }
+            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                // Jika server tidak terjangkau
+                isLoading = false
+                errorMessage = "Gagal terhubung ke server. Coba lagi nanti."
+                Log.e("LoginScreen", "API Failure: ${t.message}")
+            }
+        })
     }
+    // ------------------------------------------
 
     Box(
         modifier = Modifier
@@ -147,7 +169,7 @@ fun LoginScreen(navController: NavController) {
                         text = if (isLoading) "LOADING..." else "MASUK",
                         onClick = {
                             if (!isLoading) {
-                                startLogin() // Panggil fungsi (yang sudah dimodifikasi)
+                                startLogin() // Panggil fungsi API
                             }
                         },
                         enabled = !isLoading // Nonaktifkan tombol saat loading

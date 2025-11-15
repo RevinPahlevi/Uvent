@@ -31,22 +31,32 @@ import com.example.uventapp.ui.screen.profile.ProfileViewModel
 @Composable
 fun NavGraph(navController: NavHostController) {
 
+    // --- PERBAIKAN DI SINI ---
     // Daftarkan kedua ViewModel di sini
     val eventViewModel: EventManagementViewModel = viewModel()
-    val profileViewModel: ProfileViewModel = viewModel() // <-- VIEWMODEL BARU
+    val profileViewModel: ProfileViewModel = viewModel() // <-- 1. Buat ViewModel di sini
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
 
-        // ... (Semua composable lainnya tetap sama) ...
-
         composable(Screen.Splash.route) { SplashScreen(navController) }
-        composable(Screen.Login.route) { LoginScreen(navController) }
-        composable(Screen.Register.route) { RegistrationScreen(navController) }
+
+        // --- PERBAIKAN DI SINI ---
+        // 2. Kirimkan ViewModel ke layar-layar yang membutuhkan
+        composable(Screen.Login.route) {
+            LoginScreen(navController, profileViewModel)
+        }
+        composable(Screen.Register.route) {
+            RegistrationScreen(navController, profileViewModel)
+        }
+        // ----------------------------------------
+
         composable(Screen.Home.route) { HomeScreen(navController) }
 
         composable(Screen.EventList.route) {
             EventListScreen(navController = navController, viewModel = eventViewModel)
         }
+
+        // ... (sisa composable lainnya tetap sama) ...
 
         composable(
             route = Screen.DetailEvent.route,
@@ -144,12 +154,10 @@ fun NavGraph(navController: NavHostController) {
             )
         }
 
-        // --- PERBAIKAN DI SINI ---
         composable(
             route = Screen.AddDocumentation.route,
             arguments = listOf(
                 navArgument("eventId") { type = NavType.IntType },
-                // Tambahkan argumen docId yang opsional
                 navArgument("docId") {
                     type = NavType.StringType
                     nullable = true
@@ -158,7 +166,6 @@ fun NavGraph(navController: NavHostController) {
             )
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            // Ambil docId sebagai String, lalu konversi ke Int?
             val docIdString = backStackEntry.arguments?.getString("docId")
             val docId = docIdString?.toIntOrNull()
 
@@ -166,18 +173,17 @@ fun NavGraph(navController: NavHostController) {
                 navController = navController,
                 viewModel = eventViewModel,
                 eventId = eventId,
-                docId = docId // <-- Kirim docId ke layar
+                docId = docId
             )
         }
-        // -------------------------
 
-        // --- LAYAR BARU DITAMBAHKAN ---
+        // --- PERBAIKAN DI SINI ---
+        // 3. Kirimkan juga ViewModel ke ProfileScreen
         composable(Screen.Profile.route) {
             ProfileScreen(
                 navController = navController,
-                profileViewModel = profileViewModel // <-- Kirim ViewModel yang sudah ada
+                profileViewModel = profileViewModel
             )
         }
-        // ------------------------------
     }
 }
