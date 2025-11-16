@@ -19,20 +19,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // Import Coil
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage // Import Coil
-import coil.request.ImageRequest // Import Coil
-import com.example.uventapp.R // Pastikan R di-import
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.uventapp.R
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
-import com.example.uventapp.ui.theme.* // Import semua theme
-import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.model.dummyEvents
+import com.example.uventapp.ui.theme.* import com.example.uventapp.data.model.Event
+// (Import dummyEvents sudah dihapus, itu bagus)
 
 @Composable
 fun EventListScreen(
@@ -44,42 +43,41 @@ fun EventListScreen(
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Semua") }
 
-    val createdEvents by viewModel.createdEvents
+    val context = LocalContext.current
 
-    // --- PERBAIKAN 1: Ambil daftar event yang diikuti ---
-    // 'followedEvents' adalah State<List<Event>> atau list, kita perlu nilainya
-    // Di ViewModel, 'followedEvents' adalah List, jadi kita bisa baca langsung
+    LaunchedEffect(key1 = true) {
+        viewModel.loadAllEvents(context)
+    }
+
+    val allEvents by viewModel.allEvents
+    val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
 
-    // --- PERBAIKAN 2: Gabungkan event dan filter yang sudah diikuti ---
-    // 'remember' akan mengkalkulasi ulang jika createdEvents, dummyEvents, atau followedEvents berubah
-    val allAvailableEvents = remember(createdEvents, dummyEvents, followedEvents) {
-        // 1. Buat daftar ID event yang sudah diikuti
+    // Daftar event yang tersedia (sudah difilter dari yang diikuti)
+    val allAvailableEvents = remember(allEvents, createdEvents, followedEvents) {
         val followedEventIds = followedEvents.map { it.id }.toSet()
-
-        // 2. Gabungkan event dummy dan event buatan
-        val allEvents = (dummyEvents + createdEvents).distinctBy { it.id }
-
-        // 3. Filter: HANYA tampilkan event yang ID-nya TIDAK ADA di 'followedEventIds'
-        allEvents.filter { it.id !in followedEventIds }
+        val combinedEvents = (allEvents + createdEvents).distinctBy { it.id }
+        combinedEvents.filter { it.id !in followedEventIds }
     }
 
-    // 'filteredEvents' sekarang akan di-trigger oleh 'allAvailableEvents'
-    var filteredEvents by remember { mutableStateOf(allAvailableEvents) } // Inisialisasi awal
-
-    // Fungsi filter yang diperbarui untuk mencari dari 'allAvailableEvents'
-    fun applyFilter() {
-        filteredEvents = allAvailableEvents.filter { event -> // <-- Gunakan 'allAvailableEvents'
-            val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
-            val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
-            categoryMatch && searchMatch
+    // --- PERBAIKAN DI SINI ---
+    // Gunakan derivedStateOf agar filteredEvents *selalu* otomatis
+    // menghitung ulang nilainya ketika salah satu (allAvailableEvents,
+    // selectedCategory, atau searchText) berubah.
+    val filteredEvents by remember(allAvailableEvents, selectedCategory, searchText) {
+        derivedStateOf {
+            allAvailableEvents.filter { event ->
+                val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
+                val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
+                categoryMatch && searchMatch
+            }
         }
     }
-
-    // Panggil applyFilter saat 'allAvailableEvents' atau filter berubah
-    LaunchedEffect(allAvailableEvents, selectedCategory, searchText) { // <-- Ganti 'allEvents' jadi 'allAvailableEvents'
-        applyFilter()
-    }
+    // --- HAPUS BLOK KODE LAMA DI BAWAH INI ---
+    // var filteredEvents by remember { mutableStateOf(allAvailableEvents) }
+    // fun applyFilter() { ... }
+    // LaunchedEffect(allAvailableEvents, selectedCategory, searchText) { ... }
+    // ------------------------------------
 
     Scaffold(
         topBar = {
@@ -156,6 +154,7 @@ fun EventListScreen(
     }
 }
 
+// (CategoryButton dan EventCard tidak berubah)
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Card(
@@ -177,7 +176,6 @@ fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// Pastikan fungsi ini TIDAK private agar bisa diakses MyRegisteredEventScreen.kt
 @Composable
 fun EventCard(event: Event, onClick: () -> Unit) {
     Card(
@@ -219,10 +217,7 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.LocationOn, contentDescription = "Lokasi", tint = Color.Gray, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    // --- PERBAIKAN DI SINI ---
-                    // Ganti dari event.location menjadi event.locationDetail
                     Text(event.locationDetail, fontSize = 12.sp, color = Color.Gray)
-                    // -------------------------
                 }
             }
         }

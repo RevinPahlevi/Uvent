@@ -9,7 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource // Import
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.KeyboardArrowDown // Import Ikon Dropdown
-import androidx.compose.material.icons.filled.Schedule // Import ikon jam
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,14 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext // <-- PASTIKAN IMPORT INI ADA
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-// Import yang diperlukan untuk Coil (AsyncImage)
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
@@ -42,43 +41,35 @@ import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.ui.theme.LightBackground
-// --- IMPORT DUMMY EVENTS DARI LOKASI BARU ---
-import com.example.uventapp.data.model.dummyEvents
-import java.util.Calendar // Import untuk Kalender
+// import com.example.uventapp.data.model.dummyEvents // Tidak perlu lagi
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEventScreen(navController: NavController, viewModel: EventManagementViewModel) {
-    // State untuk menyimpan data form
+    // (State judul, jenis, tanggal, dll. tetap sama)
     var judul by remember { mutableStateOf("") }
-
-    // --- PERBAIKAN: State untuk Dropdown Jenis Event ---
-    var jenis by remember { mutableStateOf("Pilih Jenis Event") } // Nilai default
+    var jenis by remember { mutableStateOf("Pilih Jenis Event") }
     val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
-    // -------------------------------------------------
-
     var tanggal by remember { mutableStateOf("") }
     var waktuMulai by remember { mutableStateOf("") }
     var waktuSelesai by remember { mutableStateOf("") }
-
-    // --- PERBAIKAN: State untuk Lokasi ---
     var platformType by remember { mutableStateOf("Pilih Tipe Lokasi") }
     val platformOptions = listOf("Offline", "Online")
     var locationDetail by remember { mutableStateOf("") }
-    // ----------------------------------
-
     var kuota by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Launcher untuk memilih gambar dari galeri
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
     }
 
-    // --- KALENDER ---
+    // --- PERBAIKAN 1: AMBIL CONTEXT DI SINI ---
     val context = LocalContext.current
+    // ----------------------------------------
+
     val calendar = Calendar.getInstance()
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -98,7 +89,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         datePickerDialog.setOnDismissListener { showDatePicker = false }
     }
 
-    // --- TIME PICKER (BARU) ---
     var showTimePicker by remember { mutableStateOf(false) }
     var isPickingStartTime by remember { mutableStateOf(true) }
 
@@ -122,7 +112,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         timePickerDialog.show()
         timePickerDialog.setOnDismissListener { showTimePicker = false }
     }
-    // ---------------------------
 
     Scaffold(
         topBar = {
@@ -137,23 +126,19 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // (Composable PosterUploadBox, FormInputTextField, FormDropdownField tetap sama)
             Text("Poster Event", fontWeight = FontWeight.SemiBold)
             PosterUploadBox(
                 imageUri = imageUri,
                 onClick = { galleryLauncher.launch("image/*") }
             )
-
             FormInputTextField(label = "Judul Event", value = judul, onValueChange = { judul = it })
-
-            // --- PERBAIKAN: Ganti Input Teks jadi Dropdown ---
             FormDropdownField(
                 label = "Jenis Event",
                 selectedValue = jenis,
                 options = jenisEventOptions,
                 onOptionSelected = { jenis = it }
             )
-            // ------------------------------------------------
-
             FormInputTextField(
                 label = "Tanggal Event",
                 value = tanggal,
@@ -166,7 +151,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 },
                 readOnly = true
             )
-
             FormInputTextField(
                 label = "Waktu Mulai",
                 value = waktuMulai,
@@ -182,7 +166,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 },
                 readOnly = true
             )
-
             FormInputTextField(
                 label = "Waktu Selesai",
                 value = waktuSelesai,
@@ -198,66 +181,55 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 },
                 readOnly = true
             )
-
-            // --- PERBAIKAN: Ganti Input Lokasi ---
             FormDropdownField(
                 label = "Tipe Lokasi",
                 selectedValue = platformType,
                 options = platformOptions,
                 onOptionSelected = { platformType = it }
             )
-
-            // Label dinamis berdasarkan pilihan dropdown
             val locationLabel = when (platformType) {
                 "Online" -> "Link Meet (Zoom/GMeet)"
                 "Offline" -> "Nama Lokasi (Gedung/Ruangan)"
                 else -> "Lokasi/Link"
             }
-
             FormInputTextField(
                 label = locationLabel,
                 value = locationDetail,
                 onValueChange = { locationDetail = it },
-                // Tampilkan field ini hanya jika "Pilih Tipe Lokasi" *tidak* dipilih
                 enabled = platformType != "Pilih Tipe Lokasi"
             )
-            // ------------------------------------
-
             FormInputTextField(label = "Kuota", value = kuota, onValueChange = { kuota = it }, keyboardType = KeyboardType.Number)
 
             Spacer(modifier = Modifier.height(16.dp))
 
             PrimaryButton(text = "Simpan Event", onClick = {
-                val maxDummyId = dummyEvents.maxOfOrNull { it.id } ?: 0
-                val maxCreatedId = viewModel.createdEvents.value.maxOfOrNull { it.id } ?: 0
-                val newId = maxOf(maxDummyId, maxCreatedId) + 1
+                // (Logika ID lokal bisa dihapus jika mau, karena DB sudah handle)
+                val newId = (viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1
 
                 val newEvent = Event(
-                    id = newId,
+                    id = newId, // ID ini hanya untuk lokal, DB akan auto-increment
                     title = judul,
-                    type = jenis, // jenis sekarang dari state dropdown
+                    type = jenis,
                     date = tanggal,
                     timeStart = waktuMulai,
                     timeEnd = waktuSelesai,
-
-                    // --- PERBAIKAN: Simpan data lokasi baru ---
                     platformType = platformType,
                     locationDetail = locationDetail,
-                    // ----------------------------------------
-
                     quota = kuota,
                     status = "Aktif",
                     thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
                     thumbnailUri = imageUri?.toString()
                 )
 
-                viewModel.addEvent(newEvent)
+                // --- PERBAIKAN 2: Kirim 'context' di sini ---
+                viewModel.addEvent(newEvent, context)
                 navController.popBackStack()
             })
         }
     }
 }
 
+// (Composable PosterUploadBox, FormInputTextField, FormDropdownField tetap sama)
 @Composable
 private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     Box(
@@ -315,10 +287,9 @@ private fun FormInputTextField(
     placeholder: String? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
     readOnly: Boolean = false,
-    enabled: Boolean = true, // Tambahkan enabled
+    enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
-
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
         OutlinedTextField(
@@ -330,13 +301,12 @@ private fun FormInputTextField(
             shape = RoundedCornerShape(8.dp),
             singleLine = true,
             readOnly = readOnly,
-            enabled = enabled, // Terapkan enabled
+            enabled = enabled,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
         )
     }
 }
 
-// --- COMPOSABLE HELPER BARU UNTUK DROPDOWN JENIS EVENT ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormDropdownField(
@@ -360,7 +330,7 @@ private fun FormDropdownField(
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(), // Penting untuk ExposedDropdownMenu
+                    .menuAnchor(),
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
@@ -376,7 +346,6 @@ private fun FormDropdownField(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Tambahkan opsi "Pilih..." jika itu adalah nilai default
                 if (selectedValue == "Pilih Jenis Event" || selectedValue == "Pilih Tipe Lokasi") {
                     DropdownMenuItem(
                         text = { Text(selectedValue, color = Color.Gray) },

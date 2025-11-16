@@ -14,7 +14,8 @@ data class Event(
     val quota: String,
     val status: String, // Ini akan jadi status default (misal "Aktif")
     val thumbnailResId: Int?,
-    val thumbnailUri: String? = null
+    val thumbnailUri: String? = null,
+    val creatorId: Int? = null // <-- TAMBAHAN BARU
 )
 
 // Pindahkan dummy data ke sini agar bisa diakses secara global
@@ -31,7 +32,8 @@ val dummyEvents = listOf(
         quota = "500",
         status = "Aktif",
         thumbnailResId = R.drawable.event_talkshow,
-        thumbnailUri = null
+        thumbnailUri = null,
+        creatorId = 999 // ID dummy (agar tidak bentrok)
     ),
     Event(
         id = 2,
@@ -45,7 +47,8 @@ val dummyEvents = listOf(
         quota = "1000",
         status = "Aktif",
         thumbnailResId = R.drawable.event_seminar,
-        thumbnailUri = null
+        thumbnailUri = null,
+        creatorId = 999 // ID dummy
     ),
     Event(
         id = 3,
@@ -59,6 +62,7 @@ val dummyEvents = listOf(
         quota = "50",
         status = "Aktif",
         thumbnailResId = R.drawable.event_skill_lab,
-        thumbnailUri = null
+        thumbnailUri = null,
+        creatorId = 999 // ID dummy
     )
 )

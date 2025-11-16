@@ -25,7 +25,8 @@ import coil.compose.AsyncImage // Import Coil
 import coil.request.ImageRequest // Import Coil
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.model.dummyEvents
+// --- HAPUS IMPORT DUMMY EVENTS ---
+// import com.example.uventapp.data.model.dummyEvents
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -40,7 +41,7 @@ import java.util.Date
 import java.util.Locale
 // ------------------------------------
 
-// --- FUNGSI HELPER (DICOPY DARI MyRegisteredEventScreen) ---
+// --- PERBAIKAN DI SINI: Isi fungsi dikembalikan ---
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
     return try {
         val eventEndString = "$date $timeEnd"
@@ -64,9 +65,16 @@ fun DetailEventScreen(
     eventId: Int?,
     viewModel: EventManagementViewModel
 ) {
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    // --- Ambil data dari state ViewModel, bukan import dummyEvents ---
+    val allEvents by viewModel.allEvents
+    val createdEvents by viewModel.createdEvents
+    val followedEvents = viewModel.followedEvents
+
+    val event = remember(eventId, allEvents, createdEvents, followedEvents) {
+        // Gabungkan semua sumber data dan cari berdasarkan ID
+        (allEvents + createdEvents + followedEvents).distinctBy { it.id }.find { it.id == eventId }
     }
+    // -------------------------
 
     val isRegistered by remember(eventId, viewModel.followedEvents) {
         derivedStateOf {
@@ -74,7 +82,6 @@ fun DetailEventScreen(
         }
     }
 
-    // --- PERBAIKAN: Hitung status selesai/belum ---
     val isFinished = remember(event) {
         event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
     }
@@ -146,9 +153,7 @@ fun DetailEventScreen(
                                 // Tombol Dokumentasi (selalu muncul jika terdaftar)
                                 Button(
                                     onClick = {
-                                        // --- INI BAGIAN PENTING ---
                                         navController.navigate(Screen.AllDocumentation.createRoute(event.id))
-                                        // -------------------------
                                     },
                                     modifier = if (isFinished) Modifier.weight(1f) else Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(8.dp),

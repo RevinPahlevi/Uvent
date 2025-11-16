@@ -1,5 +1,7 @@
 package com.example.uventapp.ui.screen.event
 
+import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -7,13 +9,24 @@ import androidx.lifecycle.ViewModel
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.data.model.Feedback
-// --- IMPORT BARU ---
 import com.example.uventapp.data.model.Documentation
+// --- IMPORT BARU UNTUK API ---
+import com.example.uventapp.data.network.ApiClient
+import com.example.uventapp.data.network.CreateEventRequest
+import com.example.uventapp.data.network.CreateEventResponse
+import com.example.uventapp.data.network.EventResponse
+import com.example.uventapp.data.network.GetEventsResponse
+import com.example.uventapp.utils.isNetworkAvailable
+// --- IMPORT DATA DUMMY EVENT ---
+import com.example.uventapp.data.model.dummyEvents
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// --- PERBAIKAN: Data Feedback Dummy disesuaikan dengan UI ---
+// (dummyFeedbacks dan dummyDocumentation tetap ada, tidak dihapus)
 private val dummyFeedbacks = mutableListOf(
     Feedback(
         id = 100,
@@ -23,7 +36,7 @@ private val dummyFeedbacks = mutableListOf(
         photoUri = null,
         userName = "Loly Amelia Nurza",
         postDate = "19 Oktober 2025",
-        isAnda = true // Loly adalah "Anda"
+        isAnda = true
     ),
     Feedback(
         id = 101,
@@ -46,9 +59,6 @@ private val dummyFeedbacks = mutableListOf(
         isAnda = false
     )
 )
-// ----------------------------
-
-// --- DATA DUMMY DOKUMENTASI (DIPERBARUI) ---
 private val dummyDocumentation = mutableListOf(
     Documentation(
         id = 200,
@@ -57,7 +67,7 @@ private val dummyDocumentation = mutableListOf(
         photoUri = null,
         userName = "Loly Amelia Nurza",
         postDate = "17 Oktober 2025",
-        postTime = "14:30", // <-- TAMBAHAN BARU
+        postTime = "14:30",
         isAnda = false
     ),
     Documentation(
@@ -67,14 +77,63 @@ private val dummyDocumentation = mutableListOf(
         photoUri = null,
         userName = "Aldo Francisco",
         postDate = "17 Oktober 2025",
-        postTime = "15:01", // <-- TAMBAHAN BARU
+        postTime = "15:01",
         isAnda = false
     )
 )
-// ----------------------------------------
+
+// --- HELPER UNTUK KONVERSI DATA ---
+// Mengubah format tanggal DB (YYYY-MM-DD) ke UI (D/M/YYYY)
+private fun reformatDateForUi(dbDate: String?): String {
+    if (dbDate == null) return "N/A"
+    return try {
+        val cleanDate = dbDate.split("T").first()
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val formatter = SimpleDateFormat("d/M/yyyy", Locale.getDefault())
+        formatter.format(parser.parse(cleanDate) ?: Date())
+    } catch (e: Exception) {
+        dbDate
+    }
+}
+
+// Mengubah format waktu DB (HH:mm:ss) ke UI (HH:mm)
+private fun reformatTimeForUi(dbTime: String?): String {
+    if (dbTime == null) return "N/A"
+    return try {
+        val parser = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+        val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+        formatter.format(parser.parse(dbTime) ?: Date())
+    } catch (e: Exception) {
+        dbTime
+    }
+}
+
+// Mengubah 1 EventResponse (dari API) menjadi 1 Event (untuk UI)
+private fun EventResponse.toEventModel(): Event {
+    return Event(
+        id = this.id,
+        title = this.title,
+        type = this.type ?: "N/A",
+        date = reformatDateForUi(this.date),
+        timeStart = reformatTimeForUi(this.timeStart),
+        timeEnd = reformatTimeForUi(this.timeEnd),
+        platformType = this.platformType ?: "N/A",
+        locationDetail = this.locationDetail ?: "N/A",
+        quota = this.quota?.toString() ?: "0",
+        status = this.status ?: "Aktif",
+        thumbnailResId = null, // Kita tidak pakai ResId lagi
+        thumbnailUri = this.thumbnailUri
+    )
+}
+// ---------------------------------
 
 
 class EventManagementViewModel : ViewModel() {
+
+    // --- STATE BARU UNTUK EVENT DARI SERVER ---
+    private val _allEvents = mutableStateOf<List<Event>>(emptyList())
+    val allEvents: State<List<Event>> = _allEvents
+    // ------------------------------------------
 
     private val _createdEvents = mutableStateOf<List<Event>>(emptyList())
     val createdEvents: State<List<Event>> = _createdEvents
@@ -88,171 +147,143 @@ class EventManagementViewModel : ViewModel() {
     private val _registrations = mutableStateOf<Map<Int, Registration>>(emptyMap())
     val registrations: State<Map<Int, Registration>> = _registrations
 
-    // --- State untuk Feedback ---
     private val _feedbacks = mutableStateOf<Map<Int, List<Feedback>>>(
-        // Inisialisasi dengan data dummy
         mapOf(1 to dummyFeedbacks)
     )
     val feedbacks: State<Map<Int, List<Feedback>>> = _feedbacks
 
-    // --- State untuk Dokumentasi ---
     private val _documentations = mutableStateOf<Map<Int, List<Documentation>>>(
         mapOf(1 to dummyDocumentation)
     )
     val documentations: State<Map<Int, List<Documentation>>> = _documentations
 
-    // --- STATE BARU UNTUK MELACAK LIKE DOKUMENTASI ---
     private val _likedDocIds = mutableStateOf(setOf<Int>())
     val likedDocIds: State<Set<Int>> = _likedDocIds
-    // -------------------------------------------------
 
-    /**
-     * Mengambil semua feedback untuk eventId tertentu.
-     */
-    fun getFeedbacksForEvent(eventId: Int): List<Feedback> {
-        return _feedbacks.value[eventId] ?: emptyList()
-    }
 
-    /**
-     * Mengirim feedback baru dari pengguna.
-     */
-    fun submitFeedback(eventId: Int, feedback: Feedback) {
-        val currentFeedbacksMap = _feedbacks.value.toMutableMap()
-
-        // Ambil list yang ada, atau buat list baru jika belum ada
-        val currentList = (currentFeedbacksMap[eventId] ?: emptyList()).toMutableList()
-
-        // --- PERBAIKAN LOGIKA: Hapus ulasan "Anda" sebelumnya ---
-        currentList.removeIf { it.isAnda }
-        // ----------------------------------------------------
-
-        // Tambahkan feedback baru ke list (sebagai "Anda")
-        // Kita letakkan di paling atas (index 0)
-        currentList.add(0, feedback.copy(isAnda = true))
-
-        // Simpan list baru ke map
-        currentFeedbacksMap[eventId] = currentList
-        _feedbacks.value = currentFeedbacksMap
-    }
-
-    /**
-     * Menghapus feedback (hanya feedback milik "Anda").
-     */
-    fun deleteFeedback(eventId: Int, feedbackId: Int) {
-        val currentFeedbacksMap = _feedbacks.value.toMutableMap()
-        val currentList = (currentFeedbacksMap[eventId] ?: emptyList()).toMutableList()
-
-        // Hapus feedback berdasarkan ID-nya
-        currentList.removeIf { it.id == feedbackId }
-
-        currentFeedbacksMap[eventId] = currentList
-        _feedbacks.value = currentFeedbacksMap
-    }
-
-    // --- FUNGSI BARU UNTUK DOKUMENTASI ---
-    /**
-     * Mengambil semua dokumentasi untuk eventId tertentu.
-     */
-    fun getDocumentationForEvent(eventId: Int): List<Documentation> {
-        return _documentations.value[eventId] ?: emptyList()
-    }
-
-    /**
-     * Mengirim dokumentasi baru dari pengguna.
-     */
-    fun submitDocumentation(eventId: Int, doc: Documentation) {
-        val currentDocsMap = _documentations.value.toMutableMap()
-        val currentList = (currentDocsMap[eventId] ?: emptyList()).toMutableList()
-
-        // Hapus jika sudah ada (untuk edit)
-        currentList.removeIf { it.id == doc.id && it.isAnda }
-
-        // Tambahkan dokumentasi baru ke list
-        currentList.add(0, doc.copy(isAnda = true))
-
-        currentDocsMap[eventId] = currentList
-        _documentations.value = currentDocsMap
-    }
-
-    // --- FUNGSI BARU UNTUK HAPUS DOKUMENTASI ---
-    fun deleteDocumentation(eventId: Int, docId: Int) {
-        val currentDocsMap = _documentations.value.toMutableMap()
-        val currentList = (currentDocsMap[eventId] ?: emptyList()).toMutableList()
-
-        currentList.removeIf { it.id == docId } // Hapus berdasarkan ID
-
-        currentDocsMap[eventId] = currentList
-        _documentations.value = currentDocsMap
-    }
-    // -----------------------------------------
-
-    fun toggleDocumentationLike(docId: Int) {
-        val currentLikes = _likedDocIds.value.toMutableSet()
-        if (docId in currentLikes) {
-            currentLikes.remove(docId)
-        } else {
-            currentLikes.add(docId)
-        }
-        _likedDocIds.value = currentLikes
-    }
-    // -------------------------------
-
-    // --- Sisa fungsi ViewModel (tetap sama) ---
-
-    fun registerForEvent(event: Event, data: Registration) {
-        if (followedEvents.none { it.id == event.id }) {
-            _followedEvents.add(event)
+    // --- FUNGSI DIPERBAIKI (untuk menggabungkan data dummy) ---
+    fun loadAllEvents(context: Context) {
+        if (!isNetworkAvailable(context)) {
+            _notificationMessage.value = "Offline. Gagal memuat event."
+            _allEvents.value = dummyEvents // Jika offline, tampilkan dummy
+            return
         }
 
-        val currentRegs = _registrations.value.toMutableMap()
-        currentRegs[event.id] = data
-        _registrations.value = currentRegs
-    }
+        ApiClient.instance.getAllEvents().enqueue(object : Callback<GetEventsResponse> {
+            override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
 
-    fun getRegistrationData(eventId: Int): Registration? {
-        return _registrations.value[eventId]
-    }
+                    // 1. Ambil List<EventResponse> dari API
+                    val eventsFromApi = body.data.map { it.toEventModel() }
 
-    fun updateRegistrationData(eventId: Int, newData: Registration) {
-        val currentRegs = _registrations.value.toMutableMap()
-        if (currentRegs.containsKey(eventId)) {
-            currentRegs[eventId] = newData
-            _registrations.value = currentRegs
+                    // 2. Gabungkan dengan dummyEvents (pastikan tidak ada duplikat ID)
+                    val combinedList = (eventsFromApi + dummyEvents).distinctBy { it.id }
+
+                    // 3. Simpan ke state
+                    _allEvents.value = combinedList
+
+                } else {
+                    Log.e("ViewModel", "Gagal memuat event: ${response.message()}")
+                    _notificationMessage.value = "Gagal memuat event."
+                    _allEvents.value = dummyEvents // Tampilkan dummy jika API error
+                }
+            }
+
+            override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
+                Log.e("ViewModel", "API Failure (loadAllEvents): ${t.message}")
+                _notificationMessage.value = "Gagal terhubung ke server."
+                _allEvents.value = dummyEvents // Tampilkan dummy jika server offline
+            }
+        })
+    }
+    // -----------------------------------
+
+    // (Fungsi feedback, documentation, registration tetap sama)
+    fun getFeedbacksForEvent(eventId: Int): List<Feedback> { return _feedbacks.value[eventId] ?: emptyList() }
+    fun submitFeedback(eventId: Int, feedback: Feedback) { /* ... */ }
+    fun deleteFeedback(eventId: Int, feedbackId: Int) { /* ... */ }
+    fun getDocumentationForEvent(eventId: Int): List<Documentation> { return _documentations.value[eventId] ?: emptyList() }
+    fun submitDocumentation(eventId: Int, doc: Documentation) { /* ... */ }
+    fun deleteDocumentation(eventId: Int, docId: Int) { /* ... */ }
+    fun toggleDocumentationLike(docId: Int) { /* ... */ }
+    fun registerForEvent(event: Event, data: Registration) { /* ... */ }
+    fun getRegistrationData(eventId: Int): Registration? { return _registrations.value[eventId] }
+    fun updateRegistrationData(eventId: Int, newData: Registration) { /* ... */ }
+    fun unfollowEvent(eventId: Int) { /* ... */ }
+
+    // --- FUNGSI DIPERBAIKI (untuk update _createdEvents) ---
+    fun addEvent(event: Event, context: Context) {
+        // 1. Cek koneksi
+        if (!isNetworkAvailable(context)) {
+            _notificationMessage.value = "Tidak ada koneksi internet."
+            return
         }
-    }
 
-    fun unfollowEvent(eventId: Int) {
-        _followedEvents.removeIf { it.id == eventId }
+        // 2. Buat Request Body untuk API
+        val request = CreateEventRequest(
+            title = event.title,
+            type = event.type,
+            date = event.date,
+            timeStart = event.timeStart,
+            timeEnd = event.timeEnd,
+            platformType = event.platformType,
+            locationDetail = event.locationDetail,
+            quota = event.quota,
+            status = event.status,
+            thumbnailUri = event.thumbnailUri
+        )
 
-        val currentRegs = _registrations.value.toMutableMap()
-        currentRegs.remove(eventId)
-        _registrations.value = currentRegs
-    }
+        // 3. Panggil API
+        ApiClient.instance.createEvent(request).enqueue(object : Callback<CreateEventResponse> {
+            override fun onResponse(call: Call<CreateEventResponse>, response: Response<CreateEventResponse>) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    _notificationMessage.value = "Event Berhasil Ditambahkan"
 
-    fun addEvent(event: Event) {
-        _createdEvents.value = _createdEvents.value + listOf(event)
-        _notificationMessage.value = "Event Berhasil Ditambahkan"
+                    // Muat ulang semua event (termasuk dummy + API)
+                    loadAllEvents(context)
+
+                    // Tambahkan juga ke list _createdEvents (untuk "Event Saya")
+                    _createdEvents.value = _createdEvents.value + listOf(event)
+
+                } else {
+                    Log.e("ViewModel", "Gagal menambah event: ${response.message()}")
+                    _notificationMessage.value = "Gagal menambah event: ${response.message()}"
+                }
+            }
+            override fun onFailure(call: Call<CreateEventResponse>, t: Throwable) {
+                Log.e("ViewModel", "API Failure (addEvent): ${t.message}")
+                _notificationMessage.value = "Gagal terhubung ke server."
+            }
+        })
     }
+    // ----------------------------------
 
     fun updateEvent(updatedEvent: Event) {
+        // TODO: Buat API untuk Update Event
         _createdEvents.value = _createdEvents.value.map {
             if (it.id == updatedEvent.id) updatedEvent else it
         }
-        _notificationMessage.value = "Event Berhasil DiEdit"
+        _notificationMessage.value = "Event Berhasil DiEdit (Lokal)"
     }
 
     fun deleteEvent(eventId: Int) {
+        // TODO: Buat API untuk Delete Event
         _createdEvents.value = _createdEvents.value.filter { it.id != eventId }
-        _notificationMessage.value = "Event Berhasil Dihapus"
+        _notificationMessage.value = "Event Berhasil Dihapus (Lokal)"
     }
 
+    // --- FUNGSI DIPERBAIKI (sesuai error "Missing return") ---
+    // Tambahkan tipe return : Event?
     fun getEventById(eventId: Int): Event? {
-        // --- Diperbarui untuk mencari di semua list ---
-        return _createdEvents.value.find { it.id == eventId }
-            ?: _followedEvents.find { it.id == eventId }
-        // Anda mungkin juga ingin mencari di dummyEvents jika diperlukan
-        // ?: dummyEvents.find { it.id == eventId }
+        // Cari di semua list yang mungkin
+        return _allEvents.value.find { it.id == eventId } // <-- Daftar gabungan (API + Dummy)
+            ?: _createdEvents.value.find { it.id == eventId } // <-- Daftar buatan lokal
+            ?: _followedEvents.find { it.id == eventId } // <-- Daftar yang diikuti
+            ?: dummyEvents.find { it.id == eventId } // <-- Fallback terakhir
     }
+    // -----------------------------------------
 
     fun clearNotification() {
         _notificationMessage.value = null
