@@ -18,6 +18,8 @@ class ProfileViewModel : ViewModel() {
     private val _profile = mutableStateOf<UserProfile?>(null)
     val profile: State<UserProfile?> = _profile
 
+    // (Fungsi init dan loadUserProfile sudah dihapus, itu bagus)
+
     fun saveUserProfile(user: User) {
         _profile.value = UserProfile(
             id = user.id, // <-- TAMBAHAN BARU

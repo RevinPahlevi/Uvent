@@ -32,7 +32,6 @@ data class EventResponse(
     val status: String?,
     @SerializedName("thumbnail_uri")
     val thumbnailUri: String?,
-
-    @SerializedName("creator_id") // <-- TAMBAHAN BARU
+    @SerializedName("creator_id")
     val creatorId: Int?
 )

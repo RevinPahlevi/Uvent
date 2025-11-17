@@ -27,7 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // <-- PASTIKAN IMPORT INI ADA
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,12 +41,18 @@ import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.ui.theme.LightBackground
-// import com.example.uventapp.data.model.dummyEvents // Tidak perlu lagi
+// --- IMPORT PROFILE VIEW MODEL ---
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
+import com.example.uventapp.data.model.dummyEvents // Import dummyEvents
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddEventScreen(navController: NavController, viewModel: EventManagementViewModel) {
+fun AddEventScreen(
+    navController: NavController,
+    viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel // <-- 1. Terima ViewModel
+) {
     // (State judul, jenis, tanggal, dll. tetap sama)
     var judul by remember { mutableStateOf("") }
     var jenis by remember { mutableStateOf("Pilih Jenis Event") }
@@ -60,19 +66,22 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
     var kuota by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
+    // --- Ambil ID user yang sedang login ---
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+    // ------------------------------------
+
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
     }
 
-    // --- PERBAIKAN 1: AMBIL CONTEXT DI SINI ---
     val context = LocalContext.current
-    // ----------------------------------------
-
     val calendar = Calendar.getInstance()
     var showDatePicker by remember { mutableStateOf(false) }
 
+    // (Blok datePickerDialog dan timePickerDialog tetap sama)
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year: Int, month: Int, dayOfMonth: Int ->
@@ -83,19 +92,16 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     )
-
     if (showDatePicker) {
         datePickerDialog.show()
         datePickerDialog.setOnDismissListener { showDatePicker = false }
     }
-
     var showTimePicker by remember { mutableStateOf(false) }
     var isPickingStartTime by remember { mutableStateOf(true) }
-
     val timePickerDialog = TimePickerDialog(
         context,
         { _, hourOfDay: Int, minute: Int ->
-            val formattedTime = String.format("%02d:%02d", hourOfDay, minute) // Format HH:mm
+            val formattedTime = String.format("%02d:%02d", hourOfDay, minute)
             if (isPickingStartTime) {
                 waktuMulai = formattedTime
             } else {
@@ -105,9 +111,8 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
         },
         calendar.get(Calendar.HOUR_OF_DAY),
         calendar.get(Calendar.MINUTE),
-        true // true untuk format 24 jam
+        true
     )
-
     if (showTimePicker) {
         timePickerDialog.show()
         timePickerDialog.setOnDismissListener { showTimePicker = false }
@@ -126,7 +131,6 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // (Composable PosterUploadBox, FormInputTextField, FormDropdownField tetap sama)
             Text("Poster Event", fontWeight = FontWeight.SemiBold)
             PosterUploadBox(
                 imageUri = imageUri,
@@ -203,11 +207,12 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
             Spacer(modifier = Modifier.height(16.dp))
 
             PrimaryButton(text = "Simpan Event", onClick = {
-                // (Logika ID lokal bisa dihapus jika mau, karena DB sudah handle)
-                val newId = (viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1
+                // Buat ID lokal baru sementara
+                val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
+                    .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
 
                 val newEvent = Event(
-                    id = newId, // ID ini hanya untuk lokal, DB akan auto-increment
+                    id = newId,
                     title = judul,
                     type = jenis,
                     date = tanggal,
@@ -218,18 +223,19 @@ fun AddEventScreen(navController: NavController, viewModel: EventManagementViewM
                     quota = kuota,
                     status = "Aktif",
                     thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
-                    thumbnailUri = imageUri?.toString()
+                    thumbnailUri = imageUri?.toString(),
+                    creatorId = currentUserId // <-- 2. Sertakan ID user
                 )
 
-                // --- PERBAIKAN 2: Kirim 'context' di sini ---
-                viewModel.addEvent(newEvent, context)
+                // --- PERBAIKAN: Kirim 'context' dan 'currentUserId' ---
+                viewModel.addEvent(newEvent, currentUserId, context)
                 navController.popBackStack()
             })
         }
     }
 }
 
-// (Composable PosterUploadBox, FormInputTextField, FormDropdownField tetap sama)
+// (Composable PosterUploadBox, FormInputTextField, FormDropdownField tidak berubah)
 @Composable
 private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     Box(
@@ -276,19 +282,13 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormInputTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String? = null,
-    trailingIcon: @Composable (() -> Unit)? = null,
-    readOnly: Boolean = false,
-    enabled: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text
+    label: String, value: String, onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier, placeholder: String? = null,
+    trailingIcon: @Composable (() -> Unit)? = null, readOnly: Boolean = false,
+    enabled: Boolean = true, keyboardType: KeyboardType = KeyboardType.Text
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(text = label, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
@@ -306,13 +306,10 @@ private fun FormInputTextField(
         )
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FormDropdownField(
-    label: String,
-    selectedValue: String,
-    options: List<String>,
+    label: String, selectedValue: String, options: List<String>,
     onOptionSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }

@@ -10,15 +10,15 @@ import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.data.model.Feedback
 import com.example.uventapp.data.model.Documentation
-// --- IMPORT BARU UNTUK API ---
+// --- PERBAIKAN: TAMBAHKAN SEMUA IMPORT INI ---
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.CreateEventRequest
 import com.example.uventapp.data.network.CreateEventResponse
 import com.example.uventapp.data.network.EventResponse
 import com.example.uventapp.data.network.GetEventsResponse
 import com.example.uventapp.utils.isNetworkAvailable
-// --- IMPORT DATA DUMMY EVENT ---
 import com.example.uventapp.data.model.dummyEvents
+// ------------------------------------------
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -26,7 +26,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// (dummyFeedbacks dan dummyDocumentation tetap ada, tidak dihapus)
+// (dummyFeedbacks dan dummyDocumentation tetap ada)
 private val dummyFeedbacks = mutableListOf(
     Feedback(
         id = 100,
@@ -82,8 +82,7 @@ private val dummyDocumentation = mutableListOf(
     )
 )
 
-// --- HELPER UNTUK KONVERSI DATA ---
-// Mengubah format tanggal DB (YYYY-MM-DD) ke UI (D/M/YYYY)
+// (Fungsi helper reformatDateForUi dan reformatTimeForUi tetap ada)
 private fun reformatDateForUi(dbDate: String?): String {
     if (dbDate == null) return "N/A"
     return try {
@@ -95,8 +94,6 @@ private fun reformatDateForUi(dbDate: String?): String {
         dbDate
     }
 }
-
-// Mengubah format waktu DB (HH:mm:ss) ke UI (HH:mm)
 private fun reformatTimeForUi(dbTime: String?): String {
     if (dbTime == null) return "N/A"
     return try {
@@ -108,7 +105,7 @@ private fun reformatTimeForUi(dbTime: String?): String {
     }
 }
 
-// Mengubah 1 EventResponse (dari API) menjadi 1 Event (untuk UI)
+// (Fungsi helper toEventModel tetap sama)
 private fun EventResponse.toEventModel(): Event {
     return Event(
         id = this.id,
@@ -121,51 +118,44 @@ private fun EventResponse.toEventModel(): Event {
         locationDetail = this.locationDetail ?: "N/A",
         quota = this.quota?.toString() ?: "0",
         status = this.status ?: "Aktif",
-        thumbnailResId = null, // Kita tidak pakai ResId lagi
-        thumbnailUri = this.thumbnailUri
+        thumbnailResId = null,
+        thumbnailUri = this.thumbnailUri,
+        creatorId = this.creatorId
     )
 }
-// ---------------------------------
+
 
 
 class EventManagementViewModel : ViewModel() {
 
-    // --- STATE BARU UNTUK EVENT DARI SERVER ---
     private val _allEvents = mutableStateOf<List<Event>>(emptyList())
     val allEvents: State<List<Event>> = _allEvents
-    // ------------------------------------------
 
-    private val _createdEvents = mutableStateOf<List<Event>>(emptyList())
-    val createdEvents: State<List<Event>> = _createdEvents
+    // (State _createdEvents sudah dihapus)
 
     private val _followedEvents = mutableStateListOf<Event>()
     val followedEvents: List<Event> = _followedEvents
-
+    // (sisa state lainnya tetap sama)
     private val _notificationMessage = mutableStateOf<String?>(null)
     val notificationMessage: State<String?> = _notificationMessage
-
     private val _registrations = mutableStateOf<Map<Int, Registration>>(emptyMap())
     val registrations: State<Map<Int, Registration>> = _registrations
-
     private val _feedbacks = mutableStateOf<Map<Int, List<Feedback>>>(
         mapOf(1 to dummyFeedbacks)
     )
     val feedbacks: State<Map<Int, List<Feedback>>> = _feedbacks
-
     private val _documentations = mutableStateOf<Map<Int, List<Documentation>>>(
         mapOf(1 to dummyDocumentation)
     )
     val documentations: State<Map<Int, List<Documentation>>> = _documentations
-
     private val _likedDocIds = mutableStateOf(setOf<Int>())
     val likedDocIds: State<Set<Int>> = _likedDocIds
 
 
-    // --- FUNGSI DIPERBAIKI (untuk menggabungkan data dummy) ---
     fun loadAllEvents(context: Context) {
         if (!isNetworkAvailable(context)) {
             _notificationMessage.value = "Offline. Gagal memuat event."
-            _allEvents.value = dummyEvents // Jika offline, tampilkan dummy
+            _allEvents.value = dummyEvents
             return
         }
 
@@ -173,31 +163,21 @@ class EventManagementViewModel : ViewModel() {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
-
-                    // 1. Ambil List<EventResponse> dari API
                     val eventsFromApi = body.data.map { it.toEventModel() }
-
-                    // 2. Gabungkan dengan dummyEvents (pastikan tidak ada duplikat ID)
+                    // Gabungkan data API dengan data dummy
                     val combinedList = (eventsFromApi + dummyEvents).distinctBy { it.id }
-
-                    // 3. Simpan ke state
                     _allEvents.value = combinedList
-
                 } else {
                     Log.e("ViewModel", "Gagal memuat event: ${response.message()}")
-                    _notificationMessage.value = "Gagal memuat event."
                     _allEvents.value = dummyEvents // Tampilkan dummy jika API error
                 }
             }
-
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
                 Log.e("ViewModel", "API Failure (loadAllEvents): ${t.message}")
-                _notificationMessage.value = "Gagal terhubung ke server."
                 _allEvents.value = dummyEvents // Tampilkan dummy jika server offline
             }
         })
     }
-    // -----------------------------------
 
     // (Fungsi feedback, documentation, registration tetap sama)
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> { return _feedbacks.value[eventId] ?: emptyList() }
@@ -212,15 +192,13 @@ class EventManagementViewModel : ViewModel() {
     fun updateRegistrationData(eventId: Int, newData: Registration) { /* ... */ }
     fun unfollowEvent(eventId: Int) { /* ... */ }
 
-    // --- FUNGSI DIPERBAIKI (untuk update _createdEvents) ---
-    fun addEvent(event: Event, context: Context) {
-        // 1. Cek koneksi
+    // --- PERBAIKAN DI SINI: Tambah parameter creatorId: Int? ---
+    // Ini akan memperbaiki error di AddEventScreen
+    fun addEvent(event: Event, creatorId: Int?, context: Context) {
         if (!isNetworkAvailable(context)) {
             _notificationMessage.value = "Tidak ada koneksi internet."
             return
         }
-
-        // 2. Buat Request Body untuk API
         val request = CreateEventRequest(
             title = event.title,
             type = event.type,
@@ -231,22 +209,17 @@ class EventManagementViewModel : ViewModel() {
             locationDetail = event.locationDetail,
             quota = event.quota,
             status = event.status,
-            thumbnailUri = event.thumbnailUri
+            thumbnailUri = event.thumbnailUri,
+            creatorId = creatorId // <-- Kirim creatorId
         )
 
-        // 3. Panggil API
+        // Ini akan memperbaiki error "Unresolved reference 'CreateEventResponse'"
         ApiClient.instance.createEvent(request).enqueue(object : Callback<CreateEventResponse> {
             override fun onResponse(call: Call<CreateEventResponse>, response: Response<CreateEventResponse>) {
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
                     _notificationMessage.value = "Event Berhasil Ditambahkan"
-
-                    // Muat ulang semua event (termasuk dummy + API)
                     loadAllEvents(context)
-
-                    // Tambahkan juga ke list _createdEvents (untuk "Event Saya")
-                    _createdEvents.value = _createdEvents.value + listOf(event)
-
                 } else {
                     Log.e("ViewModel", "Gagal menambah event: ${response.message()}")
                     _notificationMessage.value = "Gagal menambah event: ${response.message()}"
@@ -262,28 +235,19 @@ class EventManagementViewModel : ViewModel() {
 
     fun updateEvent(updatedEvent: Event) {
         // TODO: Buat API untuk Update Event
-        _createdEvents.value = _createdEvents.value.map {
-            if (it.id == updatedEvent.id) updatedEvent else it
-        }
         _notificationMessage.value = "Event Berhasil DiEdit (Lokal)"
     }
 
     fun deleteEvent(eventId: Int) {
         // TODO: Buat API untuk Delete Event
-        _createdEvents.value = _createdEvents.value.filter { it.id != eventId }
         _notificationMessage.value = "Event Berhasil Dihapus (Lokal)"
     }
 
-    // --- FUNGSI DIPERBAIKI (sesuai error "Missing return") ---
-    // Tambahkan tipe return : Event?
     fun getEventById(eventId: Int): Event? {
-        // Cari di semua list yang mungkin
-        return _allEvents.value.find { it.id == eventId } // <-- Daftar gabungan (API + Dummy)
-            ?: _createdEvents.value.find { it.id == eventId } // <-- Daftar buatan lokal
-            ?: _followedEvents.find { it.id == eventId } // <-- Daftar yang diikuti
-            ?: dummyEvents.find { it.id == eventId } // <-- Fallback terakhir
+        return _allEvents.value.find { it.id == eventId }
+            ?: _followedEvents.find { it.id == eventId }
+            ?: dummyEvents.find { it.id == eventId } // Fallback ke dummy
     }
-    // -----------------------------------------
 
     fun clearNotification() {
         _notificationMessage.value = null

@@ -15,18 +15,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // Import Coil
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage // Import Coil
-import coil.request.ImageRequest // Import Coil
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-// --- HAPUS IMPORT DUMMY EVENTS ---
-// import com.example.uventapp.data.model.dummyEvents
+// --- PERBAIKAN: TAMBAHKAN IMPORT INI ---
+import com.example.uventapp.data.model.dummyEvents
+// ------------------------------------
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -34,14 +35,12 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
-// --- IMPORT BARU UNTUK LOGIKA WAKTU ---
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-// ------------------------------------
 
-// --- PERBAIKAN DI SINI: Isi fungsi dikembalikan ---
+// (Fungsi helper isEventFinished tidak berubah)
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
     return try {
         val eventEndString = "$date $timeEnd"
@@ -57,7 +56,7 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         false
     }
 }
-// ---------------------------------------------------------
+
 
 @Composable
 fun DetailEventScreen(
@@ -65,16 +64,13 @@ fun DetailEventScreen(
     eventId: Int?,
     viewModel: EventManagementViewModel
 ) {
-    // --- Ambil data dari state ViewModel, bukan import dummyEvents ---
     val allEvents by viewModel.allEvents
-    val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
 
-    val event = remember(eventId, allEvents, createdEvents, followedEvents) {
+    val event = remember(eventId, allEvents, followedEvents) {
         // Gabungkan semua sumber data dan cari berdasarkan ID
-        (allEvents + createdEvents + followedEvents).distinctBy { it.id }.find { it.id == eventId }
+        (allEvents + followedEvents + dummyEvents).distinctBy { it.id }.find { it.id == eventId }
     }
-    // -------------------------
 
     val isRegistered by remember(eventId, viewModel.followedEvents) {
         derivedStateOf {

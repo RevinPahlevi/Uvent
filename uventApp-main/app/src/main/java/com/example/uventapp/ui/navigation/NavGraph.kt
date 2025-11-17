@@ -21,49 +21,32 @@ import com.example.uventapp.ui.screen.event.DetailEventScreen
 import com.example.uventapp.ui.screen.event.EventListScreen
 import com.example.uventapp.ui.screen.feedback.AddFeedbackScreen
 import com.example.uventapp.ui.screen.feedback.AllFeedbackScreen
-// --- Import untuk Dokumentasi ---
 import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
-// --- IMPORT BARU UNTUK PROFIL ---
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
 
 @Composable
 fun NavGraph(navController: NavHostController) {
 
-    // --- PERBAIKAN DI SINI ---
-    // Daftarkan kedua ViewModel di sini
+    // Inisialisasi kedua ViewModel di sini
     val eventViewModel: EventManagementViewModel = viewModel()
-    val profileViewModel: ProfileViewModel = viewModel() // <-- 1. Buat ViewModel di sini
+    val profileViewModel: ProfileViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
 
         composable(Screen.Splash.route) { SplashScreen(navController) }
-
-        // --- PERBAIKAN DI SINI ---
-        // 2. Kirimkan ViewModel ke layar-layar yang membutuhkan
-        composable(Screen.Login.route) {
-            LoginScreen(navController, profileViewModel)
-        }
-        composable(Screen.Register.route) {
-            RegistrationScreen(navController, profileViewModel)
-        }
-        // ----------------------------------------
-
+        composable(Screen.Login.route) { LoginScreen(navController, profileViewModel) }
+        composable(Screen.Register.route) { RegistrationScreen(navController, profileViewModel) }
         composable(Screen.Home.route) { HomeScreen(navController) }
-
-        composable(Screen.EventList.route) {
-            EventListScreen(navController = navController, viewModel = eventViewModel)
-        }
-
-        // ... (sisa composable lainnya tetap sama) ...
+        composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel) }
 
         composable(
             route = Screen.DetailEvent.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            DetailEventScreen(navController = navController, eventId = eventId, viewModel = eventViewModel)
+            DetailEventScreen(navController, eventId, eventViewModel)
         }
 
         composable(
@@ -71,11 +54,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            RegistrationFormScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId
-            )
+            RegistrationFormScreen(navController, eventViewModel, eventId)
         }
 
         composable(
@@ -83,11 +62,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            EditRegistrationScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId
-            )
+            EditRegistrationScreen(navController, eventViewModel, eventId)
         }
 
         composable(
@@ -99,15 +74,23 @@ fun NavGraph(navController: NavHostController) {
             })
         ) { backStackEntry ->
             val eventName = backStackEntry.arguments?.getString("eventName") ?: ""
+            // --- PERBAIKAN DI SINI ---
+            // Tambahkan 'profileViewModel = profileViewModel'
             MyRegisteredEventScreen(
                 navController = navController,
-                eventName = eventName,
-                viewModel = eventViewModel
+                viewModel = eventViewModel,
+                profileViewModel = profileViewModel, // <-- INI YANG HILANG
+                eventName = eventName
             )
         }
 
         composable(Screen.AddEvent.route) {
-            AddEventScreen(navController = navController, viewModel = eventViewModel)
+            // (Panggilan ini sudah benar dari sebelumnya)
+            AddEventScreen(
+                navController = navController,
+                viewModel = eventViewModel,
+                profileViewModel = profileViewModel
+            )
         }
 
         composable(
@@ -115,45 +98,31 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            EditEventScreen(navController = navController, viewModel = eventViewModel, eventId = eventId)
+            EditEventScreen(navController, eventViewModel, eventId)
         }
 
+        // (Rute AddFeedback, AllFeedback, AllDocumentation, AddDocumentation tetap sama)
         composable(
             route = Screen.AddFeedback.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AddFeedbackScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId
-            )
+            AddFeedbackScreen(navController, eventViewModel, eventId)
         }
-
         composable(
             route = Screen.AllFeedback.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllFeedbackScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId
-            )
+            AllFeedbackScreen(navController, eventViewModel, eventId)
         }
-
         composable(
             route = Screen.AllDocumentation.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllDocumentationScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId
-            )
+            AllDocumentationScreen(navController, eventViewModel, eventId)
         }
-
         composable(
             route = Screen.AddDocumentation.route,
             arguments = listOf(
@@ -168,22 +137,11 @@ fun NavGraph(navController: NavHostController) {
             val eventId = backStackEntry.arguments?.getInt("eventId")
             val docIdString = backStackEntry.arguments?.getString("docId")
             val docId = docIdString?.toIntOrNull()
-
-            AddDocumentationScreen(
-                navController = navController,
-                viewModel = eventViewModel,
-                eventId = eventId,
-                docId = docId
-            )
+            AddDocumentationScreen(navController, eventViewModel, eventId, docId)
         }
 
-        // --- PERBAIKAN DI SINI ---
-        // 3. Kirimkan juga ViewModel ke ProfileScreen
         composable(Screen.Profile.route) {
-            ProfileScreen(
-                navController = navController,
-                profileViewModel = profileViewModel
-            )
+            ProfileScreen(navController, profileViewModel)
         }
     }
 }
