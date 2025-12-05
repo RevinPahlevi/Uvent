@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,9 +121,17 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
 @Composable
 fun RegistrationFormScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel, // Menerima ViewModel
-    eventId: Int? // Menerima eventId (Int)
+    viewModel: EventManagementViewModel,
+    profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel,
+    eventId: Int?
 ) {
+    // Context untuk API call
+    val context = LocalContext.current
+    
+    // Ambil userId dari profile
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+    
     // Cari event berdasarkan ID dari semua event yang ada
     val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
         (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
@@ -240,8 +249,8 @@ fun RegistrationFormScreen(
                             krsUri = selectedFileUri.toString()
                         )
 
-                        // 2. Kirim event DAN data pendaftaran ke ViewModel
-                        viewModel.registerForEvent(eventToRegister, registrationData)
+                        // 2. Kirim event DAN data pendaftaran ke ViewModel (dan simpan ke database)
+                        viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
 
                         // --- PERBAIKAN NAVIGASI ---
                         // 3. Navigasi ke "Event Saya" dan bersihkan back stack

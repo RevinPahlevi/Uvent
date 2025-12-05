@@ -84,7 +84,10 @@ fun EditEventScreen(
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
-    )
+    ).apply {
+        // Set minimum date ke hari ini (tidak bisa pilih tanggal lampau)
+        datePicker.minDate = System.currentTimeMillis() - 1000
+    }
     if (showDatePicker) {
         datePickerDialog.show()
         datePickerDialog.setOnDismissListener { showDatePicker = false }
@@ -241,7 +244,7 @@ fun EditEventScreen(
                         quota = kuota,
                         thumbnailUri = imageUri?.toString() ?: event.thumbnailUri
                     )
-                    viewModel.updateEvent(updatedEvent)
+                    viewModel.updateEvent(updatedEvent, context)
                     navController.popBackStack()
                 })
             }

@@ -13,8 +13,16 @@ import com.example.uventapp.data.model.Documentation
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.CreateEventRequest
 import com.example.uventapp.data.network.CreateEventResponse
+import com.example.uventapp.data.network.EventRegistrationRequest
+import com.example.uventapp.data.network.EventRegistrationResponse
 import com.example.uventapp.data.network.EventResponse
+import com.example.uventapp.data.network.FeedbackRequest
+import com.example.uventapp.data.network.FeedbackResponse
+import com.example.uventapp.data.network.DocumentationRequest
+import com.example.uventapp.data.network.DocumentationResponse
 import com.example.uventapp.data.network.GetEventsResponse
+import com.example.uventapp.data.network.UpdateEventRequest
+import com.example.uventapp.data.network.UpdateEventResponse
 import com.example.uventapp.utils.isNetworkAvailable
 import com.example.uventapp.data.model.dummyEvents
 import retrofit2.Call
@@ -171,6 +179,11 @@ class EventManagementViewModel : ViewModel() {
             thumbnailUri = event.thumbnailUri,
             creatorId = creatorId
         )
+        
+        // DEBUG: Log data yang dikirim ke API
+        Log.d("AddEvent", "Sending date to API: ${event.date}")
+        Log.d("AddEvent", "Sending timeStart: ${event.timeStart}")
+        Log.d("AddEvent", "Sending timeEnd: ${event.timeEnd}")
 
         ApiClient.instance.createEvent(request).enqueue(object : Callback<CreateEventResponse> {
             override fun onResponse(call: Call<CreateEventResponse>, response: Response<CreateEventResponse>) {
@@ -189,16 +202,57 @@ class EventManagementViewModel : ViewModel() {
         })
     }
 
-    // --- FUNGSI UPDATE EVENT (YANG SEBELUMNYA HILANG) ---
-    fun updateEvent(updatedEvent: Event) {
-        // Karena endpoint update API belum ada, kita update list lokal saja agar UI berubah
+    // --- FUNGSI UPDATE EVENT ---
+    fun updateEvent(updatedEvent: Event, context: Context) {
+        Log.d("UpdateEvent", "=== UPDATE EVENT ===")
+        Log.d("UpdateEvent", "Event ID: ${updatedEvent.id}")
+        Log.d("UpdateEvent", "Title: ${updatedEvent.title}")
+        
+        // Update lokal terlebih dahulu agar UI langsung berubah
         _createdEvents.value = _createdEvents.value.map {
             if (it.id == updatedEvent.id) updatedEvent else it
         }
         _allEvents.value = _allEvents.value.map {
             if (it.id == updatedEvent.id) updatedEvent else it
         }
-        _notificationMessage.value = "Event Berhasil Diperbarui (Lokal)"
+
+        // Kirim ke API jika ada koneksi
+        if (isNetworkAvailable(context)) {
+            val request = UpdateEventRequest(
+                title = updatedEvent.title,
+                type = updatedEvent.type,
+                date = updatedEvent.date,
+                timeStart = updatedEvent.timeStart,
+                timeEnd = updatedEvent.timeEnd,
+                platformType = updatedEvent.platformType,
+                locationDetail = updatedEvent.locationDetail,
+                quota = updatedEvent.quota,
+                thumbnailUri = updatedEvent.thumbnailUri
+            )
+
+            ApiClient.instance.updateEvent(updatedEvent.id, request).enqueue(object : Callback<UpdateEventResponse> {
+                override fun onResponse(
+                    call: Call<UpdateEventResponse>,
+                    response: Response<UpdateEventResponse>
+                ) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Event Berhasil Diperbarui"
+                        Log.d("UpdateEvent", "Event berhasil diupdate ke server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal memperbarui event"
+                        Log.e("UpdateEvent", "Gagal update event: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<UpdateEventResponse>, t: Throwable) {
+                    Log.e("UpdateEvent", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Event diperbarui lokal, gagal sinkronisasi ke server"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Event Berhasil Diperbarui (Offline)"
+        }
     }
     // ----------------------------------------------------
 
@@ -216,25 +270,162 @@ class EventManagementViewModel : ViewModel() {
     }
 
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> = _feedbacks.value[eventId] ?: emptyList()
-    fun submitFeedback(eventId: Int, feedback: Feedback) {
+    
+    fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context) {
+        Log.d("SubmitFeedback", "=== SUBMIT FEEDBACK ===")
+        Log.d("SubmitFeedback", "eventId: $eventId")
+        Log.d("SubmitFeedback", "userId: $userId")
+        Log.d("SubmitFeedback", "rating: ${feedback.rating}")
+        Log.d("SubmitFeedback", "review: ${feedback.review}")
+        
+        // Tambahkan ke data lokal terlebih dahulu
         val list = _feedbacks.value[eventId] ?: emptyList()
         _feedbacks.value = _feedbacks.value.toMutableMap().apply { put(eventId, list + feedback) }
+
+        // Kirim ke API jika ada koneksi
+        if (isNetworkAvailable(context)) {
+            Log.d("SubmitFeedback", "Network available, sending to API...")
+            
+            val request = FeedbackRequest(
+                eventId = eventId,
+                userId = userId,
+                rating = feedback.rating,
+                review = feedback.review,
+                photoUri = feedback.photoUri
+            )
+            
+            Log.d("SubmitFeedback", "Request object: $request")
+
+            ApiClient.instance.createFeedback(request).enqueue(object : Callback<FeedbackResponse> {
+                override fun onResponse(
+                    call: Call<FeedbackResponse>,
+                    response: Response<FeedbackResponse>
+                ) {
+                    Log.d("SubmitFeedback", "Response code: ${response.code()}")
+                    Log.d("SubmitFeedback", "Response body: ${response.body()}")
+                    Log.d("SubmitFeedback", "Response errorBody: ${response.errorBody()?.string()}")
+                    
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Ulasan berhasil ditambahkan"
+                        Log.d("SubmitFeedback", "Feedback berhasil disimpan ke server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal menyimpan ulasan"
+                        Log.e("SubmitFeedback", "Gagal submit feedback: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<FeedbackResponse>, t: Throwable) {
+                    Log.e("SubmitFeedback", "API Failure: ${t.message}")
+                    t.printStackTrace()
+                    _notificationMessage.value = "Ulasan tersimpan lokal, gagal sinkronisasi ke server"
+                }
+            })
+        } else {
+            Log.d("SubmitFeedback", "No network, saving locally")
+            _notificationMessage.value = "Ulasan ditambahkan (offline)"
+        }
     }
+    
     fun deleteFeedback(eventId: Int, feedbackId: Int) { /* Logic delete feedback */ }
 
     fun getDocumentationForEvent(eventId: Int): List<Documentation> = _documentations.value[eventId] ?: emptyList()
-    fun submitDocumentation(eventId: Int, doc: Documentation) {
+    
+    fun submitDocumentation(eventId: Int, doc: Documentation, userId: Int, context: Context) {
+        Log.d("SubmitDoc", "=== SUBMIT DOCUMENTATION ===")
+        Log.d("SubmitDoc", "eventId: $eventId")
+        Log.d("SubmitDoc", "userId: $userId")
+        Log.d("SubmitDoc", "description: ${doc.description}")
+        
+        // Tambahkan ke data lokal terlebih dahulu
         val list = _documentations.value[eventId] ?: emptyList()
         _documentations.value = _documentations.value.toMutableMap().apply { put(eventId, list + doc) }
+
+        // Kirim ke API jika ada koneksi
+        if (isNetworkAvailable(context)) {
+            Log.d("SubmitDoc", "Network available, sending to API...")
+            
+            val request = DocumentationRequest(
+                eventId = eventId,
+                userId = userId,
+                description = doc.description,
+                photoUri = doc.photoUri
+            )
+
+            ApiClient.instance.createDocumentation(request).enqueue(object : Callback<DocumentationResponse> {
+                override fun onResponse(
+                    call: Call<DocumentationResponse>,
+                    response: Response<DocumentationResponse>
+                ) {
+                    Log.d("SubmitDoc", "Response code: ${response.code()}")
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Dokumentasi berhasil ditambahkan"
+                        Log.d("SubmitDoc", "Documentation berhasil disimpan ke server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal menyimpan dokumentasi"
+                        Log.e("SubmitDoc", "Gagal submit documentation: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<DocumentationResponse>, t: Throwable) {
+                    Log.e("SubmitDoc", "API Failure: ${t.message}")
+                    t.printStackTrace()
+                    _notificationMessage.value = "Dokumentasi tersimpan lokal, gagal sinkronisasi ke server"
+                }
+            })
+        } else {
+            Log.d("SubmitDoc", "No network, saving locally")
+            _notificationMessage.value = "Dokumentasi ditambahkan (offline)"
+        }
     }
+    
     fun deleteDocumentation(eventId: Int, docId: Int) { /* Logic delete doc */ }
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
-    fun registerForEvent(event: Event, data: Registration) {
+    fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
         if (_followedEvents.none { it.id == event.id }) {
+            // Tambahkan ke data lokal terlebih dahulu
             _followedEvents.add(event)
             _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
-            _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
+
+            // Kirim ke API jika ada koneksi
+            if (isNetworkAvailable(context)) {
+                val request = EventRegistrationRequest(
+                    eventId = data.eventId,
+                    userId = userId, // <-- TAMBAHAN: kirim userId
+                    name = data.name,
+                    nim = data.nim,
+                    fakultas = data.fakultas,
+                    jurusan = data.jurusan,
+                    email = data.email,
+                    phone = data.phone,
+                    krsUri = data.krsUri
+                )
+
+                ApiClient.instance.registerForEvent(request).enqueue(object : Callback<EventRegistrationResponse> {
+                    override fun onResponse(
+                        call: Call<EventRegistrationResponse>,
+                        response: Response<EventRegistrationResponse>
+                    ) {
+                        val body = response.body()
+                        if (response.isSuccessful && body?.status == "success") {
+                            _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
+                            Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
+                        } else {
+                            _notificationMessage.value = body?.message ?: "Gagal menyimpan ke server"
+                            Log.e("ViewModel", "Gagal register: ${body?.message}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
+                        Log.e("ViewModel", "API Failure: ${t.message}")
+                        _notificationMessage.value = "Tersimpan lokal, gagal sinkronisasi ke server"
+                    }
+                })
+            } else {
+                _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
+            }
         }
     }
     fun getRegistrationData(eventId: Int): Registration? = _registrations.value[eventId]

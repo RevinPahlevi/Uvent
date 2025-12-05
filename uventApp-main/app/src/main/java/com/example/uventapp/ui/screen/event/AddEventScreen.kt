@@ -57,6 +57,7 @@ fun AddEventScreen(
     var judul by remember { mutableStateOf("") }
     var jenis by remember { mutableStateOf("Pilih Jenis Event") }
     val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
+    // Tanggal kosong, user harus pilih dari DatePicker
     var tanggal by remember { mutableStateOf("") }
     var waktuMulai by remember { mutableStateOf("") }
     var waktuSelesai by remember { mutableStateOf("") }
@@ -81,7 +82,7 @@ fun AddEventScreen(
     val calendar = Calendar.getInstance()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // (Blok datePickerDialog dan timePickerDialog tetap sama)
+    // DatePicker dengan batasan minimum tanggal hari ini
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year: Int, month: Int, dayOfMonth: Int ->
@@ -91,7 +92,10 @@ fun AddEventScreen(
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
-    )
+    ).apply {
+        // Set minimum date ke hari ini (tidak bisa pilih tanggal lampau)
+        datePicker.minDate = System.currentTimeMillis() - 1000
+    }
     if (showDatePicker) {
         datePickerDialog.show()
         datePickerDialog.setOnDismissListener { showDatePicker = false }
@@ -206,31 +210,51 @@ fun AddEventScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            PrimaryButton(text = "Simpan Event", onClick = {
-                // Buat ID lokal baru sementara
-                val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
-                    .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
+            // Validasi: Semua field harus diisi
+            val isFormValid = judul.isNotBlank() &&
+                    jenis != "Pilih Jenis Event" &&
+                    tanggal.isNotBlank() &&
+                    waktuMulai.isNotBlank() &&
+                    waktuSelesai.isNotBlank() &&
+                    platformType != "Pilih Tipe Lokasi" &&
+                    locationDetail.isNotBlank() &&
+                    kuota.isNotBlank()
 
-                val newEvent = Event(
-                    id = newId,
-                    title = judul,
-                    type = jenis,
-                    date = tanggal,
-                    timeStart = waktuMulai,
-                    timeEnd = waktuSelesai,
-                    platformType = platformType,
-                    locationDetail = locationDetail,
-                    quota = kuota,
-                    status = "Aktif",
-                    thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
-                    thumbnailUri = imageUri?.toString(),
-                    creatorId = currentUserId // <-- 2. Sertakan ID user
-                )
+            PrimaryButton(
+                text = "Simpan Event", 
+                onClick = {
+                    // DEBUG: Log tanggal sebelum disimpan
+                    android.util.Log.d("AddEventScreen", "=== SIMPAN EVENT ===")
+                    android.util.Log.d("AddEventScreen", "Tanggal yang dipilih: $tanggal")
+                    android.util.Log.d("AddEventScreen", "Waktu Mulai: $waktuMulai")
+                    android.util.Log.d("AddEventScreen", "Waktu Selesai: $waktuSelesai")
+                    
+                    // Buat ID lokal baru sementara
+                    val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
+                        .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
 
-                // --- PERBAIKAN: Kirim 'context' dan 'currentUserId' ---
-                viewModel.addEvent(newEvent, currentUserId, context)
-                navController.popBackStack()
-            })
+                    val newEvent = Event(
+                        id = newId,
+                        title = judul,
+                        type = jenis,
+                        date = tanggal,
+                        timeStart = waktuMulai,
+                        timeEnd = waktuSelesai,
+                        platformType = platformType,
+                        locationDetail = locationDetail,
+                        quota = kuota,
+                        status = "Aktif",
+                        thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
+                        thumbnailUri = imageUri?.toString(),
+                        creatorId = currentUserId
+                    )
+
+                    // --- PERBAIKAN: Kirim 'context' dan 'currentUserId' ---
+                    viewModel.addEvent(newEvent, currentUserId, context)
+                    navController.popBackStack()
+                },
+                enabled = isFormValid // Tombol hanya aktif jika semua field terisi
+            )
         }
     }
 }

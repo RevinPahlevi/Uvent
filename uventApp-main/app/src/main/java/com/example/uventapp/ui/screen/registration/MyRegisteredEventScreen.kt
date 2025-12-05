@@ -60,14 +60,41 @@ import java.util.Locale
 
 // --- HELPER FUNCTION ---
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
-    return try {
-        val eventEndString = "$date $timeEnd"
-        val formatter = SimpleDateFormat("d/M/yyyy HH:mm", Locale.getDefault())
-        val eventEndDate: Date = formatter.parse(eventEndString) ?: return false
-        val now = Date()
-        now.after(eventEndDate)
+    try {
+        // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
+        val dateParts = date.split("/")
+        if (dateParts.size != 3) return false
+        
+        val day = dateParts[0].toIntOrNull() ?: return false
+        val month = dateParts[1].toIntOrNull() ?: return false
+        val year = dateParts[2].toIntOrNull() ?: return false
+        
+        // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
+        val timeParts = timeEnd.split(":")
+        if (timeParts.size < 2) return false
+        
+        val hour = timeParts[0].toIntOrNull() ?: return false
+        val minute = timeParts[1].toIntOrNull() ?: return false
+        
+        // Buat Calendar untuk waktu akhir event
+        val eventEndCalendar = java.util.Calendar.getInstance()
+        eventEndCalendar.set(java.util.Calendar.YEAR, year)
+        eventEndCalendar.set(java.util.Calendar.MONTH, month - 1) // Calendar month is 0-indexed
+        eventEndCalendar.set(java.util.Calendar.DAY_OF_MONTH, day)
+        eventEndCalendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+        eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
+        eventEndCalendar.set(java.util.Calendar.SECOND, 0)
+        eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
+        
+        // Waktu sekarang
+        val now = java.util.Calendar.getInstance()
+        
+        // Event selesai jika waktu sekarang SETELAH waktu akhir event
+        return now.after(eventEndCalendar)
     } catch (e: Exception) {
-        false
+        // Jika ada error parsing, anggap event BELUM selesai (safe default)
+        android.util.Log.e("isEventFinished", "Error parsing date=$date, timeEnd=$timeEnd: ${e.message}")
+        return false
     }
 }
 

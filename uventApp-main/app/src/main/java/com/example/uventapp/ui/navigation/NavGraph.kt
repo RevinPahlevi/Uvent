@@ -54,7 +54,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            RegistrationFormScreen(navController, eventViewModel, eventId)
+            RegistrationFormScreen(navController, eventViewModel, profileViewModel, eventId)
         }
 
         composable(
@@ -107,7 +107,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AddFeedbackScreen(navController, eventViewModel, eventId)
+            AddFeedbackScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AllFeedback.route,
@@ -137,7 +137,7 @@ fun NavGraph(navController: NavHostController) {
             val eventId = backStackEntry.arguments?.getInt("eventId")
             val docIdString = backStackEntry.arguments?.getString("docId")
             val docId = docIdString?.toIntOrNull()
-            AddDocumentationScreen(navController, eventViewModel, eventId, docId)
+            AddDocumentationScreen(navController, eventViewModel, profileViewModel, eventId, docId)
         }
 
         composable(Screen.Profile.route) {
