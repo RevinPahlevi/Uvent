@@ -5,24 +5,35 @@ import com.google.gson.annotations.SerializedName
 data class CreateEventRequest(
     @SerializedName("title")
     val title: String,
+
     @SerializedName("type")
     val type: String,
+
     @SerializedName("date")
     val date: String,
-    @SerializedName("time_start")
+
+    @SerializedName("timeStart")
     val timeStart: String,
-    @SerializedName("time_end")
+
+    @SerializedName("timeEnd")
     val timeEnd: String,
-    @SerializedName("platform_type")
+
+    @SerializedName("platformType")
     val platformType: String,
-    @SerializedName("location_detail")
+
+    @SerializedName("locationDetail")
     val locationDetail: String,
+
     @SerializedName("quota")
     val quota: String,
+
     @SerializedName("status")
     val status: String,
-    @SerializedName("thumbnail_uri")
+
+    @SerializedName("thumbnailUri")
     val thumbnailUri: String?,
+
     @SerializedName("creator_id")
     val creatorId: Int?
 )
+

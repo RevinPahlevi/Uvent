@@ -143,5 +143,9 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Profile.route) {
             ProfileScreen(navController, profileViewModel)
         }
+
+        composable(Screen.Notifications.route) {
+            com.example.uventapp.ui.screen.notification.NotificationScreen(navController)
+        }
     }
 }

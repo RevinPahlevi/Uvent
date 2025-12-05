@@ -12,26 +12,37 @@ data class GetEventsResponse(
 data class EventResponse(
     @SerializedName("id")
     val id: Int,
+
     @SerializedName("title")
     val title: String,
+
     @SerializedName("type")
     val type: String?,
+
     @SerializedName("date")
     val date: String?,
+
     @SerializedName("time_start")
     val timeStart: String?,
+
     @SerializedName("time_end")
     val timeEnd: String?,
+
     @SerializedName("platform_type")
-    val platformType: String?,
+    val platformType: String?, // Kunci ini harus sama dengan output JSON dari backend
+
     @SerializedName("location_detail")
-    val locationDetail: String?,
+    val locationDetail: String?, // Kunci ini harus sama dengan output JSON dari backend
+
     @SerializedName("quota")
-    val quota: Int?,
+    val quota: Int?, // Backend mungkin mengirim angka (Int)
+
     @SerializedName("status")
     val status: String?,
+
     @SerializedName("thumbnail_uri")
     val thumbnailUri: String?,
+
     @SerializedName("creator_id")
     val creatorId: Int?
 )
