@@ -7,6 +7,8 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object EventList : Screen("event_list")
 
+    object Notification : Screen("notifications")
+
     object DetailEvent : Screen("detail_event/{eventId}") {
         fun createRoute(eventId: Int) = "detail_event/$eventId"
     }

@@ -82,15 +82,15 @@ fun HomeScreen(navController: NavController) {
                     .fillMaxWidth()
                     .fillMaxHeight(0.35f)
                     .align(Alignment.BottomCenter)
-                    .offset(y = (-20).dp)
+                    .offset(y = (-10).dp)
                     .clip(CustomGreenClipShape())
                     .background(PrimaryGreen),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
+                        .padding(horizontal = 32.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -101,7 +101,7 @@ fun HomeScreen(navController: NavController) {
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
                     Text(
                         text = "Ayo Lihat dan Daftarkan Diri ke\nEvent yang Tersedia!",
@@ -110,7 +110,7 @@ fun HomeScreen(navController: NavController) {
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     SecondaryButton(
                         text = "Lihat Semua Event",

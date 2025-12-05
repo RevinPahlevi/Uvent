@@ -42,18 +42,18 @@ fun NotificationScreen(navController: NavController) {
                 tint = PrimaryGreen,
                 modifier = Modifier.size(80.dp)
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 text = "Belum Ada Notifikasi",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Gray
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = "Notifikasi terbaru akan muncul di sini",
                 fontSize = 14.sp,

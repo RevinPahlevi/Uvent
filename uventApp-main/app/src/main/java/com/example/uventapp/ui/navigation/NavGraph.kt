@@ -25,6 +25,7 @@ import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
+import com.example.uventapp.ui.screen.notification.NotificationScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -40,7 +41,7 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Register.route) { RegistrationScreen(navController, profileViewModel) }
         composable(Screen.Home.route) { HomeScreen(navController) }
         composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel) }
-
+        composable(Screen.Notification.route) { NotificationScreen(navController = navController) }
         composable(
             route = Screen.DetailEvent.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
