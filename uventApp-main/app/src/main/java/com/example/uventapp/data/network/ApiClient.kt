@@ -7,13 +7,11 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiClient {
 
-    // --- PERBAIKAN DI SINI ---
-    // IP Address Anda sudah dimasukkan.
-    // Pastikan HP Anda dan Laptop Anda terhubung ke jaringan WiFi yang SAMA.
-    private const val BASE_URL = "http://192.168.1.40:3000/api/"
+    // --- UPDATED: Menggunakan IP Laptop Anda yang baru ---
+    // Pastikan server backend Anda (Node.js) berjalan di port 3000
+    private const val BASE_URL = "http://10.44.9.51:3000/api/"
 
     val instance: ApiService by lazy {
-        // Ini akan nge-print request & response API di Logcat (sangat membantu)
         val logging = HttpLoggingInterceptor()
         logging.setLevel(HttpLoggingInterceptor.Level.BODY)
 
