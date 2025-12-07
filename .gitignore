@@ -26,3 +26,6 @@ captures/
 # Misc
 /.tmp
 *.orig
+
+# Heap dump files
+*.hprof
