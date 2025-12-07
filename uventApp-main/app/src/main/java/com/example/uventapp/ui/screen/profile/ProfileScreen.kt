@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.uventapp.ui.components.BottomNavBar
 import com.example.uventapp.ui.components.CustomAppBar
+import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
@@ -29,13 +30,13 @@ import com.example.uventapp.ui.theme.White
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    profileViewModel: ProfileViewModel = viewModel() // Ambil ViewModel
+    profileViewModel: ProfileViewModel = viewModel()
 ) {
     val profile by profileViewModel.profile
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            // Gunakan CustomAppBar tapi beri aksi 'onBack'
             CustomAppBar(title = "Profil", onBack = { navController.popBackStack() })
         },
         bottomBar = { BottomNavBar(navController = navController) },
@@ -87,10 +88,10 @@ fun ProfileScreen(
                 colors = CardDefaults.cardColors(containerColor = White),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = (-30).dp) // Efek tumpuk
+                    .offset(y = (-30).dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 40.dp), // Padding atas lebih besar
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 40.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     ProfileInfoRow(
@@ -106,6 +107,74 @@ fun ProfileScreen(
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Tombol Logout
+            Button(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE53935), // Warna merah
+                    contentColor = Color.White
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = "Logout",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Keluar",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
+        // Dialog Konfirmasi Logout
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = {
+                    Text(
+                        text = "Konfirmasi Keluar",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text("Apakah Anda yakin ingin keluar dari akun ini?")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showLogoutDialog = false
+                            // Hapus data profil
+                            profileViewModel.logout()
+                            // Navigasi ke halaman login dan hapus backstack
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935)
+                        )
+                    ) {
+                        Text("Ya, Keluar")
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { showLogoutDialog = false }) {
+                        Text("Batal")
+                    }
+                }
+            )
         }
     }
 }

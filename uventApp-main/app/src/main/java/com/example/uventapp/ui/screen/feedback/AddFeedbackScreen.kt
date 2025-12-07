@@ -55,13 +55,22 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFeedbackScreen(
     navController: NavController,
     viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel,
     eventId: Int?
 ) {
+    val context = LocalContext.current
+    
+    // Ambil ID user yang sedang login
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+    
     val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
         (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
     }
@@ -73,7 +82,18 @@ fun AddFeedbackScreen(
 
     var rating by remember { mutableStateOf(existingFeedback?.rating ?: 0) }
     var reviewText by remember { mutableStateOf(existingFeedback?.review ?: "") }
-    var selectedPhotoUri by remember { mutableStateOf(existingFeedback?.photoUri?.let { Uri.parse(it) }) }
+    // PERBAIKAN: Safe URI parsing dengan try-catch
+    var selectedPhotoUri by remember { 
+        mutableStateOf(
+            existingFeedback?.photoUri?.let { uriString ->
+                try {
+                    Uri.parse(uriString)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        ) 
+    }
     var showConfirmationDialog by remember { mutableStateOf(false) }
 
     // --- PERBAIKAN 1: Logika Pemilih Sumber Gambar ---
@@ -192,7 +212,7 @@ fun AddFeedbackScreen(
                 onConfirm = {
                     // --- PERBAIKAN 2: Ambil nama dari data registrasi ---
                     val registrationData = viewModel.getRegistrationData(event.id)
-                    val userName = registrationData?.name ?: "Mahasiswa (Anda)"
+                    val userName = registrationData?.name ?: currentUserProfile?.name ?: "Mahasiswa (Anda)"
                     // ------------------------------------------------
 
                     val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault())
@@ -210,7 +230,22 @@ fun AddFeedbackScreen(
                         postDate = currentDate, // Tanggal hari ini
                         isAnda = true // Tandai sebagai milik user
                     )
-                    viewModel.submitFeedback(event.id, feedback)
+                    
+                    // Debug log
+                    android.util.Log.d("AddFeedbackScreen", "=== KIRIM ULASAN ===")
+                    android.util.Log.d("AddFeedbackScreen", "event.id: ${event.id}")
+                    android.util.Log.d("AddFeedbackScreen", "currentUserId: $currentUserId")
+                    android.util.Log.d("AddFeedbackScreen", "rating: $rating")
+                    android.util.Log.d("AddFeedbackScreen", "review: $reviewText")
+                    
+                    // Kirim feedback ke API dengan userId dan context
+                    if (currentUserId != null && currentUserId > 0) {
+                        viewModel.submitFeedback(event.id, feedback, currentUserId, context)
+                    } else {
+                        android.util.Log.e("AddFeedbackScreen", "ERROR: User ID tidak valid: $currentUserId")
+                        // Fallback: Gunakan ID 1 untuk testing jika belum login
+                        viewModel.submitFeedback(event.id, feedback, 1, context)
+                    }
                     showConfirmationDialog = false
                     navController.popBackStack()
                 }
@@ -249,19 +284,19 @@ private fun FeedbackCard(
     content: @Composable () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = title,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color.Black
+                color = Color(0xFF2E7D32) // Dark green for titles
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             content()
         }
     }
@@ -323,9 +358,9 @@ private fun RatingBar(
             Icon(
                 imageVector = if (index <= rating) Icons.Filled.Star else Icons.Filled.StarBorder,
                 contentDescription = "Rating $index",
-                tint = Color(0xFFFFC107), // Warna kuning bintang
+                tint = if (index <= rating) Color(0xFFFFB300) else Color(0xFFE0E0E0), // Vibrant gold / light gray
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -333,7 +368,9 @@ private fun RatingBar(
                         onRatingChanged(index)
                     }
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            if (index < 5) {
+                Spacer(modifier = Modifier.width(12.dp))
+            }
         }
     }
 }

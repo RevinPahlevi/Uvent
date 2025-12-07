@@ -5,17 +5,21 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,12 +42,47 @@ import com.example.uventapp.ui.theme.PrimaryGreen
 
 @Composable
 fun FormInputField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth()
-    )
+    // Individual white card for each input
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // Label INSIDE the card
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            // Gray TextField with LARGER radius than card
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFE8E8E8),
+                    unfocusedContainerColor = Color(0xFFE8E8E8),
+                    disabledContainerColor = Color(0xFFE8E8E8),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent
+                ),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
+                placeholder = { Text("") },
+                singleLine = true
+            )
+        }
+    }
 }
 
 @Composable
@@ -56,58 +95,146 @@ fun DropdownInput(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = selectedOption,
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text(label) },
-            trailingIcon = {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    modifier = Modifier.clickable { if (enabled) expanded = !expanded }
-                )
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth()
+    // Individual white card for each dropdown
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
         ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
-            }
+            // Label INSIDE the card
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            // Gray TextField with LARGER radius than card
+            TextField(
+                value = selectedOption,
+                onValueChange = {},
+                readOnly = true,
+                enabled = enabled,
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.clickable { if (enabled) expanded = !expanded }
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .clickable { if (enabled) expanded = !expanded },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFE8E8E8),
+                    unfocusedContainerColor = Color(0xFFE8E8E8),
+                    disabledContainerColor = Color(0xFFD0D0D0),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent
+                ),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
+                singleLine = true
+            )
+        }
+    }
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = { expanded = false },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        options.forEach { option ->
+            DropdownMenuItem(
+                text = { Text(option) },
+                onClick = {
+                    onOptionSelected(option)
+                    expanded = false
+                }
+            )
         }
     }
 }
 
 @Composable
 fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(label, fontSize = 14.sp)
-        Row(
+    val hasFile = fileName.isNotEmpty() && fileName != "Tidak ada file dipilih"
+
+    // Individual white card for upload button
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
         ) {
-            OutlinedTextField(
-                value = fileName,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.weight(1f)
+            // Label INSIDE the card
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(bottom = 6.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = onUploadClick) { Text("Upload") }
+
+            // Gray background box with LARGER radius
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFE8E8E8), RoundedCornerShape(12.dp))
+                    .clickable { onUploadClick() }
+                    .padding(12.dp)
+            ) {
+                if (hasFile) {
+                    // Tampilkan nama file dengan icon
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.InsertDriveFile,
+                                contentDescription = "File uploaded",
+                                tint = PrimaryGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = fileName,
+                                fontSize = 13.sp,
+                                color = Color.Black,
+                                maxLines = 1
+                            )
+                        }
+                        Text(
+                            text = "Ubah",
+                            fontSize = 12.sp,
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                } else {
+                    // Tampilkan button upload
+                    PrimaryButton(
+                        text = "Upload File",
+                        onClick = onUploadClick,
+                        modifier = Modifier.width(140.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -120,9 +247,17 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
 @Composable
 fun RegistrationFormScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel, // Menerima ViewModel
-    eventId: Int? // Menerima eventId (Int)
+    viewModel: EventManagementViewModel,
+    profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel,
+    eventId: Int?
 ) {
+    // Context untuk API call
+    val context = LocalContext.current
+
+    // Ambil userId dari profile
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+
     // Cari event berdasarkan ID dari semua event yang ada
     val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
         (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
@@ -161,36 +296,35 @@ fun RegistrationFormScreen(
     }
 
     Scaffold(
-        topBar = { CustomAppBar(title = "Daftar Event", onBack = { navController.popBackStack() }) },
+        topBar = { CustomAppBar(title = "Daftar", onBack = { navController.popBackStack() }) },
         containerColor = LightBackground
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Tampilkan nama event di atas form
+            // Tampilkan nama event di atas form (di area cream)
             if (eventToRegister != null) {
                 Text(
                     text = eventToRegister.title,
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = PrimaryGreen
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-            } else {
                 Text(
-                    text = "Event Tidak Ditemukan",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Red
+                    text = eventToRegister.type,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
 
+            // Each input has its own white card (no big container)
             FormInputField("Nama Lengkap", name) { name = it }
             FormInputField("NIM", nim) { nim = it }
 
@@ -240,8 +374,8 @@ fun RegistrationFormScreen(
                             krsUri = selectedFileUri.toString()
                         )
 
-                        // 2. Kirim event DAN data pendaftaran ke ViewModel
-                        viewModel.registerForEvent(eventToRegister, registrationData)
+                        // 2. Kirim event DAN data pendaftaran ke ViewModel (dan simpan ke database)
+                        viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
 
                         // --- PERBAIKAN NAVIGASI ---
                         // 3. Navigasi ke "Event Saya" dan bersihkan back stack
@@ -258,7 +392,7 @@ fun RegistrationFormScreen(
                 modifier = Modifier.fillMaxWidth(0.6f)
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

@@ -7,7 +7,7 @@ import com.example.uventapp.data.network.User
 
 // Data class untuk menampung info pengguna
 data class UserProfile(
-    val id: Int, // <-- TAMBAHAN BARU
+    val id: Int,
     val name: String,
     val email: String,
     val phone: String
@@ -18,14 +18,17 @@ class ProfileViewModel : ViewModel() {
     private val _profile = mutableStateOf<UserProfile?>(null)
     val profile: State<UserProfile?> = _profile
 
-    // (Fungsi init dan loadUserProfile sudah dihapus, itu bagus)
-
     fun saveUserProfile(user: User) {
         _profile.value = UserProfile(
-            id = user.id, // <-- TAMBAHAN BARU
+            id = user.id,
             name = user.name,
             email = user.email,
             phone = user.phone
         )
+    }
+    
+    // Fungsi logout untuk menghapus data profil
+    fun logout() {
+        _profile.value = null
     }
 }

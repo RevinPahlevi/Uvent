@@ -47,6 +47,8 @@ fun AllDocumentationScreen(
     viewModel: EventManagementViewModel,
     eventId: Int?
 ) {
+    val context = LocalContext.current
+    
     // Ambil data dari getDocumentationForEvent
     val documentationList by remember(viewModel.documentations.value) {
         derivedStateOf { viewModel.getDocumentationForEvent(eventId ?: -1) }
@@ -118,7 +120,7 @@ fun AllDocumentationScreen(
             DeleteDocumentationDialog(
                 onDismiss = { showDeleteDialog = null },
                 onConfirm = {
-                    viewModel.deleteDocumentation(docToDelete.eventId, docToDelete.id)
+                    viewModel.deleteDocumentation(docToDelete.eventId, docToDelete.id, 0, context)
                     showDeleteDialog = null
                 }
             )

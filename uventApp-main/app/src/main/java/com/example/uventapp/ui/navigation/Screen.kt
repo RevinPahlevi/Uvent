@@ -52,5 +52,6 @@ sealed class Screen(val route: String) {
 
     // --- RUTE BARU DITAMBAHKAN ---
     object Profile : Screen("profile")
+    object Notifications : Screen("notifications")
     // ---------------------------
 }

@@ -2,7 +2,7 @@ package com.example.uventapp.data.network
 
 import com.google.gson.annotations.SerializedName
 
-data class CreateEventRequest(
+data class UpdateEventRequest(
     @SerializedName("title")
     val title: String,
 
@@ -27,13 +27,14 @@ data class CreateEventRequest(
     @SerializedName("quota")
     val quota: String,
 
+    @SerializedName("thumbnailUri")
+    val thumbnailUri: String?
+)
+
+data class UpdateEventResponse(
     @SerializedName("status")
     val status: String,
 
-    @SerializedName("thumbnailUri")
-    val thumbnailUri: String?,
-
-    @SerializedName("creator_id")
-    val creatorId: Int?
+    @SerializedName("message")
+    val message: String
 )
-

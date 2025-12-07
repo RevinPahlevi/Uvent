@@ -1,15 +1,13 @@
 package com.example.uventapp.ui.screen.event
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,38 +23,55 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-// --- PERBAIKAN: TAMBAHKAN IMPORT INI ---
 import com.example.uventapp.data.model.dummyEvents
-// ------------------------------------
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
-import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// (Fungsi helper isEventFinished tidak berubah)
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
-    return try {
-        val eventEndString = "$date $timeEnd"
-        val formatter = SimpleDateFormat("d/M/yyyy HH:mm", Locale.getDefault())
-        val eventEndDate: Date = formatter.parse(eventEndString) ?: return false
-        val now = Date()
-        now.after(eventEndDate)
-    } catch (e: ParseException) {
-        e.printStackTrace()
-        false
+    try {
+        // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
+        val dateParts = date.split("/")
+        if (dateParts.size != 3) return false
+        
+        val day = dateParts[0].toIntOrNull() ?: return false
+        val month = dateParts[1].toIntOrNull() ?: return false
+        val year = dateParts[2].toIntOrNull() ?: return false
+        
+        // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
+        val timeParts = timeEnd.split(":")
+        if (timeParts.size < 2) return false
+        
+        val hour = timeParts[0].toIntOrNull() ?: return false
+        val minute = timeParts[1].toIntOrNull() ?: return false
+        
+        // Buat Calendar untuk waktu akhir event
+        val eventEndCalendar = java.util.Calendar.getInstance()
+        eventEndCalendar.set(java.util.Calendar.YEAR, year)
+        eventEndCalendar.set(java.util.Calendar.MONTH, month - 1) // Calendar month is 0-indexed
+        eventEndCalendar.set(java.util.Calendar.DAY_OF_MONTH, day)
+        eventEndCalendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+        eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
+        eventEndCalendar.set(java.util.Calendar.SECOND, 0)
+        eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
+        
+        // Waktu sekarang
+        val now = java.util.Calendar.getInstance()
+        
+        // Event selesai jika waktu sekarang SETELAH waktu akhir event
+        return now.after(eventEndCalendar)
     } catch (e: Exception) {
-        e.printStackTrace()
-        false
+        // Jika ada error parsing, anggap event BELUM selesai (safe default)
+        return false
     }
 }
-
 
 @Composable
 fun DetailEventScreen(
@@ -64,23 +79,29 @@ fun DetailEventScreen(
     eventId: Int?,
     viewModel: EventManagementViewModel
 ) {
+    val context = LocalContext.current
+    
+    // Subscribe ke state agar UI update saat data berubah
     val allEvents by viewModel.allEvents
+    val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
-
-    val event = remember(eventId, allEvents, followedEvents) {
-        // Gabungkan semua sumber data dan cari berdasarkan ID
-        (allEvents + followedEvents + dummyEvents).distinctBy { it.id }.find { it.id == eventId }
+    
+    // Load events jika belum ada
+    LaunchedEffect(Unit) {
+        viewModel.loadAllEvents(context)
     }
-
-    val isRegistered by remember(eventId, viewModel.followedEvents) {
-        derivedStateOf {
-            viewModel.followedEvents.any { it.id == eventId }
-        }
+    
+    // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
+    val event = eventId?.let { id ->
+        allEvents.find { it.id == id }
+            ?: createdEvents.find { it.id == id }
+            ?: followedEvents.find { it.id == id }
+            ?: dummyEvents.find { it.id == id }
     }
+    
+    val isRegistered = followedEvents.any { it.id == eventId }
 
-    val isFinished = remember(event) {
-        event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
-    }
+    val isFinished = event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
 
     Scaffold(
         topBar = {
@@ -122,17 +143,15 @@ fun DetailEventScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        EventDetailTable(event = event) // <-- Tabel detail event
+                        EventDetailTable(event = event)
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // --- Tombol dinamis ---
                         if (isRegistered) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // Tombol Feedback (hanya muncul jika event selesai)
                                 if (isFinished) {
                                     Button(
                                         onClick = {
@@ -146,7 +165,6 @@ fun DetailEventScreen(
                                     }
                                 }
 
-                                // Tombol Dokumentasi (selalu muncul jika terdaftar)
                                 Button(
                                     onClick = {
                                         navController.navigate(Screen.AllDocumentation.createRoute(event.id))
@@ -159,7 +177,6 @@ fun DetailEventScreen(
                                 }
                             }
                         } else {
-                            // Jika belum terdaftar, tampilkan tombol Daftar
                             PrimaryButton(
                                 text = "Daftar Sekarang",
                                 onClick = {
@@ -180,6 +197,7 @@ fun DetailEventScreen(
 
 @Composable
 fun EventDetailTable(event: Event) {
+    // List detail event (Status dihapus dari sini)
     val details = listOf(
         "Judul Event" to event.title,
         "Jenis Event" to event.type,
@@ -188,8 +206,8 @@ fun EventDetailTable(event: Event) {
         "Waktu Selesai" to event.timeEnd,
         "Tipe Lokasi" to event.platformType,
         "Lokasi/Link" to event.locationDetail,
-        "Kuota" to event.quota,
-        "Status" to event.status
+        "Kuota" to event.quota
+        // "Status" dihapus sesuai permintaan
     )
 
     Row(modifier = Modifier.fillMaxWidth()) {
