@@ -9,7 +9,7 @@ object ApiClient {
 
     // --- UPDATED: Menggunakan IP Laptop Anda yang baru ---
     // Pastikan server backend Anda (Node.js) berjalan di port 3000
-    private const val BASE_URL = "http://10.44.9.98:3000/api/"
+    private const val BASE_URL = "http://192.168.1.62:3000/api/"
 
     val instance: ApiService by lazy {
         val logging = HttpLoggingInterceptor()

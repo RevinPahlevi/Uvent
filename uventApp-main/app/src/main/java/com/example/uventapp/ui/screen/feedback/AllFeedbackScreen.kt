@@ -51,6 +51,8 @@ fun AllFeedbackScreen(
     viewModel: EventManagementViewModel,
     eventId: Int?
 ) {
+    val context = LocalContext.current
+    
     // Cari event dari ID
     val event = remember(eventId) {
         (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
@@ -147,7 +149,7 @@ fun AllFeedbackScreen(
             DeleteFeedbackDialog(
                 onDismiss = { showDeleteDialog = null },
                 onConfirm = {
-                    viewModel.deleteFeedback(eventId!!, feedbackToDelete.id)
+                    viewModel.deleteFeedback(eventId!!, feedbackToDelete.id, 0, context)
                     showDeleteDialog = null
                 }
             )
@@ -230,12 +232,12 @@ private fun FeedbackItemCard(
     onDeleteClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp)) {
             // --- Baris Atas: Nama, Tanggal, Rating ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -247,26 +249,29 @@ private fun FeedbackItemCard(
                         text = "${feedback.userName}${if (feedback.isAnda) " (Anda)" else ""}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = if (feedback.isAnda) PrimaryGreen else Color.Black
+                        color = if (feedback.isAnda) PrimaryGreen else Color(0xFF1A1A1A)
                     )
                     Text(
                         text = feedback.postDate,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Color(0xFF888888)
                     )
                 }
-                // Rating (kotak hijau)
+                // Rating (enhanced badge)
                 Box(
                     modifier = Modifier
-                        .background(PrimaryGreen.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(
+                            color = Color(0xFFE8F5E9), // Light green background
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Filled.Star,
                             contentDescription = "Rating",
-                            tint = PrimaryGreen,
-                            modifier = Modifier.size(16.dp)
+                            tint = Color(0xFFFFB300), // Gold star
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(

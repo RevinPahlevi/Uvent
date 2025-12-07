@@ -341,7 +341,7 @@ fun MyRegisteredEventScreen(
                 DeleteConfirmationDialog(
                     onDismiss = { showDeleteDialog = null },
                     onConfirm = {
-                        viewModel.deleteEvent(eventIdToCancel)
+                        viewModel.deleteEvent(eventIdToCancel, context)
                         showDeleteDialog = null
                         // Refresh data setelah delete
                         if (currentUserId != null) {

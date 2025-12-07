@@ -2,6 +2,7 @@ package com.example.uventapp.data.network
 
 import retrofit2.Call
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -39,11 +40,33 @@ interface ApiService {
         @Body request: UpdateEventRequest
     ): Call<UpdateEventResponse>
 
+    // --- API DELETE EVENT ---
+    @DELETE("events/{id}")
+    fun deleteEvent(
+        @Path("id") eventId: Int
+    ): Call<DeleteResponse>
+
     // --- API PENDAFTARAN EVENT ---
     @POST("registrations")
     fun registerForEvent(
         @Body request: EventRegistrationRequest
     ): Call<EventRegistrationResponse>
+
+    @GET("registrations/user/{userId}")
+    fun getMyRegistrations(
+        @Path("userId") userId: Int
+    ): Call<GetRegistrationsResponse>
+
+    @PUT("registrations/{id}")
+    fun updateRegistration(
+        @Path("id") registrationId: Int,
+        @Body request: UpdateRegistrationRequest
+    ): Call<UpdateRegistrationResponse>
+
+    @DELETE("registrations/{id}")
+    fun cancelRegistration(
+        @Path("id") registrationId: Int
+    ): Call<DeleteResponse>
 
     // --- API FEEDBACK ---
     @POST("feedback")
@@ -56,6 +79,17 @@ interface ApiService {
         @Path("eventId") eventId: Int
     ): Call<GetFeedbacksResponse>
 
+    @PUT("feedback/{id}")
+    fun updateFeedback(
+        @Path("id") feedbackId: Int,
+        @Body request: UpdateFeedbackRequest
+    ): Call<UpdateFeedbackResponse>
+
+    @DELETE("feedback/{id}")
+    fun deleteFeedback(
+        @Path("id") feedbackId: Int
+    ): Call<DeleteResponse>
+
     // --- API DOKUMENTASI ---
     @POST("documentations")
     fun createDocumentation(
@@ -66,4 +100,15 @@ interface ApiService {
     fun getDocumentationsByEvent(
         @Path("eventId") eventId: Int
     ): Call<GetDocumentationsResponse>
+
+    @PUT("documentations/{id}")
+    fun updateDocumentation(
+        @Path("id") documentationId: Int,
+        @Body request: UpdateDocumentationRequest
+    ): Call<UpdateDocumentationResponse>
+
+    @DELETE("documentations/{id}")
+    fun deleteDocumentation(
+        @Path("id") documentationId: Int
+    ): Call<DeleteResponse>
 }

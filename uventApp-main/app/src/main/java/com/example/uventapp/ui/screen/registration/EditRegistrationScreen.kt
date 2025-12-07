@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -119,10 +120,24 @@ fun EditRegistrationScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Tampilkan nama event dan tipe di atas form (di area cream)
+                    Text(
+                        text = event.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryGreen
+                    )
+                    Text(
+                        text = event.type,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
                     if (showSuccessBanner) {
                         RegistrationSuccessBanner(
                             // Tampilkan nama event yang benar
@@ -131,7 +146,7 @@ fun EditRegistrationScreen(
                         )
                     }
 
-                    // Gunakan FormInputField dari RegistrationFormScreen (atau definisikan di components)
+                    // Each input has its own white card (no big container)
                     FormInputField(
                         label = "Nama Lengkap",
                         value = name,
@@ -202,7 +217,7 @@ fun EditRegistrationScreen(
                         modifier = Modifier.fillMaxWidth(0.6f)
                     )
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
 

@@ -23,6 +23,11 @@ import com.example.uventapp.data.network.DocumentationResponse
 import com.example.uventapp.data.network.GetEventsResponse
 import com.example.uventapp.data.network.UpdateEventRequest
 import com.example.uventapp.data.network.UpdateEventResponse
+import com.example.uventapp.data.network.DeleteResponse
+import com.example.uventapp.data.network.UpdateFeedbackRequest
+import com.example.uventapp.data.network.UpdateFeedbackResponse
+import com.example.uventapp.data.network.UpdateDocumentationRequest
+import com.example.uventapp.data.network.UpdateDocumentationResponse
 import com.example.uventapp.utils.isNetworkAvailable
 import com.example.uventapp.data.model.dummyEvents
 import retrofit2.Call
@@ -263,10 +268,33 @@ class EventManagementViewModel : ViewModel() {
             ?: dummyEvents.find { it.id == eventId }
     }
 
-    fun deleteEvent(eventId: Int) {
+    fun deleteEvent(eventId: Int, context: Context) {
+        // Update local state first
         _createdEvents.value = _createdEvents.value.filter { it.id != eventId }
         _allEvents.value = _allEvents.value.filter { it.id != eventId }
-        _notificationMessage.value = "Event Dihapus (Lokal)"
+
+        // Sync with API
+        if (isNetworkAvailable(context)) {
+            ApiClient.instance.deleteEvent(eventId).enqueue(object : Callback<DeleteResponse> {
+                override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Event berhasil dihapus"
+                        Log.d("DeleteEvent", "Event deleted from server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal menghapus event dari server"
+                        Log.e("DeleteEvent", "Failed: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                    Log.e("DeleteEvent", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Event dihapus (offline)"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Event dihapus (offline)"
+        }
     }
 
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> = _feedbacks.value[eventId] ?: emptyList()
@@ -278,9 +306,21 @@ class EventManagementViewModel : ViewModel() {
         Log.d("SubmitFeedback", "rating: ${feedback.rating}")
         Log.d("SubmitFeedback", "review: ${feedback.review}")
         
-        // Tambahkan ke data lokal terlebih dahulu
-        val list = _feedbacks.value[eventId] ?: emptyList()
-        _feedbacks.value = _feedbacks.value.toMutableMap().apply { put(eventId, list + feedback) }
+        // PERBAIKAN: Cek apakah feedback dengan ID yang sama sudah ada
+        val existingList = _feedbacks.value[eventId] ?: emptyList()
+        val existingFeedback = existingList.find { it.id == feedback.id }
+        
+        val updatedList = if (existingFeedback != null) {
+            // Jika sudah ada (edit), ganti feedback lama dengan yang baru
+            Log.d("SubmitFeedback", "Mengganti feedback existing dengan ID: ${feedback.id}")
+            existingList.map { if (it.id == feedback.id) feedback else it }
+        } else {
+            // Jika baru, tambahkan ke list
+            Log.d("SubmitFeedback", "Menambahkan feedback baru dengan ID: ${feedback.id}")
+            existingList + feedback
+        }
+        
+        _feedbacks.value = _feedbacks.value.toMutableMap().apply { put(eventId, updatedList) }
 
         // Kirim ke API jika ada koneksi
         if (isNetworkAvailable(context)) {
@@ -327,7 +367,36 @@ class EventManagementViewModel : ViewModel() {
         }
     }
     
-    fun deleteFeedback(eventId: Int, feedbackId: Int) { /* Logic delete feedback */ }
+    fun deleteFeedback(eventId: Int, feedbackId: Int, userId: Int, context: Context) {
+        // Update local state first
+        val existingList = _feedbacks.value[eventId] ?: emptyList()
+        _feedbacks.value = _feedbacks.value.toMutableMap().apply {
+            put(eventId, existingList.filter { it.id != feedbackId })
+        }
+
+        // Sync with API
+        if (isNetworkAvailable(context)) {
+            ApiClient.instance.deleteFeedback(feedbackId).enqueue(object : Callback<DeleteResponse> {
+                override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Ulasan berhasil dihapus"
+                        Log.d("DeleteFeedback", "Feedback deleted from server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal menghapus ulasan dari server"
+                        Log.e("DeleteFeedback", "Failed: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                    Log.e("DeleteFeedback", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Ulasan dihapus (offline)"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Ulasan dihapus (offline)"
+        }
+    }
 
     fun getDocumentationForEvent(eventId: Int): List<Documentation> = _documentations.value[eventId] ?: emptyList()
     
@@ -380,7 +449,37 @@ class EventManagementViewModel : ViewModel() {
         }
     }
     
-    fun deleteDocumentation(eventId: Int, docId: Int) { /* Logic delete doc */ }
+    fun deleteDocumentation(eventId: Int, docId: Int, userId: Int, context: Context) {
+        // Update local state first
+        val existingList = _documentations.value[eventId] ?: emptyList()
+        _documentations.value = _documentations.value.toMutableMap().apply {
+            put(eventId, existingList.filter { it.id != docId })
+        }
+
+        // Sync with API
+        if (isNetworkAvailable(context)) {
+            ApiClient.instance.deleteDocumentation(docId).enqueue(object : Callback<DeleteResponse> {
+                override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Dokumentasi berhasil dihapus"
+                        Log.d("DeleteDoc", "Documentation deleted from server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal menghapus dokumentasi dari server"
+                        Log.e("DeleteDoc", "Failed: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                    Log.e("DeleteDoc", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Dokumentasi dihapus (offline)"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Dokumentasi dihapus (offline)"
+        }
+    }
+
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
     fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
@@ -432,8 +531,40 @@ class EventManagementViewModel : ViewModel() {
     fun updateRegistrationData(eventId: Int, newData: Registration) {
         _registrations.value = _registrations.value.toMutableMap().apply { put(eventId, newData) }
     }
+    
+    fun cancelRegistration(eventId: Int, registrationId: Int, context: Context) {
+        // Update local state first
+        _followedEvents.removeIf { it.id == eventId }
+        _registrations.value = _registrations.value.toMutableMap().apply { remove(eventId) }
+
+        // Sync with API
+        if (isNetworkAvailable(context)) {
+            ApiClient.instance.cancelRegistration(registrationId).enqueue(object : Callback<DeleteResponse> {
+                override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Pendaftaran berhasil dibatalkan"
+                        Log.d("CancelReg", "Registration cancelled from server")
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal membatalkan pendaftaran dari server"
+                        Log.e("CancelReg", "Failed: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                    Log.e("CancelReg", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Pendaftaran dibatalkan (offline)"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Pendaftaran dibatalkan (offline)"
+        }
+    }
+    
     fun unfollowEvent(eventId: Int) {
         _followedEvents.removeIf { it.id == eventId }
+        _registrations.value = _registrations.value.toMutableMap().apply { remove(eventId) }
     }
+    
     fun clearNotification() { _notificationMessage.value = null }
 }

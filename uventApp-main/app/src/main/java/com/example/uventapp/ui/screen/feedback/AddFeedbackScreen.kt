@@ -82,7 +82,18 @@ fun AddFeedbackScreen(
 
     var rating by remember { mutableStateOf(existingFeedback?.rating ?: 0) }
     var reviewText by remember { mutableStateOf(existingFeedback?.review ?: "") }
-    var selectedPhotoUri by remember { mutableStateOf(existingFeedback?.photoUri?.let { Uri.parse(it) }) }
+    // PERBAIKAN: Safe URI parsing dengan try-catch
+    var selectedPhotoUri by remember { 
+        mutableStateOf(
+            existingFeedback?.photoUri?.let { uriString ->
+                try {
+                    Uri.parse(uriString)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        ) 
+    }
     var showConfirmationDialog by remember { mutableStateOf(false) }
 
     // --- PERBAIKAN 1: Logika Pemilih Sumber Gambar ---
@@ -273,19 +284,19 @@ private fun FeedbackCard(
     content: @Composable () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = title,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color.Black
+                color = Color(0xFF2E7D32) // Dark green for titles
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             content()
         }
     }
@@ -347,9 +358,9 @@ private fun RatingBar(
             Icon(
                 imageVector = if (index <= rating) Icons.Filled.Star else Icons.Filled.StarBorder,
                 contentDescription = "Rating $index",
-                tint = Color(0xFFFFC107), // Warna kuning bintang
+                tint = if (index <= rating) Color(0xFFFFB300) else Color(0xFFE0E0E0), // Vibrant gold / light gray
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -357,7 +368,9 @@ private fun RatingBar(
                         onRatingChanged(index)
                     }
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            if (index < 5) {
+                Spacer(modifier = Modifier.width(12.dp))
+            }
         }
     }
 }
