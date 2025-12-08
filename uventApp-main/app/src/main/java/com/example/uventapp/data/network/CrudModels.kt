@@ -83,3 +83,16 @@ data class RegistrationDataFull(
     @SerializedName("thumbnail_uri") val thumbnailUri: String?,
     @SerializedName("creator_id") val creatorId: Int?
 )
+
+// Upload Image Response
+data class UploadImageResponse(
+    val status: String,
+    val message: String,
+    val data: UploadImageData?
+)
+
+data class UploadImageData(
+    val filename: String,
+    val url: String,
+    val size: Long
+)

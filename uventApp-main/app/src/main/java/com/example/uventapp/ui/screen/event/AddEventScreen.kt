@@ -307,13 +307,16 @@ fun AddEventScreen(
                     locationDetail.isNotBlank() &&
                     kuota.isNotBlank()
 
+            // State untuk loading saat upload
+            val isUploading by viewModel.isUploading
+
             // Simpan Button - Centered
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 PrimaryButton(
-                    text = "Simpan Event", 
+                    text = if (isUploading) "Mengupload..." else "Simpan Event", 
                     onClick = {
                         // DEBUG: Log tanggal sebelum disimpan
                         android.util.Log.d("AddEventScreen", "=== SIMPAN EVENT ===")
@@ -325,27 +328,49 @@ fun AddEventScreen(
                         val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
                             .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
 
-                        val newEvent = Event(
-                            id = newId,
-                            title = judul,
-                            type = jenis,
-                            date = tanggal,
-                            timeStart = waktuMulai,
-                            timeEnd = waktuSelesai,
-                            platformType = platformType,
-                            locationDetail = locationDetail,
-                            quota = kuota,
-                            status = "Aktif",
-                            thumbnailResId = if (imageUri == null) R.drawable.placeholder_poster else null,
-                            thumbnailUri = imageUri?.toString(),
-                            creatorId = currentUserId
-                        )
+                        // Fungsi untuk membuat dan mengirim event
+                        fun createAndSendEvent(thumbnailUrl: String?) {
+                            val newEvent = Event(
+                                id = newId,
+                                title = judul,
+                                type = jenis,
+                                date = tanggal,
+                                timeStart = waktuMulai,
+                                timeEnd = waktuSelesai,
+                                platformType = platformType,
+                                locationDetail = locationDetail,
+                                quota = kuota,
+                                status = "Aktif",
+                                thumbnailResId = if (thumbnailUrl == null) R.drawable.placeholder_poster else null,
+                                thumbnailUri = thumbnailUrl,
+                                creatorId = currentUserId
+                            )
 
-                        // --- PERBAIKAN: Kirim 'context' dan 'currentUserId' ---
-                        viewModel.addEvent(newEvent, currentUserId, context)
-                        navController.popBackStack()
+                            viewModel.addEvent(newEvent, currentUserId, context)
+                            navController.popBackStack()
+                        }
+
+                        // Jika ada gambar, upload dulu ke server
+                        if (imageUri != null) {
+                            viewModel.uploadImage(
+                                context = context,
+                                imageUri = imageUri!!,
+                                onSuccess = { uploadedUrl ->
+                                    android.util.Log.d("AddEventScreen", "Upload berhasil: $uploadedUrl")
+                                    createAndSendEvent(uploadedUrl)
+                                },
+                                onError = { error ->
+                                    android.util.Log.e("AddEventScreen", "Upload gagal: $error")
+                                    // Tetap buat event tanpa gambar jika upload gagal
+                                    createAndSendEvent(null)
+                                }
+                            )
+                        } else {
+                            // Tidak ada gambar, langsung buat event
+                            createAndSendEvent(null)
+                        }
                     },
-                    enabled = isFormValid, // Tombol hanya aktif jika semua field terisi
+                    enabled = isFormValid && !isUploading, // Tombol disabled saat upload
                     modifier = Modifier.width(200.dp)
                 )
             }

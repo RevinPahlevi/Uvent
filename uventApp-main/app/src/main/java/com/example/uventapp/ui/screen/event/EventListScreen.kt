@@ -30,8 +30,9 @@ import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
-import com.example.uventapp.ui.theme.* import com.example.uventapp.data.model.Event
-// (Import dummyEvents sudah dihapus, itu bagus)
+import com.example.uventapp.ui.theme.*
+import com.example.uventapp.data.model.Event
+import com.example.uventapp.utils.ImageUrlHelper
 
 @Composable
 fun EventListScreen(
@@ -190,12 +191,18 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Fix image URL for Android
+            val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
+                ?: event.thumbnailResId
+                ?: R.drawable.placeholder_poster
+            
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
+                    .data(imageSource)
                     .crossfade(true)
                     .build(),
                 placeholder = painterResource(R.drawable.placeholder_poster),
+                error = painterResource(R.drawable.placeholder_poster),
                 contentDescription = "Event Poster",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
