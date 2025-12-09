@@ -263,13 +263,21 @@ fun RegistrationFormScreen(
         (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
     }
 
-    var name by remember { mutableStateOf("") }
+    // AUTO-FILL: Inisialisasi field dengan data dari profile user yang login
+    var name by remember(currentUserProfile) { 
+        mutableStateOf(currentUserProfile?.name ?: "") 
+    }
     var nim by remember { mutableStateOf("") }
     var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
     var selectedJurusan by remember { mutableStateOf("Pilih Jurusan") }
     var availableJurusan by remember { mutableStateOf(listOf<String>()) }
-    var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
+    // AUTO-FILL: Email dan Phone dari profile user
+    var email by remember(currentUserProfile) { 
+        mutableStateOf(currentUserProfile?.email ?: "") 
+    }
+    var phone by remember(currentUserProfile) { 
+        mutableStateOf(currentUserProfile?.phone ?: "") 
+    }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf("Tidak ada file dipilih") }
 

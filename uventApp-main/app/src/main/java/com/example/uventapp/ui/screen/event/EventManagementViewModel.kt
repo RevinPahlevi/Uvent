@@ -581,48 +581,60 @@ class EventManagementViewModel : ViewModel() {
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
     fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
-        if (_followedEvents.none { it.id == event.id }) {
-            // Tambahkan ke data lokal terlebih dahulu
+        // Cek apakah sudah terdaftar secara lokal
+        if (_followedEvents.any { it.id == event.id }) {
+            _notificationMessage.value = "Anda sudah terdaftar di event ini"
+            return
+        }
+
+        // Kirim ke API jika ada koneksi
+        if (isNetworkAvailable(context)) {
+            val request = EventRegistrationRequest(
+                eventId = data.eventId,
+                userId = userId,
+                name = data.name,
+                nim = data.nim,
+                fakultas = data.fakultas,
+                jurusan = data.jurusan,
+                email = data.email,
+                phone = data.phone,
+                krsUri = data.krsUri
+            )
+
+            ApiClient.instance.registerForEvent(request).enqueue(object : Callback<EventRegistrationResponse> {
+                override fun onResponse(
+                    call: Call<EventRegistrationResponse>,
+                    response: Response<EventRegistrationResponse>
+                ) {
+                    val body = response.body()
+                    
+                    if (response.isSuccessful && body?.status == "success") {
+                        // Berhasil - tambahkan ke lokal state
+                        _followedEvents.add(event)
+                        _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
+                        _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
+                        Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
+                    } else {
+                        // Tangani error termasuk 409 Conflict (sudah terdaftar)
+                        val errorMessage = when (response.code()) {
+                            409 -> "Anda sudah terdaftar di event ini"
+                            else -> body?.message ?: "Gagal mendaftar: ${response.message()}"
+                        }
+                        _notificationMessage.value = errorMessage
+                        Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
+                    }
+                }
+
+                override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
+                    Log.e("ViewModel", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Gagal terhubung ke server"
+                }
+            })
+        } else {
+            // Offline mode - simpan lokal saja
             _followedEvents.add(event)
             _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
-
-            // Kirim ke API jika ada koneksi
-            if (isNetworkAvailable(context)) {
-                val request = EventRegistrationRequest(
-                    eventId = data.eventId,
-                    userId = userId, // <-- TAMBAHAN: kirim userId
-                    name = data.name,
-                    nim = data.nim,
-                    fakultas = data.fakultas,
-                    jurusan = data.jurusan,
-                    email = data.email,
-                    phone = data.phone,
-                    krsUri = data.krsUri
-                )
-
-                ApiClient.instance.registerForEvent(request).enqueue(object : Callback<EventRegistrationResponse> {
-                    override fun onResponse(
-                        call: Call<EventRegistrationResponse>,
-                        response: Response<EventRegistrationResponse>
-                    ) {
-                        val body = response.body()
-                        if (response.isSuccessful && body?.status == "success") {
-                            _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
-                            Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
-                        } else {
-                            _notificationMessage.value = body?.message ?: "Gagal menyimpan ke server"
-                            Log.e("ViewModel", "Gagal register: ${body?.message}")
-                        }
-                    }
-
-                    override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
-                        Log.e("ViewModel", "API Failure: ${t.message}")
-                        _notificationMessage.value = "Tersimpan lokal, gagal sinkronisasi ke server"
-                    }
-                })
-            } else {
-                _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
-            }
+            _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
         }
     }
     fun getRegistrationData(eventId: Int): Registration? = _registrations.value[eventId]
