@@ -42,7 +42,7 @@ import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Feedback
-import com.example.uventapp.data.model.dummyEvents
+
 import com.example.uventapp.ui.components.BottomNavBar
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
@@ -71,8 +71,8 @@ fun AddFeedbackScreen(
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
     
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    val event = remember(eventId) {
+        viewModel.getEventById(eventId ?: -1)
     }
 
     // PERBAIKAN: Ambil data feedback yang *mungkin* sudah ada

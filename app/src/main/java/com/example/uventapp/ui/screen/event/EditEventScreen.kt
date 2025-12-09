@@ -278,7 +278,7 @@ private fun EditPosterUploadBox(
                         .crossfade(true)
                         .build(),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -286,7 +286,7 @@ private fun EditPosterUploadBox(
                 Image(
                     painter = painterResource(id = existingResId),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }

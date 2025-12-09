@@ -46,12 +46,18 @@ fun EventListScreen(
     val context = LocalContext.current
 
     LaunchedEffect(key1 = true) {
+        android.util.Log.d("EventListScreen", "=== LaunchedEffect TRIGGERED ===")
         viewModel.loadAllEvents(context)
     }
 
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
+    
+    // DEBUG: Log state changes
+    LaunchedEffect(allEvents.size) {
+        android.util.Log.d("EventListScreen", "allEvents changed! Size: ${allEvents.size}")
+    }
 
     // Daftar event yang tersedia (sudah difilter dari yang diikuti)
     val allAvailableEvents = remember(allEvents, createdEvents, followedEvents) {

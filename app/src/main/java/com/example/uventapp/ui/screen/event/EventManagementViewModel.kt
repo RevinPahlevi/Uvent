@@ -24,21 +24,12 @@ import com.example.uventapp.data.network.GetEventsResponse
 import com.example.uventapp.data.network.UpdateEventRequest
 import com.example.uventapp.data.network.UpdateEventResponse
 import com.example.uventapp.utils.isNetworkAvailable
-import com.example.uventapp.data.model.dummyEvents
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-// --- DATA DUMMY ---
-private val dummyFeedbacks = mutableListOf(
-    Feedback(id = 100, eventId = 1, rating = 4, review = "Event bagus!", photoUri = null, userName = "Loly", postDate = "19/10/2025", isAnda = true)
-)
-private val dummyDocumentation = mutableListOf(
-    Documentation(id = 200, eventId = 1, description = "Seru!", photoUri = null, userName = "Loly", postDate = "17/10/2025", postTime = "14:30", isAnda = false)
-)
 
 // --- HELPER FUNCTION ---
 private fun reformatDateForUi(dbDate: String?): String {
@@ -99,47 +90,48 @@ class EventManagementViewModel : ViewModel() {
     private val _registrations = mutableStateOf<Map<Int, Registration>>(emptyMap())
     val registrations: State<Map<Int, Registration>> = _registrations
 
-    private val _feedbacks = mutableStateOf<Map<Int, List<Feedback>>>(mapOf(1 to dummyFeedbacks))
+    private val _feedbacks = mutableStateOf<Map<Int, List<Feedback>>>(emptyMap())
     val feedbacks: State<Map<Int, List<Feedback>>> = _feedbacks
 
-    private val _documentations = mutableStateOf<Map<Int, List<Documentation>>>(mapOf(1 to dummyDocumentation))
+    private val _documentations = mutableStateOf<Map<Int, List<Documentation>>>(emptyMap())
     val documentations: State<Map<Int, List<Documentation>>> = _documentations
 
     private val _likedDocIds = mutableStateOf(setOf<Int>())
     val likedDocIds: State<Set<Int>> = _likedDocIds
 
     fun loadAllEvents(context: Context) {
-        // Selalu set dummyEvents sebagai data awal
-        if (_allEvents.value.isEmpty()) {
-            _allEvents.value = dummyEvents
-        }
+        Log.d("ViewModel", "=== LOAD ALL EVENTS CALLED ===")
+        Log.d("ViewModel", "Current _allEvents size: ${_allEvents.value.size}")
         
         if (!isNetworkAvailable(context)) {
-            _notificationMessage.value = "Offline. Menggunakan data lokal."
-            _allEvents.value = dummyEvents
+            Log.e("ViewModel", "No network available")
+            _notificationMessage.value = "Offline. Tidak dapat memuat event."
             return
         }
 
+        Log.d("ViewModel", "Calling API getAllEvents...")
         ApiClient.instance.getAllEvents().enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                Log.d("ViewModel", "API Response received: ${response.code()}")
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
-                    val eventsFromApi = body.data.map { it.toEventModel() }
-                    _allEvents.value = (eventsFromApi + dummyEvents).distinctBy { it.id }
-                } else {
-                    Log.e("ViewModel", "Gagal load all events: ${response.message()}")
-                    // Fallback ke dummyEvents jika belum ada data
-                    if (_allEvents.value.isEmpty()) {
-                        _allEvents.value = dummyEvents
+                    val events = body.data.map { it.toEventModel() }
+                    Log.d("ViewModel", "✅ Events loaded from API: ${events.size} events")
+                    events.forEach {
+                        Log.d("ViewModel", "  - Event: id=${it.id}, title=${it.title}")
                     }
+                    _allEvents.value = events
+                    Log.d("ViewModel", "_allEvents updated. New size: ${_allEvents.value.size}")
+                } else {
+                    Log.e("ViewModel", "❌ Gagal load all events: ${response.message()}")
+                    Log.e("ViewModel", "Response body status: ${body?.status}")
+                    _notificationMessage.value = "Gagal memuat event dari server."
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
-                Log.e("ViewModel", "API Failure: ${t.message}")
-                // Fallback ke dummyEvents saat API gagal
-                if (_allEvents.value.isEmpty()) {
-                    _allEvents.value = dummyEvents
-                }
+                Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                t.printStackTrace()
+                _notificationMessage.value = "Gagal terhubung ke server."
             }
         })
     }
@@ -260,7 +252,6 @@ class EventManagementViewModel : ViewModel() {
         return _createdEvents.value.find { it.id == eventId }
             ?: _allEvents.value.find { it.id == eventId }
             ?: _followedEvents.find { it.id == eventId }
-            ?: dummyEvents.find { it.id == eventId }
     }
 
     fun deleteEvent(eventId: Int) {

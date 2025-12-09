@@ -24,7 +24,7 @@ import androidx.navigation.NavController
 import com.example.uventapp.data.model.fakultasList
 // --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
-import com.example.uventapp.data.model.dummyEvents
+
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 // -----------------------------
 import com.example.uventapp.ui.components.*
@@ -41,9 +41,8 @@ fun EditRegistrationScreen(
     eventId: Int? // Terima eventId
 ) {
     // --- PENGAMBILAN DATA ---
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
-        // Cari di semua list yang mungkin
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    val event = remember(eventId) {
+        viewModel.getEventById(eventId ?: -1)
     }
     val existingData = remember(eventId) {
         viewModel.getRegistrationData(eventId ?: -1) // <-- Perbaikan tipe

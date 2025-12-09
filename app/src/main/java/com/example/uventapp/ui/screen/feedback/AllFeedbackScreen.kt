@@ -34,7 +34,7 @@ import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Feedback
-import com.example.uventapp.data.model.dummyEvents
+
 import com.example.uventapp.ui.components.BottomNavBar
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
@@ -53,7 +53,7 @@ fun AllFeedbackScreen(
 ) {
     // Cari event dari ID
     val event = remember(eventId) {
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+        viewModel.getEventById(eventId ?: -1)
     }
 
     // Ambil daftar feedback dari ViewModel

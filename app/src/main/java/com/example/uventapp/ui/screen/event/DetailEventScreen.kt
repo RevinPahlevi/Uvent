@@ -23,7 +23,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.model.dummyEvents
+
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -96,7 +96,7 @@ fun DetailEventScreen(
         allEvents.find { it.id == id }
             ?: createdEvents.find { it.id == id }
             ?: followedEvents.find { it.id == id }
-            ?: dummyEvents.find { it.id == id }
+
     }
     
     val isRegistered = followedEvents.any { it.id == eventId }
@@ -134,10 +134,10 @@ fun DetailEventScreen(
                                 .build(),
                             placeholder = painterResource(R.drawable.placeholder_poster),
                             contentDescription = "Event Banner",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp)
+                                .heightIn(min = 200.dp, max = 400.dp)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 

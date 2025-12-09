@@ -124,6 +124,7 @@ fun MyRegisteredEventScreen(
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             viewModel.loadCreatedEvents(currentUserId, context)
+            viewModel.loadAllEvents(context) // PENTING: Load all events juga
         }
     }
 

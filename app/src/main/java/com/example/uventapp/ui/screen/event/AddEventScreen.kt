@@ -43,7 +43,7 @@ import com.example.uventapp.data.model.Event
 import com.example.uventapp.ui.theme.LightBackground
 // --- IMPORT PROFILE VIEW MODEL ---
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
-import com.example.uventapp.data.model.dummyEvents // Import dummyEvents
+
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -231,7 +231,7 @@ fun AddEventScreen(
                     
                     // Buat ID lokal baru sementara
                     val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
-                        .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
+                        .coerceAtLeast(1000) // Start from ID 1000 for user-created events
 
                     val newEvent = Event(
                         id = newId,
@@ -300,7 +300,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
                     .crossfade(true)
                     .build(),
                 contentDescription = "Poster Event",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
         }

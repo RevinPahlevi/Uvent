@@ -30,7 +30,7 @@ import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 // Import ViewModel dan data
-import com.example.uventapp.data.model.dummyEvents
+
 // --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
@@ -259,8 +259,8 @@ fun RegistrationFormScreen(
     val currentUserId = currentUserProfile?.id
     
     // Cari event berdasarkan ID dari semua event yang ada
-    val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
-        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    val eventToRegister = remember(eventId) {
+        viewModel.getEventById(eventId ?: -1)
     }
 
     var name by remember { mutableStateOf("") }
