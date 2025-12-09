@@ -417,7 +417,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
+            .height(240.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFFF0FFF0)) // Light green background
             .border(
