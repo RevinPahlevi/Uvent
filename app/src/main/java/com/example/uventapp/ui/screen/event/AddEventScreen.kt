@@ -269,13 +269,23 @@ fun AddEventScreen(
                         "Offline" -> "Nama Lokasi (Gedung/Ruangan)"
                         else -> "Detail Lokasi"
                     }
+                    val locationPlaceholder = when (platformType) {
+                        "Online" -> "Masukkan link (Zoom/GMeet/Teams)"
+                        "Offline" -> "Masukkan lokasi event"
+                        else -> "Masukkan detail lokasi"
+                    }
+                    val locationKeyboardType = when (platformType) {
+                        "Online" -> KeyboardType.Uri
+                        else -> KeyboardType.Text
+                    }
                     OutlinedTextField(
                         value = locationDetail,
                         onValueChange = { locationDetail = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Masukkan lokasi event", color = Color.Gray) },
+                        placeholder = { Text(locationPlaceholder, color = Color.Gray) },
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = locationKeyboardType),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             unfocusedBorderColor = Color(0xFFE0E0E0)
