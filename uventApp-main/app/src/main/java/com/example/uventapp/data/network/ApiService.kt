@@ -111,4 +111,11 @@ interface ApiService {
     fun deleteDocumentation(
         @Path("id") documentationId: Int
     ): Call<DeleteResponse>
+
+    // --- API UPLOAD GAMBAR ---
+    @retrofit2.http.Multipart
+    @POST("upload")
+    fun uploadImage(
+        @retrofit2.http.Part image: okhttp3.MultipartBody.Part
+    ): Call<UploadImageResponse>
 }

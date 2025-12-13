@@ -28,11 +28,18 @@ import com.example.uventapp.data.network.UpdateFeedbackRequest
 import com.example.uventapp.data.network.UpdateFeedbackResponse
 import com.example.uventapp.data.network.UpdateDocumentationRequest
 import com.example.uventapp.data.network.UpdateDocumentationResponse
+import com.example.uventapp.data.network.UploadImageResponse
 import com.example.uventapp.utils.isNetworkAvailable
 import com.example.uventapp.data.model.dummyEvents
+import android.net.Uri
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -70,6 +77,11 @@ private fun reformatTimeForUi(dbTime: String?): String {
 }
 
 private fun EventResponse.toEventModel(): Event {
+    // DEBUG: Log untuk tracking thumbnailUri
+    if (this.thumbnailUri != null) {
+        Log.d("EventConversion", "Converting event '${this.title}' with thumbnailUri: ${this.thumbnailUri}")
+    }
+    
     return Event(
         id = this.id,
         title = this.title,
@@ -112,6 +124,81 @@ class EventManagementViewModel : ViewModel() {
 
     private val _likedDocIds = mutableStateOf(setOf<Int>())
     val likedDocIds: State<Set<Int>> = _likedDocIds
+
+    private val _isUploading = mutableStateOf(false)
+    val isUploading: State<Boolean> = _isUploading
+
+    // Fungsi untuk upload gambar ke server dan mendapatkan URL
+    fun uploadImage(
+        context: Context,
+        imageUri: Uri,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        _isUploading.value = true
+        Log.d("UploadImage", "=== UPLOAD IMAGE START ===")
+        Log.d("UploadImage", "Input imageUri: $imageUri")
+        
+        try {
+            // Buat file sementara dari URI
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+            val tempFile = File.createTempFile("upload_", ".jpg", context.cacheDir)
+            val outputStream = FileOutputStream(tempFile)
+            
+            inputStream?.copyTo(outputStream)
+            inputStream?.close()
+            outputStream.close()
+            
+            Log.d("UploadImage", "Temp file created: ${tempFile.absolutePath}")
+            Log.d("UploadImage", "Temp file size: ${tempFile.length()} bytes")
+            
+            // Siapkan multipart request
+            val requestBody = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
+            val multipartBody = MultipartBody.Part.createFormData("image", tempFile.name, requestBody)
+            
+            Log.d("UploadImage", "Sending to API...")
+            
+            // Panggil API upload
+            ApiClient.instance.uploadImage(multipartBody).enqueue(object : Callback<UploadImageResponse> {
+                override fun onResponse(
+                    call: Call<UploadImageResponse>,
+                    response: Response<UploadImageResponse>
+                ) {
+                    _isUploading.value = false
+                    tempFile.delete() // Hapus file sementara
+                    
+                    Log.d("UploadImage", "Response code: ${response.code()}")
+                    Log.d("UploadImage", "Response body: ${response.body()}")
+                    
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                        Log.d("UploadImage", "=== UPLOAD SUCCESS ===")
+                        Log.d("UploadImage", "Filename: ${body.data.filename}")
+                        Log.d("UploadImage", "URL from server: ${body.data.url}")
+                        Log.d("UploadImage", "Size: ${body.data.size}")
+                        onSuccess(body.data.url)
+                    } else {
+                        Log.e("UploadImage", "Upload failed: ${response.message()}")
+                        Log.e("UploadImage", "Body message: ${body?.message}")
+                        onError("Gagal upload gambar: ${body?.message ?: response.message()}")
+                    }
+                }
+                
+                override fun onFailure(call: Call<UploadImageResponse>, t: Throwable) {
+                    _isUploading.value = false
+                    tempFile.delete()
+                    Log.e("UploadImage", "Upload error: ${t.message}")
+                    Log.e("UploadImage", "Stack trace: ${t.stackTraceToString()}")
+                    onError("Error upload: ${t.message}")
+                }
+            })
+        } catch (e: Exception) {
+            _isUploading.value = false
+            Log.e("UploadImage", "Exception: ${e.message}")
+            Log.e("UploadImage", "Stack trace: ${e.stackTraceToString()}")
+            onError("Error: ${e.message}")
+        }
+    }
 
     fun loadAllEvents(context: Context) {
         // Selalu set dummyEvents sebagai data awal
@@ -171,6 +258,12 @@ class EventManagementViewModel : ViewModel() {
             return
         }
 
+        // DEBUG: Log thumbnailUri SEBELUM dikirim ke API
+        Log.d("AddEvent", "=== ADD EVENT DEBUG ===")
+        Log.d("AddEvent", "Event title: ${event.title}")
+        Log.d("AddEvent", "thumbnailUri from Event: ${event.thumbnailUri}")
+        Log.d("AddEvent", "thumbnailResId from Event: ${event.thumbnailResId}")
+
         val request = CreateEventRequest(
             title = event.title,
             type = event.type,
@@ -186,22 +279,27 @@ class EventManagementViewModel : ViewModel() {
         )
         
         // DEBUG: Log data yang dikirim ke API
-        Log.d("AddEvent", "Sending date to API: ${event.date}")
-        Log.d("AddEvent", "Sending timeStart: ${event.timeStart}")
-        Log.d("AddEvent", "Sending timeEnd: ${event.timeEnd}")
+        Log.d("AddEvent", "Sending to API:")
+        Log.d("AddEvent", "  - date: ${event.date}")
+        Log.d("AddEvent", "  - timeStart: ${event.timeStart}")
+        Log.d("AddEvent", "  - timeEnd: ${event.timeEnd}")
+        Log.d("AddEvent", "  - thumbnailUri (in request): ${request.thumbnailUri}")
 
         ApiClient.instance.createEvent(request).enqueue(object : Callback<CreateEventResponse> {
             override fun onResponse(call: Call<CreateEventResponse>, response: Response<CreateEventResponse>) {
                 val body = response.body()
+                Log.d("AddEvent", "API Response: ${response.code()} - ${body?.status}")
                 if (response.isSuccessful && body?.status == "success") {
                     _notificationMessage.value = "Event Berhasil Ditambahkan"
                     loadAllEvents(context)
                     if (creatorId != null) loadCreatedEvents(creatorId, context)
                 } else {
+                    Log.e("AddEvent", "API Error: ${body?.message ?: response.message()}")
                     _notificationMessage.value = "Gagal: ${body?.message ?: response.message()}"
                 }
             }
             override fun onFailure(call: Call<CreateEventResponse>, t: Throwable) {
+                Log.e("AddEvent", "API Failure: ${t.message}")
                 _notificationMessage.value = "Gagal terhubung ke server."
             }
         })
@@ -483,48 +581,60 @@ class EventManagementViewModel : ViewModel() {
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
     fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
-        if (_followedEvents.none { it.id == event.id }) {
-            // Tambahkan ke data lokal terlebih dahulu
+        // Cek apakah sudah terdaftar secara lokal
+        if (_followedEvents.any { it.id == event.id }) {
+            _notificationMessage.value = "Anda sudah terdaftar di event ini"
+            return
+        }
+
+        // Kirim ke API jika ada koneksi
+        if (isNetworkAvailable(context)) {
+            val request = EventRegistrationRequest(
+                eventId = data.eventId,
+                userId = userId,
+                name = data.name,
+                nim = data.nim,
+                fakultas = data.fakultas,
+                jurusan = data.jurusan,
+                email = data.email,
+                phone = data.phone,
+                krsUri = data.krsUri
+            )
+
+            ApiClient.instance.registerForEvent(request).enqueue(object : Callback<EventRegistrationResponse> {
+                override fun onResponse(
+                    call: Call<EventRegistrationResponse>,
+                    response: Response<EventRegistrationResponse>
+                ) {
+                    val body = response.body()
+                    
+                    if (response.isSuccessful && body?.status == "success") {
+                        // Berhasil - tambahkan ke lokal state
+                        _followedEvents.add(event)
+                        _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
+                        _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
+                        Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
+                    } else {
+                        // Tangani error termasuk 409 Conflict (sudah terdaftar)
+                        val errorMessage = when (response.code()) {
+                            409 -> "Anda sudah terdaftar di event ini"
+                            else -> body?.message ?: "Gagal mendaftar: ${response.message()}"
+                        }
+                        _notificationMessage.value = errorMessage
+                        Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
+                    }
+                }
+
+                override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
+                    Log.e("ViewModel", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Gagal terhubung ke server"
+                }
+            })
+        } else {
+            // Offline mode - simpan lokal saja
             _followedEvents.add(event)
             _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
-
-            // Kirim ke API jika ada koneksi
-            if (isNetworkAvailable(context)) {
-                val request = EventRegistrationRequest(
-                    eventId = data.eventId,
-                    userId = userId, // <-- TAMBAHAN: kirim userId
-                    name = data.name,
-                    nim = data.nim,
-                    fakultas = data.fakultas,
-                    jurusan = data.jurusan,
-                    email = data.email,
-                    phone = data.phone,
-                    krsUri = data.krsUri
-                )
-
-                ApiClient.instance.registerForEvent(request).enqueue(object : Callback<EventRegistrationResponse> {
-                    override fun onResponse(
-                        call: Call<EventRegistrationResponse>,
-                        response: Response<EventRegistrationResponse>
-                    ) {
-                        val body = response.body()
-                        if (response.isSuccessful && body?.status == "success") {
-                            _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
-                            Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
-                        } else {
-                            _notificationMessage.value = body?.message ?: "Gagal menyimpan ke server"
-                            Log.e("ViewModel", "Gagal register: ${body?.message}")
-                        }
-                    }
-
-                    override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
-                        Log.e("ViewModel", "API Failure: ${t.message}")
-                        _notificationMessage.value = "Tersimpan lokal, gagal sinkronisasi ke server"
-                    }
-                })
-            } else {
-                _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
-            }
+            _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
         }
     }
     fun getRegistrationData(eventId: Int): Registration? = _registrations.value[eventId]

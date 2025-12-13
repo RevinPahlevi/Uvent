@@ -30,6 +30,7 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
+import com.example.uventapp.utils.ImageUrlHelper
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -127,12 +128,18 @@ fun DetailEventScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // Fix image URL for Android - replace localhost with server IP
+                        val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri) 
+                            ?: event.thumbnailResId 
+                            ?: R.drawable.placeholder_poster
+                        
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
-                                .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
+                                .data(imageSource)
                                 .crossfade(true)
                                 .build(),
                             placeholder = painterResource(R.drawable.placeholder_poster),
+                            error = painterResource(R.drawable.placeholder_poster),
                             contentDescription = "Event Banner",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
