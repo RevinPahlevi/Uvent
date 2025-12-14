@@ -264,6 +264,7 @@ fun MyRegisteredEventScreen(
                                 CreatedEventCard(
                                     event = event,
                                     isFinished = isFinished,
+                                    navController = navController,
                                     onEditClick = {
                                         navController.navigate(Screen.EditEvent.createRoute(event.id))
                                     },
@@ -400,6 +401,7 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: 
 private fun CreatedEventCard(
     event: Event,
     isFinished: Boolean,
+    navController: NavController,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onLihatFeedbackClick: () -> Unit
@@ -475,21 +477,30 @@ private fun CreatedEventCard(
                                 }
                             }
                             event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - tampilkan Edit & Hapus
+                                // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = {
+                                            navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
+                                        },
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Peserta", fontSize = 11.sp) }
                                     Button(
                                         onClick = onEditClick,
                                         modifier = Modifier.height(32.dp),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
                                     ) { Text("Edit", fontSize = 11.sp) }
                                     Button(
                                         onClick = onDeleteClick,
                                         modifier = Modifier.height(32.dp),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
                                     ) { Text("Hapus", fontSize = 11.sp) }
                                 }
                             }

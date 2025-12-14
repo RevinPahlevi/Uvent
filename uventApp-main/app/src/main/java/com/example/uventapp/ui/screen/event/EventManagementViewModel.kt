@@ -203,6 +203,80 @@ class EventManagementViewModel : ViewModel() {
         }
     }
 
+    // ===== FITUR BARU: Upload file KRS (PDF) =====
+    fun uploadKRS(
+        context: Context,
+        krsUri: Uri,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        _isUploading.value = true
+        Log.d("UploadKRS", "=== UPLOAD KRS START ===")
+        Log.d("UploadKRS", "Input krsUri: $krsUri")
+        
+        try {
+            // Buat file sementara dari URI
+            val inputStream = context.contentResolver.openInputStream(krsUri)
+            val tempFile = File.createTempFile("krs_", ".pdf", context.cacheDir)
+            val outputStream = FileOutputStream(tempFile)
+            
+            inputStream?.copyTo(outputStream)
+            inputStream?.close()
+            outputStream.close()
+            
+            Log.d("UploadKRS", "Temp file created: ${tempFile.absolutePath}")
+            Log.d("UploadKRS", "Temp file size: ${tempFile.length()} bytes")
+            
+            // Siapkan multipart request untuk PDF
+            val requestBody = tempFile.asRequestBody("application/pdf".toMediaTypeOrNull())
+            val multipartBody = MultipartBody.Part.createFormData("krs", tempFile.name, requestBody)
+            
+            Log.d("UploadKRS", "Sending to API...")
+            
+            // Panggil API upload KRS
+            ApiClient.instance.uploadKRS(multipartBody).enqueue(object : Callback<com.example.uventapp.data.network.UploadKRSResponse> {
+                override fun onResponse(
+                    call: Call<com.example.uventapp.data.network.UploadKRSResponse>,
+                    response: Response<com.example.uventapp.data.network.UploadKRSResponse>
+                ) {
+                    _isUploading.value = false
+                    tempFile.delete() // Hapus file sementara
+                    
+                    Log.d("UploadKRS", "Response code: ${response.code()}")
+                    Log.d("UploadKRS", "Response body: ${response.body()}")
+                    
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                        Log.d("UploadKRS", "=== UPLOAD KRS SUCCESS ===")
+                        Log.d("UploadKRS", "Filename: ${body.data.filename}")
+                        Log.d("UploadKRS", "URL from server: ${body.data.url}")
+                        Log.d("UploadKRS", "Size: ${body.data.size}")
+                        onSuccess(body.data.url)
+                    } else {
+                        Log.e("UploadKRS", "Upload failed: ${response.message()}")
+                        Log.e("UploadKRS", "Body message: ${body?.message}")
+                        onError("Gagal upload KRS: ${body?.message ?: response.message()}")
+                    }
+                }
+                
+                override fun onFailure(call: Call<com.example.uventapp.data.network.UploadKRSResponse>, t: Throwable) {
+                    _isUploading.value = false
+                    tempFile.delete()
+                    Log.e("UploadKRS", "Upload error: ${t.message}")
+                    Log.e("UploadKRS", "Stack trace: ${t.stackTraceToString()}")
+                    onError("Error upload KRS: ${t.message}")
+                }
+            })
+        } catch (e: Exception) {
+            _isUploading.value = false
+            Log.e("UploadKRS", "Exception: ${e.message}")
+            Log.e("UploadKRS", "Stack trace: ${e.stackTraceToString()}")
+            onError("Error: ${e.message}")
+        }
+    }
+    // ================================================
+
+
     fun loadAllEvents(context: Context) {
         Log.d("ViewModel", "=== LOAD ALL EVENTS CALLED ===")
         Log.d("ViewModel", "Current _allEvents size: ${_allEvents.value.size}")

@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
@@ -79,9 +81,14 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
 fun DetailEventScreen(
     navController: NavController,
     eventId: Int?,
-    viewModel: EventManagementViewModel
+    viewModel: EventManagementViewModel,
+    profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel
 ) {
     val context = LocalContext.current
+    
+    // Get current user profile for creator check
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
     
     // Subscribe ke state agar UI update saat data berubah
     val allEvents by viewModel.allEvents
@@ -121,6 +128,9 @@ fun DetailEventScreen(
                 .padding(16.dp)
         ) {
             if (event != null) {
+                // Check if current user is the event creator
+                val isMyEvent = event.creatorId != null && event.creatorId == currentUserId
+                
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = White),
@@ -184,49 +194,71 @@ fun DetailEventScreen(
                                 }
                             }
                         } else {
-                            // Check status event untuk tampilkan tombol yang sesuai
-                            val isStarted = event.let { EventTimeHelper.isEventStarted(it.date, it.timeStart) }
-                            val canRegister = EventTimeHelper.canRegisterForEvent(event.date, event.timeStart)
-                            
-                            when {
-                                isFinished -> {
-                                    // Event sudah selesai
-                                    Button(
-                                        onClick = { /* Disabled */ },
-                                        enabled = false,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.Gray,
-                                            disabledContainerColor = Color.Gray
-                                        )
-                                    ) {
-                                        Text("Event Sudah Selesai", color = Color.White)
-                                    }
-                                }
-                                isStarted && !isFinished -> {
-                                    // Event sudah mulai tapi belum selesai
-                                    Button(
-                                        onClick = { /* Disabled */ },
-                                        enabled = false,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFFF9800),
-                                            disabledContainerColor = Color(0xFFFF9800)
-                                        )
-                                    ) {
-                                        Text("Pendaftaran Ditutup", color = Color.White)
-                                    }
-                                }
-                                else -> {
-                                    // Event belum mulai, bisa daftar
-                                    PrimaryButton(
-                                        text = "Daftar Sekarang",
-                                        onClick = {
-                                            navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                                        },
+                            // Check if user is the creator
+                            if (isMyEvent) {
+                                // Show "Kelola Event" button for event creators
+                                Button(
+                                    onClick = {
+                                        // Navigate ke tab "Dibuat" di MyRegisteredEventScreen
+                                        navController.navigate(Screen.MyRegisteredEvent.createRoute(""))
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Kelola Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                // Check status event untuk tampilkan tombol yang sesuai
+                                val isStarted = event.let { EventTimeHelper.isEventStarted(it.date, it.timeStart) }
+                                val canRegister = EventTimeHelper.canRegisterForEvent(event.date, event.timeStart)
+                                
+                                when {
+                                    isFinished -> {
+                                        // Event sudah selesai
+                                        Button(
+                                            onClick = { /* Disabled */ },
+                                            enabled = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color.Gray,
+                                                disabledContainerColor = Color.Gray
+                                            )
+                                        ) {
+                                            Text("Event Sudah Selesai", color = Color.White)
+                                        }
+                                    }
+                                    isStarted && !isFinished -> {
+                                        // Event sudah mulai tapi belum selesai
+                                        Button(
+                                            onClick = { /* Disabled */ },
+                                            enabled = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFF9800),
+                                                disabledContainerColor = Color(0xFFFF9800)
+                                            )
+                                        ) {
+                                            Text("Pendaftaran Ditutup", color = Color.White)
+                                        }
+                                    }
+                                    else -> {
+                                        // Event belum mulai, bisa daftar
+                                        PrimaryButton(
+                                            text = "Daftar Sekarang",
+                                            onClick = {
+                                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }

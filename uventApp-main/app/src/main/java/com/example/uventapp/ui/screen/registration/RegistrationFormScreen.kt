@@ -420,48 +420,67 @@ fun RegistrationFormScreen(
             }
 
             PrimaryButton(
-                text = "Daftar",
+                text = if (viewModel.isUploading.value) "Mengupload..." else "Daftar",
                 onClick = {
                     android.util.Log.d("RegistrationForm", "Button clicked! isFormValid=$isFormValid")
-                    if (isFormValid) {
-                        // 1. Buat objek Registration
-                        val registrationData = Registration(
-                            eventId = eventToRegister!!.id,
-                            name = name,
-                            nim = nim,
-                            fakultas = selectedFakultas,
-                            jurusan = selectedJurusan,
-                            email = email,
-                            phone = phone,
-                            krsUri = selectedFileUri.toString()
-                        )
-
-                        android.util.Log.d("RegistrationForm", "Calling registerForEvent...")
-                        // 2. Kirim event DAN data pendaftaran ke ViewModel dengan callback
-                        viewModel.registerForEvent(
-                            event = eventToRegister,
-                            data = registrationData,
-                            userId = currentUserId,
+                    if (isFormValid && selectedFileUri != null) {
+                        
+                        // ===== FLOW BARU: Upload KRS dulu, baru submit registrasi =====
+                        android.util.Log.d("RegistrationForm", "Starting KRS upload...")
+                        
+                        // Step 1: Upload file KRS ke server
+                        viewModel.uploadKRS(
                             context = context,
-                            onSuccess = {
-                                android.util.Log.d("RegistrationForm", "Registration success! Navigating...")
-                                // 3. HANYA navigate jika berhasil
-                                navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
-                                    popUpTo(Screen.Home.route)
-                                    launchSingleTop = true
-                                }
+                            krsUri = selectedFileUri!!,
+                            onSuccess = { krsUrl ->
+                                android.util.Log.d("RegistrationForm", "KRS uploaded! URL: $krsUrl")
+                                
+                                // Step 2: Buat objek Registration dengan KRS URL dari server
+                                val registrationData = Registration(
+                                    eventId = eventToRegister!!.id,
+                                    name = name,
+                                    nim = nim,
+                                    fakultas = selectedFakultas,
+                                    jurusan = selectedJurusan,
+                                    email = email,
+                                    phone = phone,
+                                    krsUri = krsUrl // ✅ Ini URL dari server, bukan URI lokal!
+                                )
+                                
+                                android.util.Log.d("RegistrationForm", "Calling registerForEvent with KRS URL: $krsUrl")
+                                
+                                // Step 3: Submit registrasi dengan KRS URL
+                                viewModel.registerForEvent(
+                                    event = eventToRegister,
+                                    data = registrationData,
+                                    userId = currentUserId,
+                                    context = context,
+                                    onSuccess = {
+                                        android.util.Log.d("RegistrationForm", "Registration success! Navigating...")
+                                        // Navigate ke MyRegisteredEvent
+                                        navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
+                                            popUpTo(Screen.Home.route)
+                                            launchSingleTop = true
+                                        }
+                                    },
+                                    onError = { errorMessage ->
+                                        android.util.Log.e("RegistrationForm", "Registration error: $errorMessage")
+                                        // Error sudah di-handle di ViewModel (notification message)
+                                    }
+                                )
                             },
                             onError = { errorMessage ->
-                                android.util.Log.e("RegistrationForm", "Registration error: $errorMessage")
-                                // Error sudah di-handle di ViewModel (notification message)
-                                // Tidak perlu navigate, biarkan user tetap di form
+                                android.util.Log.e("RegistrationForm", "KRS upload error: $errorMessage")
+                                // Error message akan dimunculkan di ViewModel notification
                             }
                         )
+                        // ==============================================================
+                        
                     } else {
-                        android.util.Log.w("RegistrationForm", "Form not valid, button should be disabled")
+                        android.util.Log.w("RegistrationForm", "Form not valid or no file selected")
                     }
                 },
-                enabled = isFormValid,
+                enabled = isFormValid && !viewModel.isUploading.value,
                 modifier = Modifier.fillMaxWidth(0.6f)
             )
 
