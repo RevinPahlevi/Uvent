@@ -309,7 +309,20 @@ fun AddEventScreen(
                 return endMinutes > startMinutes
             }
 
+            // Helper function untuk validasi URL/link
+            fun isValidUrl(text: String): Boolean {
+                val urlPattern = """^(https?://|www\.)[\w\-._~:/?#\[\]@!$&'()*+,;=%]+$""".toRegex(RegexOption.IGNORE_CASE)
+                return text.startsWith("http://") || text.startsWith("https://") || text.startsWith("www.") || urlPattern.matches(text)
+            }
+
             val isTimeValid = isEndTimeAfterStartTime(waktuMulai, waktuSelesai)
+            
+            // Validasi: Jika Online, location harus berupa link
+            val isLocationValid = if (platformType == "Online") {
+                locationDetail.isNotBlank() && isValidUrl(locationDetail)
+            } else {
+                locationDetail.isNotBlank()
+            }
 
             // Tampilkan error jika waktu tidak valid
             if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank() && !isTimeValid) {
@@ -322,7 +335,18 @@ fun AddEventScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Validasi: Semua field harus diisi DAN waktu harus valid
+            // Tampilkan error jika lokasi online tidak valid
+            if (platformType == "Online" && locationDetail.isNotBlank() && !isValidUrl(locationDetail)) {
+                Text(
+                    text = "⚠️ Event online harus menggunakan link (contoh: https://zoom.us/... atau https://meet.google.com/...)",
+                    color = Color.Red,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Validasi: Semua field harus diisi DAN waktu harus valid DAN lokasi valid
             val isFormValid = judul.isNotBlank() &&
                     jenis != "Pilih Jenis Event" &&
                     tanggal.isNotBlank() &&
@@ -330,7 +354,7 @@ fun AddEventScreen(
                     waktuSelesai.isNotBlank() &&
                     isTimeValid &&
                     platformType != "Pilih Tipe Lokasi" &&
-                    locationDetail.isNotBlank() &&
+                    isLocationValid &&
                     kuota.isNotBlank()
 
             // State untuk loading saat upload

@@ -246,6 +246,10 @@ fun MyRegisteredEventScreen(
                                 CreatedEventCard(
                                     event = event,
                                     isFinished = isFinished,
+                                    onCardClick = {
+                                        // Navigasi ke halaman daftar peserta
+                                        navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
+                                    },
                                     onEditClick = {
                                         navController.navigate(Screen.EditEvent.createRoute(event.id))
                                     },
@@ -382,6 +386,7 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: 
 private fun CreatedEventCard(
     event: Event,
     isFinished: Boolean,
+    onCardClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onLihatFeedbackClick: () -> Unit
@@ -398,7 +403,9 @@ private fun CreatedEventCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCardClick() }
     ) {
         Box {
             Row(

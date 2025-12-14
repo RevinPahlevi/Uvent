@@ -258,9 +258,18 @@ fun RegistrationFormScreen(
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
 
-    // Cari event berdasarkan ID dari semua event yang ada
-    val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
-        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    // Load events saat screen dibuka
+    val allEvents by viewModel.allEvents
+    
+    LaunchedEffect(Unit) {
+        viewModel.loadAllEvents(context)
+    }
+
+    // Cari event berdasarkan ID dari SEMUA sumber event yang ada
+    val eventToRegister = remember(eventId, allEvents, viewModel.createdEvents.value, dummyEvents) {
+        allEvents.find { it.id == eventId }
+            ?: viewModel.createdEvents.value.find { it.id == eventId }
+            ?: dummyEvents.find { it.id == eventId }
     }
 
     // AUTO-FILL: Inisialisasi field dengan data dari profile user yang login

@@ -177,115 +177,44 @@ fun ParticipantCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Nama dan NIM
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Avatar icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(PrimaryGreen.copy(alpha = 0.1f), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = "Person",
                     tint = PrimaryGreen,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = participant.name,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-                    Text(
-                        text = "NIM: ${participant.nim}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Fakultas & Jurusan
-            Text(
-                text = "${participant.fakultas} - ${participant.jurusan}",
-                fontSize = 13.sp,
-                color = Color.DarkGray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Email
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Email,
-                    contentDescription = "Email",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            // Nama dan Jurusan
+            Column {
                 Text(
-                    text = participant.email,
-                    fontSize = 12.sp,
+                    text = participant.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black
+                )
+                Text(
+                    text = participant.jurusan,
+                    fontSize = 13.sp,
                     color = Color.Gray
                 )
-            }
-
-            // Phone
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Phone,
-                    contentDescription = "Phone",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = participant.phone,
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Tombol Lihat KRS
-            if (participant.krs_uri != null) {
-                Button(
-                    onClick = { onViewKRS(participant.krs_uri) },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Article,
-                        contentDescription = "KRS",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Lihat KRS", fontSize = 14.sp)
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFFFEBEE), RoundedCornerShape(8.dp))
-                        .padding(12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "KRS tidak tersedia",
-                        fontSize = 12.sp,
-                        color = Color.Red
-                    )
-                }
             }
         }
     }
