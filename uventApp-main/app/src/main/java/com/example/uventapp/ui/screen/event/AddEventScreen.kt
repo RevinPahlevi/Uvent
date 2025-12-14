@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -252,6 +253,46 @@ fun AddEventScreen(
                 }
             }
             
+            // Helper function untuk membandingkan waktu
+            fun isEndTimeAfterStartTime(start: String, end: String): Boolean {
+                if (start.isBlank() || end.isBlank()) return true
+                val startParts = start.split(":")
+                val endParts = end.split(":")
+                if (startParts.size < 2 || endParts.size < 2) return true
+                val startMinutes = (startParts[0].toIntOrNull() ?: 0) * 60 + (startParts[1].toIntOrNull() ?: 0)
+                val endMinutes = (endParts[0].toIntOrNull() ?: 0) * 60 + (endParts[1].toIntOrNull() ?: 0)
+                return endMinutes > startMinutes
+            }
+
+            val isTimeValid = isEndTimeAfterStartTime(waktuMulai, waktuSelesai)
+            
+            // Warning waktu - langsung di bawah card waktu
+            if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank() && !isTimeValid) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Schedule,
+                            contentDescription = null,
+                            tint = Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Waktu selesai harus setelah waktu mulai",
+                            color = Color(0xFFE65100),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+            
             // Lokasi/Platform
             FormCard {
                 FormDropdownField(
@@ -273,7 +314,7 @@ fun AddEventScreen(
                         value = locationDetail,
                         onValueChange = { locationDetail = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Masukkan lokasi event", color = Color.Gray) },
+                        placeholder = { Text(if (platformType == "Online") "https://zoom.us/..." else "Masukkan lokasi event", color = Color.Gray) },
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -281,6 +322,45 @@ fun AddEventScreen(
                             unfocusedBorderColor = Color(0xFFE0E0E0)
                         )
                     )
+                }
+            }
+            
+            // Helper function untuk validasi URL/link
+            fun isValidUrl(text: String): Boolean {
+                return text.startsWith("http://") || text.startsWith("https://") || text.startsWith("www.")
+            }
+
+            // Validasi: Jika Online, location harus berupa link
+            val isLocationValid = if (platformType == "Online") {
+                locationDetail.isNotBlank() && isValidUrl(locationDetail)
+            } else {
+                locationDetail.isNotBlank()
+            }
+
+            // Warning URL - langsung di bawah card lokasi
+            if (platformType == "Online" && locationDetail.isNotBlank() && !isValidUrl(locationDetail)) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFFE53935),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Event online harus menggunakan link (http/https)",
+                            color = Color(0xFFC62828),
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
             
@@ -296,55 +376,6 @@ fun AddEventScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Helper function untuk membandingkan waktu
-            fun isEndTimeAfterStartTime(start: String, end: String): Boolean {
-                if (start.isBlank() || end.isBlank()) return true // Belum diisi, skip validasi
-                val startParts = start.split(":")
-                val endParts = end.split(":")
-                if (startParts.size < 2 || endParts.size < 2) return true
-                
-                val startMinutes = (startParts[0].toIntOrNull() ?: 0) * 60 + (startParts[1].toIntOrNull() ?: 0)
-                val endMinutes = (endParts[0].toIntOrNull() ?: 0) * 60 + (endParts[1].toIntOrNull() ?: 0)
-                return endMinutes > startMinutes
-            }
-
-            // Helper function untuk validasi URL/link
-            fun isValidUrl(text: String): Boolean {
-                val urlPattern = """^(https?://|www\.)[\w\-._~:/?#\[\]@!$&'()*+,;=%]+$""".toRegex(RegexOption.IGNORE_CASE)
-                return text.startsWith("http://") || text.startsWith("https://") || text.startsWith("www.") || urlPattern.matches(text)
-            }
-
-            val isTimeValid = isEndTimeAfterStartTime(waktuMulai, waktuSelesai)
-            
-            // Validasi: Jika Online, location harus berupa link
-            val isLocationValid = if (platformType == "Online") {
-                locationDetail.isNotBlank() && isValidUrl(locationDetail)
-            } else {
-                locationDetail.isNotBlank()
-            }
-
-            // Tampilkan error jika waktu tidak valid
-            if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank() && !isTimeValid) {
-                Text(
-                    text = "⚠️ Waktu selesai harus setelah waktu mulai",
-                    color = Color.Red,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Tampilkan error jika lokasi online tidak valid
-            if (platformType == "Online" && locationDetail.isNotBlank() && !isValidUrl(locationDetail)) {
-                Text(
-                    text = "⚠️ Event online harus menggunakan link (contoh: https://zoom.us/... atau https://meet.google.com/...)",
-                    color = Color.Red,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
 
             // Validasi: Semua field harus diisi DAN waktu harus valid DAN lokasi valid
             val isFormValid = judul.isNotBlank() &&

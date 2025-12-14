@@ -10,7 +10,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -41,7 +43,13 @@ import com.example.uventapp.ui.theme.PrimaryGreen
 // ---------------------------
 
 @Composable
-fun FormInputField(label: String, value: String, onValueChange: (String) -> Unit) {
+fun FormInputField(
+    label: String, 
+    value: String, 
+    onValueChange: (String) -> Unit,
+    enabled: Boolean = true,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
     // Individual white card for each input
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -64,20 +72,32 @@ fun FormInputField(label: String, value: String, onValueChange: (String) -> Unit
             // Gray TextField with LARGER radius than card
             TextField(
                 value = value,
-                onValueChange = onValueChange,
+                onValueChange = { newValue ->
+                    // Jika keyboardType adalah Number, hanya terima angka
+                    if (keyboardType == KeyboardType.Number) {
+                        if (newValue.all { it.isDigit() }) {
+                            onValueChange(newValue)
+                        }
+                    } else {
+                        onValueChange(newValue)
+                    }
+                },
+                enabled = enabled,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFE8E8E8),
-                    unfocusedContainerColor = Color(0xFFE8E8E8),
-                    disabledContainerColor = Color(0xFFE8E8E8),
+                    focusedContainerColor = if (enabled) Color(0xFFE8E8E8) else Color(0xFFD5D5D5),
+                    unfocusedContainerColor = if (enabled) Color(0xFFE8E8E8) else Color(0xFFD5D5D5),
+                    disabledContainerColor = Color(0xFFD5D5D5),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
+                    disabledIndicatorColor = Color.Transparent,
+                    disabledTextColor = Color.Black
                 ),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
+                shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("") },
                 singleLine = true
             )
@@ -263,6 +283,8 @@ fun RegistrationFormScreen(
     
     LaunchedEffect(Unit) {
         viewModel.loadAllEvents(context)
+        // Load jumlah registrasi untuk event ini
+        eventId?.let { viewModel.loadRegistrationCount(it, context) }
     }
 
     // Cari event berdasarkan ID dari SEMUA sumber event yang ada
@@ -292,15 +314,22 @@ fun RegistrationFormScreen(
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
+    // Cek kuota event
+    val eventQuota = eventToRegister?.quota?.toIntOrNull() ?: 0
+    val registeredCount = viewModel.getRegisteredCountForEvent(eventToRegister?.id ?: 0)
+    val isQuotaFull = eventQuota > 0 && registeredCount >= eventQuota
+
     val isFormValid by derivedStateOf {
         name.isNotEmpty() &&
                 nim.isNotEmpty() &&
+                nim.all { it.isDigit() } && // NIM harus angka
                 email.isNotEmpty() &&
                 phone.isNotEmpty() &&
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan" &&
                 selectedFileUri != null &&
-                eventToRegister != null // Pastikan event ada
+                eventToRegister != null &&
+                !isQuotaFull // Kuota belum penuh
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -342,8 +371,8 @@ fun RegistrationFormScreen(
             }
 
             // Each input has its own white card (no big container)
-            FormInputField("Nama Lengkap", name) { name = it }
-            FormInputField("NIM", nim) { nim = it }
+            FormInputField("Nama Lengkap", name, onValueChange = { name = it }, enabled = false) // Read-only
+            FormInputField("NIM", nim, onValueChange = { nim = it }, keyboardType = KeyboardType.Number) // Numbers only
 
             DropdownInput(
                 label = "Fakultas",
@@ -364,8 +393,24 @@ fun RegistrationFormScreen(
                 enabled = availableJurusan.isNotEmpty()
             )
 
-            FormInputField("Email", email) { email = it }
-            FormInputField("No Telepon", phone) { phone = it }
+            FormInputField("Email", email, onValueChange = { email = it }, enabled = false) // Read-only
+            FormInputField("No Telepon", phone, onValueChange = { phone = it }, enabled = false) // Read-only
+
+            // Warning kuota penuh
+            if (isQuotaFull) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                ) {
+                    Text(
+                        text = "⚠️ Kuota pendaftaran sudah penuh ($registeredCount/$eventQuota)",
+                        color = Color(0xFFC62828),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
 
             UploadKRSInput(
                 label = "KRS",

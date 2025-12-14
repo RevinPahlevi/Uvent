@@ -130,6 +130,37 @@ class EventManagementViewModel : ViewModel() {
     private val _isUploading = mutableStateOf(false)
     val isUploading: State<Boolean> = _isUploading
 
+    // Cache untuk menghitung jumlah registrasi per event
+    private val _registrationCounts = mutableStateOf<Map<Int, Int>>(emptyMap())
+
+    // Fungsi untuk mendapatkan jumlah peserta terdaftar untuk suatu event
+    fun getRegisteredCountForEvent(eventId: Int): Int {
+        return _registrationCounts.value[eventId] ?: 0
+    }
+
+    // Fungsi untuk load jumlah registrasi per event dari API
+    fun loadRegistrationCount(eventId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+        
+        ApiClient.instance.getParticipantsByEvent(eventId).enqueue(object : Callback<com.example.uventapp.data.network.GetParticipantsResponse> {
+            override fun onResponse(
+                call: Call<com.example.uventapp.data.network.GetParticipantsResponse>,
+                response: Response<com.example.uventapp.data.network.GetParticipantsResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    val count = body.data.size
+                    _registrationCounts.value = _registrationCounts.value + (eventId to count)
+                    Log.d("RegistrationCount", "Event $eventId has $count registrations")
+                }
+            }
+
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetParticipantsResponse>, t: Throwable) {
+                Log.e("RegistrationCount", "Failed to load count for event $eventId: ${t.message}")
+            }
+        })
+    }
+
     // Fungsi untuk upload gambar ke server dan mendapatkan URL
     fun uploadImage(
         context: Context,

@@ -159,7 +159,7 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId") ?: 0
             val eventTitle = backStackEntry.arguments?.getString("eventTitle") ?: ""
-            ParticipantListScreen(navController, eventId, eventTitle)
+            ParticipantListScreen(navController, eventId, eventTitle, eventViewModel)
         }
         // ===============================================
     }
