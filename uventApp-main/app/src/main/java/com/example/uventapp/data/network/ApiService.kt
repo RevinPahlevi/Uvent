@@ -68,6 +68,12 @@ interface ApiService {
         @Path("id") registrationId: Int
     ): Call<DeleteResponse>
 
+    // Get events yang diikuti user (by userId)
+    @GET("registrations/user/{userId}")
+    fun getMyRegistrationsByUserId(
+        @Path("userId") userId: Int
+    ): Call<GetEventsResponse>
+
     // --- API FEEDBACK ---
     @POST("feedback")
     fun createFeedback(
@@ -118,4 +124,55 @@ interface ApiService {
     fun uploadImage(
         @retrofit2.http.Part image: okhttp3.MultipartBody.Part
     ): Call<UploadImageResponse>
+
+    // ===== FITUR BARU: Upload KRS & Lihat Peserta =====
+
+    // Upload file KRS (PDF)
+    @retrofit2.http.Multipart
+    @POST("registrations/upload-krs")
+    fun uploadKRS(
+        @retrofit2.http.Part krs: okhttp3.MultipartBody.Part
+    ): Call<UploadKRSResponse>
+
+    // Get daftar peserta per event (untuk admin/creator)
+    @GET("registrations/event/{eventId}/participants")
+    fun getParticipantsByEvent(
+        @Path("eventId") eventId: Int
+    ): Call<GetParticipantsResponse>
+
+    // ==================================================
 }
+
+// Response untuk upload KRS
+data class UploadKRSResponse(
+    val status: String,
+    val message: String,
+    val data: UploadKRSData?
+)
+
+data class UploadKRSData(
+    val filename: String,
+    val url: String,
+    val size: Long
+)
+
+// Response untuk get participants
+data class GetParticipantsResponse(
+    val status: String,
+    val data: List<ParticipantData>
+)
+
+data class ParticipantData(
+    val registration_id: Int,
+    val event_id: Int,
+    val user_id: Int?,
+    val name: String,
+    val nim: String,
+    val fakultas: String,
+    val jurusan: String,
+    val email: String,
+    val phone: String,
+    val krs_uri: String?,
+    val created_at: String,
+    val user_name: String?
+)

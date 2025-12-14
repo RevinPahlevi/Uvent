@@ -297,12 +297,38 @@ fun AddEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Validasi: Semua field harus diisi
+            // Helper function untuk membandingkan waktu
+            fun isEndTimeAfterStartTime(start: String, end: String): Boolean {
+                if (start.isBlank() || end.isBlank()) return true // Belum diisi, skip validasi
+                val startParts = start.split(":")
+                val endParts = end.split(":")
+                if (startParts.size < 2 || endParts.size < 2) return true
+                
+                val startMinutes = (startParts[0].toIntOrNull() ?: 0) * 60 + (startParts[1].toIntOrNull() ?: 0)
+                val endMinutes = (endParts[0].toIntOrNull() ?: 0) * 60 + (endParts[1].toIntOrNull() ?: 0)
+                return endMinutes > startMinutes
+            }
+
+            val isTimeValid = isEndTimeAfterStartTime(waktuMulai, waktuSelesai)
+
+            // Tampilkan error jika waktu tidak valid
+            if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank() && !isTimeValid) {
+                Text(
+                    text = "⚠️ Waktu selesai harus setelah waktu mulai",
+                    color = Color.Red,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Validasi: Semua field harus diisi DAN waktu harus valid
             val isFormValid = judul.isNotBlank() &&
                     jenis != "Pilih Jenis Event" &&
                     tanggal.isNotBlank() &&
                     waktuMulai.isNotBlank() &&
                     waktuSelesai.isNotBlank() &&
+                    isTimeValid &&
                     platformType != "Pilih Tipe Lokasi" &&
                     locationDetail.isNotBlank() &&
                     kuota.isNotBlank()

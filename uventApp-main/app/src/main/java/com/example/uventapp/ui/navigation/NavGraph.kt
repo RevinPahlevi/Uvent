@@ -25,6 +25,7 @@ import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
+import com.example.uventapp.ui.screen.participants.ParticipantListScreen // IMPORT BARU
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -46,7 +47,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            DetailEventScreen(navController, eventId, eventViewModel)
+            DetailEventScreen(navController, eventId, eventViewModel, profileViewModel)
         }
 
         composable(
@@ -147,5 +148,19 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Notifications.route) {
             com.example.uventapp.ui.screen.notification.NotificationScreen(navController)
         }
+
+        // ===== FITUR BARU: Participant List Screen =====
+        composable(
+            route = Screen.ParticipantList.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.IntType },
+                navArgument("eventTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId") ?: 0
+            val eventTitle = backStackEntry.arguments?.getString("eventTitle") ?: ""
+            ParticipantListScreen(navController, eventId, eventTitle)
+        }
+        // ===============================================
     }
 }

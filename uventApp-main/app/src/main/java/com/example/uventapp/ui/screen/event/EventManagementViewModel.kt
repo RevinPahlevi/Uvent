@@ -21,6 +21,8 @@ import com.example.uventapp.data.network.FeedbackResponse
 import com.example.uventapp.data.network.DocumentationRequest
 import com.example.uventapp.data.network.DocumentationResponse
 import com.example.uventapp.data.network.GetEventsResponse
+import com.example.uventapp.data.network.GetRegistrationsResponse
+import com.example.uventapp.data.network.RegistrationDataFull
 import com.example.uventapp.data.network.UpdateEventRequest
 import com.example.uventapp.data.network.UpdateEventResponse
 import com.example.uventapp.data.network.DeleteResponse
@@ -248,6 +250,49 @@ class EventManagementViewModel : ViewModel() {
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
                 Log.e("ViewModel", "Gagal load created events: ${t.message}")
+            }
+        })
+    }
+
+    // Load events yang diikuti oleh user saat ini
+    fun loadFollowedEvents(userId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+
+        Log.d("ViewModel", "Loading followed events for userId: $userId")
+
+        ApiClient.instance.getMyRegistrations(userId).enqueue(object : Callback<GetRegistrationsResponse> {
+            override fun onResponse(call: Call<GetRegistrationsResponse>, response: Response<GetRegistrationsResponse>) {
+                val body = response.body()
+                Log.d("ViewModel", "Load followed events response: ${response.code()}, status: ${body?.status}")
+                
+                if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                    _followedEvents.clear()
+                    body.data.forEach { reg ->
+                        if (reg.title != null) {
+                            val event = Event(
+                                id = reg.eventId,
+                                title = reg.title,
+                                type = reg.type ?: "N/A",
+                                date = reformatDateForUi(reg.date),
+                                timeStart = reformatTimeForUi(reg.timeStart),
+                                timeEnd = reformatTimeForUi(reg.timeEnd),
+                                platformType = reg.platformType ?: "N/A",
+                                locationDetail = reg.locationDetail ?: "N/A",
+                                quota = reg.quota?.toString() ?: "0",
+                                status = reg.status ?: "Aktif",
+                                thumbnailResId = null,
+                                thumbnailUri = reg.thumbnailUri,
+                                creatorId = reg.creatorId
+                            )
+                            _followedEvents.add(event)
+                            Log.d("ViewModel", "Added followed event: ${event.title}")
+                        }
+                    }
+                    Log.d("ViewModel", "Total followed events loaded: ${_followedEvents.size}")
+                }
+            }
+            override fun onFailure(call: Call<GetRegistrationsResponse>, t: Throwable) {
+                Log.e("ViewModel", "Gagal load followed events: ${t.message}")
             }
         })
     }

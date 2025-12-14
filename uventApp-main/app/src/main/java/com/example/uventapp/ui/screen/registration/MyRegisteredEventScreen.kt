@@ -455,8 +455,8 @@ private fun CreatedEventCard(
                                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
                                 }
                             }
-                            event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - tampilkan Edit & Hapus
+                            event.status.lowercase() == "menunggu" -> {
+                                // SEBELUM DIVERIFIKASI - Bisa Edit dan Batalkan
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(
                                         onClick = onEditClick,
@@ -471,21 +471,21 @@ private fun CreatedEventCard(
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
                                         contentPadding = PaddingValues(horizontal = 10.dp)
-                                    ) { Text("Hapus", fontSize = 11.sp) }
+                                    ) { Text("Batalkan", fontSize = 11.sp) }
                                 }
                             }
-                            event.status.lowercase() == "menunggu" -> {
-                                // Event masih menunggu verifikasi - hanya tombol Hapus
-                                Button(
-                                    onClick = onDeleteClick,
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) { Text("Batalkan", fontSize = 11.sp) }
+                            event.status.lowercase() == "disetujui" && !isFinished -> {
+                                // SUDAH DISETUJUI dan belum selesai - Tidak bisa edit lagi
+                                // Hanya tampilkan badge "Aktif"
+                                Text(
+                                    text = "Event Aktif",
+                                    color = PrimaryGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             event.status.lowercase() == "ditolak" -> {
-                                // Event ditolak - hanya tombol Hapus
+                                // DITOLAK - Hanya bisa hapus
                                 Button(
                                     onClick = onDeleteClick,
                                     modifier = Modifier.height(32.dp),

@@ -14,16 +14,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PersonAdd
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -31,6 +37,7 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 import com.example.uventapp.utils.ImageUrlHelper
+import com.example.uventapp.utils.EventTimeHelper
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,18 +48,18 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
         val dateParts = date.split("/")
         if (dateParts.size != 3) return false
-        
+
         val day = dateParts[0].toIntOrNull() ?: return false
         val month = dateParts[1].toIntOrNull() ?: return false
         val year = dateParts[2].toIntOrNull() ?: return false
-        
+
         // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
         val timeParts = timeEnd.split(":")
         if (timeParts.size < 2) return false
-        
+
         val hour = timeParts[0].toIntOrNull() ?: return false
         val minute = timeParts[1].toIntOrNull() ?: return false
-        
+
         // Buat Calendar untuk waktu akhir event
         val eventEndCalendar = java.util.Calendar.getInstance()
         eventEndCalendar.set(java.util.Calendar.YEAR, year)
@@ -62,10 +69,10 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
         eventEndCalendar.set(java.util.Calendar.SECOND, 0)
         eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
-        
+
         // Waktu sekarang
         val now = java.util.Calendar.getInstance()
-        
+
         // Event selesai jika waktu sekarang SETELAH waktu akhir event
         return now.after(eventEndCalendar)
     } catch (e: Exception) {
@@ -78,28 +85,36 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
 fun DetailEventScreen(
     navController: NavController,
     eventId: Int?,
-    viewModel: EventManagementViewModel
+    viewModel: EventManagementViewModel,
+    profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel
 ) {
     val context = LocalContext.current
-    
+
+    // Get current user profile for creator check
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+
     // Subscribe ke state agar UI update saat data berubah
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
-    
+
     // Load events jika belum ada
-    LaunchedEffect(Unit) {
+    LaunchedEffect(currentUserId) {
         viewModel.loadAllEvents(context)
+        // Load events yang sudah diikuti oleh user saat ini
+        if (currentUserId != null) {
+            viewModel.loadFollowedEvents(currentUserId, context)
+        }
     }
-    
+
     // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
     val event = eventId?.let { id ->
-        allEvents.find { it.id == id }
-            ?: createdEvents.find { it.id == id }
-            ?: followedEvents.find { it.id == id }
-            ?: dummyEvents.find { it.id == id }
+        viewModel.allEvents.value.find { it.id == id }
+            ?: viewModel.createdEvents.value.find { it.id == id }
+            ?: viewModel.followedEvents.find { it.id == id }
     }
-    
+
     val isRegistered = followedEvents.any { it.id == eventId }
 
     val isFinished = event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
@@ -121,6 +136,9 @@ fun DetailEventScreen(
                 .padding(16.dp)
         ) {
             if (event != null) {
+                // Check if current user is the event creator
+                val isMyEvent = event.creatorId != null && event.creatorId == currentUserId
+
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = White),
@@ -129,10 +147,10 @@ fun DetailEventScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         // Fix image URL for Android - replace localhost with server IP
-                        val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri) 
-                            ?: event.thumbnailResId 
+                        val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
+                            ?: event.thumbnailResId
                             ?: R.drawable.placeholder_poster
-                        
+
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(imageSource)
@@ -141,10 +159,10 @@ fun DetailEventScreen(
                             placeholder = painterResource(R.drawable.placeholder_poster),
                             error = painterResource(R.drawable.placeholder_poster),
                             contentDescription = "Event Banner",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit, // Changed from Crop to Fit - shows full poster
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp)
+                                .aspectRatio(2f / 3f) // Standard portrait poster ratio (width:height = 2:3)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
@@ -155,41 +173,163 @@ fun DetailEventScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         if (isRegistered) {
-                            Row(
+                            // User sudah terdaftar
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                if (isFinished) {
+                                // Tombol Link Meeting untuk event Online
+                                if (event.platformType.equals("Online", ignoreCase = true) && 
+                                    event.locationDetail.isNotBlank() &&
+                                    !isFinished) {
                                     Button(
                                         onClick = {
-                                            navController.navigate(Screen.AllFeedback.createRoute(event.id))
+                                            // Buka link meeting di browser
+                                            val url = if (event.locationDetail.startsWith("http")) {
+                                                event.locationDetail
+                                            } else {
+                                                "https://${event.locationDetail}"
+                                            }
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                            context.startActivity(intent)
                                         },
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C27B0))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Link,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Buka Link Meeting", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                
+                                // Tombol Feedback & Dokumentasi
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    if (isFinished) {
+                                        Button(
+                                            onClick = {
+                                                navController.navigate(Screen.AllFeedback.createRoute(event.id))
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                                        ) {
+                                            Text("Feedback")
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            navController.navigate(Screen.AllDocumentation.createRoute(event.id))
+                                        },
+                                        modifier = if (isFinished) Modifier.weight(1f) else Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
                                     ) {
-                                        Text("Feedback")
+                                        Text("Dokumentasi")
                                     }
-                                }
-
-                                Button(
-                                    onClick = {
-                                        navController.navigate(Screen.AllDocumentation.createRoute(event.id))
-                                    },
-                                    modifier = if (isFinished) Modifier.weight(1f) else Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
-                                ) {
-                                    Text("Dokumentasi")
                                 }
                             }
                         } else {
-                            PrimaryButton(
-                                text = "Daftar Sekarang",
-                                onClick = {
-                                    navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                                },
-                            )
+                            // User belum terdaftar
+                            if (isMyEvent) {
+                                // Ini event milik user sendiri - tampilkan "Kelola Event"
+                                Button(
+                                    onClick = {
+                                        navController.navigate(Screen.MyRegisteredEvent.createRoute(""))
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Kelola Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                // Ini event milik orang lain
+                                // Cek apakah event sudah disetujui admin
+                                val isApproved = event.status.equals("disetujui", ignoreCase = true)
+                                val isStarted = EventTimeHelper.isEventStarted(event.date, event.timeStart)
+
+                                when {
+                                    !isApproved -> {
+                                        // Event belum disetujui admin
+                                        Button(
+                                            onClick = { /* Disabled */ },
+                                            enabled = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFF9800),
+                                                disabledContainerColor = Color(0xFFFF9800)
+                                            )
+                                        ) {
+                                            Text("Menunggu Persetujuan Admin", color = Color.White)
+                                        }
+                                    }
+                                    isFinished -> {
+                                        // Event sudah selesai
+                                        Button(
+                                            onClick = { /* Disabled */ },
+                                            enabled = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color.Gray,
+                                                disabledContainerColor = Color.Gray
+                                            )
+                                        ) {
+                                            Text("Event Sudah Selesai", color = Color.White)
+                                        }
+                                    }
+                                    isStarted && !isFinished -> {
+                                        // Event sudah mulai tapi belum selesai
+                                        Button(
+                                            onClick = { /* Disabled */ },
+                                            enabled = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFF9800),
+                                                disabledContainerColor = Color(0xFFFF9800)
+                                            )
+                                        ) {
+                                            Text("Pendaftaran Ditutup", color = Color.White)
+                                        }
+                                    }
+                                    else -> {
+                                        // Event belum mulai dan sudah disetujui - bisa daftar
+                                        Button(
+                                            onClick = {
+                                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.PersonAdd,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Daftar Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

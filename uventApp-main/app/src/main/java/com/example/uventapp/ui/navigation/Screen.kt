@@ -53,5 +53,11 @@ sealed class Screen(val route: String) {
     // --- RUTE BARU DITAMBAHKAN ---
     object Profile : Screen("profile")
     object Notifications : Screen("notifications")
+
+    // ===== FITUR BARU: Participant List =====
+    object ParticipantList : Screen("participant_list/{eventId}/{eventTitle}") {
+        fun createRoute(eventId: Int, eventTitle: String) = "participant_list/$eventId/$eventTitle"
+    }
+    // ========================================
     // ---------------------------
 }
