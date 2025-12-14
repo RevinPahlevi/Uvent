@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Warning
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
@@ -100,12 +101,14 @@ fun DetailEventScreen(
     val followedEvents = viewModel.followedEvents
 
     // Load events jika belum ada
-    LaunchedEffect(currentUserId) {
+    LaunchedEffect(currentUserId, eventId) {
         viewModel.loadAllEvents(context)
         // Load events yang sudah diikuti oleh user saat ini
         if (currentUserId != null) {
             viewModel.loadFollowedEvents(currentUserId, context)
         }
+        // Load jumlah registrasi untuk cek kuota
+        eventId?.let { viewModel.loadRegistrationCount(it, context) }
     }
 
     // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
@@ -118,6 +121,11 @@ fun DetailEventScreen(
     val isRegistered = followedEvents.any { it.id == eventId }
 
     val isFinished = event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
+
+    // Cek kuota
+    val eventQuota = event?.quota?.toIntOrNull() ?: 0
+    val registeredCount = viewModel.getRegisteredCountForEvent(eventId ?: 0)
+    val isQuotaFull = eventQuota > 0 && registeredCount >= eventQuota
 
     Scaffold(
         topBar = {
@@ -310,22 +318,70 @@ fun DetailEventScreen(
                                         }
                                     }
                                     else -> {
-                                        // Event belum mulai dan sudah disetujui - bisa daftar
-                                        Button(
-                                            onClick = {
-                                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                                            },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(8.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.PersonAdd,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text("Daftar Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        // Event belum mulai dan sudah disetujui
+                                        if (isQuotaFull) {
+                                            // KUOTA PENUH - tampilkan warning dan disabled button
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                // Warning card kuota penuh
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Warning,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFFE53935),
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text(
+                                                            text = "Kuota penuh ($registeredCount/$eventQuota peserta)",
+                                                            color = Color(0xFFC62828),
+                                                            fontSize = 14.sp,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                }
+                                                // Disabled button
+                                                Button(
+                                                    onClick = { /* Disabled */ },
+                                                    enabled = false,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color.Gray,
+                                                        disabledContainerColor = Color.Gray
+                                                    )
+                                                ) {
+                                                    Text("Kuota Pendaftaran Penuh", color = Color.White)
+                                                }
+                                            }
+                                        } else {
+                                            // Kuota masih tersedia - bisa daftar
+                                            Button(
+                                                onClick = {
+                                                    navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.PersonAdd,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Daftar Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }
