@@ -132,6 +132,7 @@ class EventManagementViewModel : ViewModel() {
 
     // Cache untuk menghitung jumlah registrasi per event
     private val _registrationCounts = mutableStateOf<Map<Int, Int>>(emptyMap())
+    val registrationCounts: State<Map<Int, Int>> = _registrationCounts
 
     // Fungsi untuk mendapatkan jumlah peserta terdaftar untuk suatu event
     fun getRegisteredCountForEvent(eventId: Int): Int {

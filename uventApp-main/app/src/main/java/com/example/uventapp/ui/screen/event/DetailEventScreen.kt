@@ -122,9 +122,10 @@ fun DetailEventScreen(
 
     val isFinished = event?.let { isEventFinished(it.date, it.timeEnd) } ?: false
 
-    // Cek kuota
+    // Cek kuota - observe registrationCounts state untuk reaktif update
+    val registrationCountsMap by viewModel.registrationCounts
     val eventQuota = event?.quota?.toIntOrNull() ?: 0
-    val registeredCount = viewModel.getRegisteredCountForEvent(eventId ?: 0)
+    val registeredCount = registrationCountsMap[eventId] ?: 0
     val isQuotaFull = eventQuota > 0 && registeredCount >= eventQuota
 
     Scaffold(

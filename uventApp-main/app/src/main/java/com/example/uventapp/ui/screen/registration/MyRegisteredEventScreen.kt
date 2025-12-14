@@ -462,7 +462,7 @@ private fun CreatedEventCard(
                                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
                                 }
                             }
-                            event.status.lowercase() == "menunggu" -> {
+                            event.status.lowercase() == "menunggu" || event.status.lowercase() == "diproses" -> {
                                 // SEBELUM DIVERIFIKASI - Bisa Edit dan Batalkan
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(
@@ -500,6 +500,28 @@ private fun CreatedEventCard(
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
                                     contentPadding = PaddingValues(horizontal = 10.dp)
                                 ) { Text("Hapus", fontSize = 11.sp) }
+                            }
+                            else -> {
+                                // Fallback untuk status lain (belum diverifikasi/tidak dikenal)
+                                // Tampilkan Edit dan Delete jika bukan disetujui
+                                if (event.status.lowercase() != "disetujui") {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Button(
+                                            onClick = onEditClick,
+                                            modifier = Modifier.height(32.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
+                                            contentPadding = PaddingValues(horizontal = 10.dp)
+                                        ) { Text("Edit", fontSize = 11.sp) }
+                                        Button(
+                                            onClick = onDeleteClick,
+                                            modifier = Modifier.height(32.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                            contentPadding = PaddingValues(horizontal = 10.dp)
+                                        ) { Text("Batalkan", fontSize = 11.sp) }
+                                    }
+                                }
                             }
                         }
                     }
