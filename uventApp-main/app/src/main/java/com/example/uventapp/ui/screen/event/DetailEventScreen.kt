@@ -23,7 +23,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -31,6 +31,7 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 import com.example.uventapp.utils.ImageUrlHelper
+import com.example.uventapp.utils.EventTimeHelper
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -94,10 +95,9 @@ fun DetailEventScreen(
     
     // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
     val event = eventId?.let { id ->
-        allEvents.find { it.id == id }
-            ?: createdEvents.find { it.id == id }
-            ?: followedEvents.find { it.id == id }
-            ?: dummyEvents.find { it.id == id }
+        viewModel.allEvents.value.find { it.id == id }
+            ?: viewModel.createdEvents.value.find { it.id == id }
+            ?: viewModel.followedEvents.find { it.id == id }
     }
     
     val isRegistered = followedEvents.any { it.id == eventId }
@@ -141,10 +141,10 @@ fun DetailEventScreen(
                             placeholder = painterResource(R.drawable.placeholder_poster),
                             error = painterResource(R.drawable.placeholder_poster),
                             contentDescription = "Event Banner",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit, // Changed from Crop to Fit - shows full poster
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp)
+                                .aspectRatio(2f / 3f) // Standard portrait poster ratio (width:height = 2:3)
                                 .clip(RoundedCornerShape(8.dp))
                         )
 
@@ -184,12 +184,51 @@ fun DetailEventScreen(
                                 }
                             }
                         } else {
-                            PrimaryButton(
-                                text = "Daftar Sekarang",
-                                onClick = {
-                                    navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                                },
-                            )
+                            // Check status event untuk tampilkan tombol yang sesuai
+                            val isStarted = event.let { EventTimeHelper.isEventStarted(it.date, it.timeStart) }
+                            val canRegister = EventTimeHelper.canRegisterForEvent(event.date, event.timeStart)
+                            
+                            when {
+                                isFinished -> {
+                                    // Event sudah selesai
+                                    Button(
+                                        onClick = { /* Disabled */ },
+                                        enabled = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.Gray,
+                                            disabledContainerColor = Color.Gray
+                                        )
+                                    ) {
+                                        Text("Event Sudah Selesai", color = Color.White)
+                                    }
+                                }
+                                isStarted && !isFinished -> {
+                                    // Event sudah mulai tapi belum selesai
+                                    Button(
+                                        onClick = { /* Disabled */ },
+                                        enabled = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFFFF9800),
+                                            disabledContainerColor = Color(0xFFFF9800)
+                                        )
+                                    ) {
+                                        Text("Pendaftaran Ditutup", color = Color.White)
+                                    }
+                                }
+                                else -> {
+                                    // Event belum mulai, bisa daftar
+                                    PrimaryButton(
+                                        text = "Daftar Sekarang",
+                                        onClick = {
+                                            navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

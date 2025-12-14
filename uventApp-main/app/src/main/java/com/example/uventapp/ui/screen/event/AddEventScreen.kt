@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,7 +51,7 @@ import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 // --- IMPORT PROFILE VIEW MODEL ---
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
-import com.example.uventapp.data.model.dummyEvents // Import dummyEvents
+// Removed dummy events import
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +88,18 @@ fun AddEventScreen(
 
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
+    
+    
+    // --- VALIDASI WAKTU: State ---
+    var selectedDateCalendar by remember { mutableStateOf<Calendar?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Helper: Cek apakah tanggal sama dengan hari ini
+    fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+               cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+    
     var showDatePicker by remember { mutableStateOf(false) }
 
     // DatePicker dengan batasan minimum tanggal hari ini
@@ -93,6 +107,14 @@ fun AddEventScreen(
         context,
         { _, year: Int, month: Int, dayOfMonth: Int ->
             tanggal = "$dayOfMonth/${month + 1}/$year"
+            selectedDateCalendar = Calendar.getInstance().apply {
+                set(Calendar.YEAR, year)
+                set(Calendar.MONTH, month)
+                set(Calendar.DAY_OF_MONTH, dayOfMonth)
+            }
+            // Reset waktu ketika tanggal berubah
+            waktuMulai = ""
+            waktuSelesai = ""
             showDatePicker = false
         },
         calendar.get(Calendar.YEAR),
@@ -108,24 +130,59 @@ fun AddEventScreen(
     }
     var showTimePicker by remember { mutableStateOf(false) }
     var isPickingStartTime by remember { mutableStateOf(true) }
-    val timePickerDialog = TimePickerDialog(
-        context,
-        { _, hourOfDay: Int, minute: Int ->
-            val formattedTime = String.format("%02d:%02d", hourOfDay, minute)
-            if (isPickingStartTime) {
-                waktuMulai = formattedTime
-            } else {
-                waktuSelesai = formattedTime
-            }
-            showTimePicker = false
-        },
-        calendar.get(Calendar.HOUR_OF_DAY),
-        calendar.get(Calendar.MINUTE),
-        true
-    )
-    if (showTimePicker) {
-        timePickerDialog.show()
-        timePickerDialog.setOnDismissListener { showTimePicker = false }
+    
+    // Show time picker with validation
+    if (showTimePicker && selectedDateCalendar != null) {
+        val now = Calendar.getInstance()
+        val isToday = isSameDay(selectedDateCalendar!!, now)
+        
+        // Initial time
+        val initHour = if (isPickingStartTime && isToday) now.get(Calendar.HOUR_OF_DAY) else 8
+        val initMinute = if (isPickingStartTime && isToday) now.get(Calendar.MINUTE) else 0
+        
+        TimePickerDialog(
+            context,
+            { _, hour: Int, min: Int ->
+                val time = String.format("%02d:%02d", hour, min)
+                
+                if (isPickingStartTime) {
+                    if (isToday) {
+                        val selectedM = hour * 60 + min
+                        val currentM = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+                        if (selectedM < currentM) {
+                            // Set error, jangan set waktu
+                            errorMessage = "Waktu mulai tidak boleh lebih awal dari sekarang"
+                        } else {
+                            waktuMulai = time
+                            errorMessage = null
+                        }
+                    } else {
+                        waktuMulai = time
+                        errorMessage = null
+                    }
+                } else {
+                    if (waktuMulai.isNotBlank()) {
+                        val parts = waktuMulai.split(":")
+                        val startM = parts[0].toInt() * 60 + parts[1].toInt()
+                        val endM = hour * 60 + min
+                        if (endM <= startM) {
+                            // Set error, jangan set waktu
+                            errorMessage = "Waktu selesai harus lebih lama dari waktu mulai"
+                        } else {
+                            waktuSelesai = time
+                            errorMessage = null
+                        }
+                    } else {
+                        waktuSelesai = time
+                        errorMessage = null
+                    }
+                }
+                showTimePicker = false
+            },
+            initHour,
+            initMinute,
+            true
+        ).show()
     }
 
     Scaffold(
@@ -250,6 +307,16 @@ fun AddEventScreen(
                         )
                     )
                 }
+                
+                // Error message
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = Color.Red,
+                        fontSize = 13.sp
+                    )
+                }
             }
             
             // Lokasi/Platform
@@ -265,17 +332,36 @@ fun AddEventScreen(
                 if (platformType != "Pilih Tipe Lokasi") {
                     Spacer(modifier = Modifier.height(12.dp))
                     val locationLabel = when (platformType) {
-                        "Online" -> "Link Meet (Zoom/GMeet)"
+                        "Online" -> "Link Meet"
                         "Offline" -> "Nama Lokasi (Gedung/Ruangan)"
                         else -> "Detail Lokasi"
                     }
+                    val locationPlaceholder = when (platformType) {
+                        "Online" -> "https://meet.google.com/xxx atau https://zoom.us/j/xxx"
+                        "Offline" -> "Contoh: Gedung A Lantai 2, Ruang 201"
+                        else -> "Masukkan lokasi event"
+                    }
+                    val locationKeyboardType = when (platformType) {
+                        "Online" -> KeyboardType.Uri
+                        else -> KeyboardType.Text
+                    }
+                    
+                    Text(
+                        text = locationLabel,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = Color(0xFF333333),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                     OutlinedTextField(
                         value = locationDetail,
                         onValueChange = { locationDetail = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Masukkan lokasi event", color = Color.Gray) },
+                        placeholder = { Text(locationPlaceholder, color = Color.Gray, fontSize = 13.sp) },
                         shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
+                        singleLine = false,
+                        maxLines = 2,
+                        keyboardOptions = KeyboardOptions(keyboardType = locationKeyboardType),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
                             unfocusedBorderColor = Color(0xFFE0E0E0)
@@ -297,7 +383,7 @@ fun AddEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Validasi: Semua field harus diisi
+            // Validasi: Semua field harus diisi DAN tidak ada error
             val isFormValid = judul.isNotBlank() &&
                     jenis != "Pilih Jenis Event" &&
                     tanggal.isNotBlank() &&
@@ -305,7 +391,8 @@ fun AddEventScreen(
                     waktuSelesai.isNotBlank() &&
                     platformType != "Pilih Tipe Lokasi" &&
                     locationDetail.isNotBlank() &&
-                    kuota.isNotBlank()
+                    kuota.isNotBlank() &&
+                    errorMessage == null // PENTING: Form tidak valid jika ada error
 
             // State untuk loading saat upload
             val isUploading by viewModel.isUploading
@@ -325,8 +412,7 @@ fun AddEventScreen(
                         android.util.Log.d("AddEventScreen", "Waktu Selesai: $waktuSelesai")
                         
                         // Buat ID lokal baru sementara
-                        val newId = ((viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1)
-                            .coerceAtLeast((dummyEvents.maxOfOrNull { it.id } ?: 0) + 1)
+                        val newId = (viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1
 
                         // Fungsi untuk membuat dan mengirim event
                         fun createAndSendEvent(thumbnailUrl: String?) {
@@ -407,7 +493,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
+            .aspectRatio(2f / 3f) // Standard portrait poster ratio
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFFF0FFF0)) // Light green background
             .border(
@@ -448,7 +534,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
                     .crossfade(true)
                     .build(),
                 contentDescription = "Poster Event",
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit, // Fit to show full poster
                 modifier = Modifier.fillMaxSize()
             )
         }

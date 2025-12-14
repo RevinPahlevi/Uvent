@@ -143,7 +143,12 @@ fun RegistrationScreen(
                     )
                     AuthInputField(
                         value = phone,
-                        onValueChange = { phone = it },
+                        onValueChange = { newValue ->
+                            // Hanya terima angka atau string kosong (untuk delete)
+                            if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                phone = newValue
+                            }
+                        },
                         label = "No telepon",
                         icon = Icons.Filled.Phone,
                         keyboardType = KeyboardType.Phone

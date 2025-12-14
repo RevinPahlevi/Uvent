@@ -33,6 +33,7 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.*
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.utils.ImageUrlHelper
+import com.example.uventapp.utils.EventTimeHelper
 
 @Composable
 fun EventListScreen(
@@ -54,11 +55,16 @@ fun EventListScreen(
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
 
-    // Daftar event yang tersedia (sudah difilter dari yang diikuti)
-    val allAvailableEvents = remember(allEvents, createdEvents, followedEvents) {
+    // Daftar event yang tersedia (sudah difilter dari yang diikuti DAN yang sudah selesai)
+    // PERBAIKAN: Jangan gabungkan createdEvents agar event pending tidak muncul
+    // PERBAIKAN BARU: Hide event yang sudah selesai dari main list
+    val allAvailableEvents = remember(allEvents, followedEvents) {
         val followedEventIds = followedEvents.map { it.id }.toSet()
-        val combinedEvents = (allEvents + createdEvents).distinctBy { it.id }
-        combinedEvents.filter { it.id !in followedEventIds }
+        // Filter: 1) sudah disetujui, 2) belum diikuti, 3) belum selesai
+        allEvents.filter { event ->
+            event.id !in followedEventIds && 
+            !EventTimeHelper.isEventFinished(event.date, event.timeEnd)
+        }
     }
 
     // --- PERBAIKAN DI SINI ---
@@ -196,12 +202,13 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                 ?: event.thumbnailResId
                 ?: R.drawable.placeholder_poster
             
+            // PERBAIKAN: Disable cache untuk fix flash gambar lama
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(imageSource)
-                    .crossfade(true)
+                    .diskCachePolicy(coil.request.CachePolicy.DISABLED)
+                    .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
                     .build(),
-                placeholder = painterResource(R.drawable.placeholder_poster),
                 error = painterResource(R.drawable.placeholder_poster),
                 contentDescription = "Event Poster",
                 contentScale = ContentScale.Crop,

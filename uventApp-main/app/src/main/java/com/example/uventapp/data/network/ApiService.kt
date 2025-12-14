@@ -68,6 +68,12 @@ interface ApiService {
         @Path("id") registrationId: Int
     ): Call<DeleteResponse>
 
+    // Get events yang diikuti user (by userId)
+    @GET("registrations/user/{userId}")
+    fun getMyRegistrationsByUserId(
+        @Path("userId") userId: Int
+    ): Call<GetEventsResponse>
+
     // --- API FEEDBACK ---
     @POST("feedback")
     fun createFeedback(

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -21,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -30,7 +32,7 @@ import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 // Import ViewModel dan data
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 // --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
@@ -41,7 +43,12 @@ import com.example.uventapp.ui.theme.PrimaryGreen
 // ---------------------------
 
 @Composable
-fun FormInputField(label: String, value: String, onValueChange: (String) -> Unit) {
+fun FormInputField(
+    label: String, 
+    value: String, 
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
     // Individual white card for each input
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -76,6 +83,7 @@ fun FormInputField(label: String, value: String, onValueChange: (String) -> Unit
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent
                 ),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                 shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
                 placeholder = { Text("") },
@@ -259,8 +267,8 @@ fun RegistrationFormScreen(
     val currentUserId = currentUserProfile?.id
 
     // Cari event berdasarkan ID dari semua event yang ada
-    val eventToRegister = remember(eventId, viewModel.createdEvents.value, dummyEvents) {
-        (dummyEvents + viewModel.createdEvents.value).find { it.id == eventId }
+    val eventToRegister = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value) {
+        (viewModel.allEvents.value + viewModel.createdEvents.value).find { it.id == eventId }
     }
 
     // AUTO-FILL: Inisialisasi field dengan data dari profile user yang login
@@ -333,8 +341,22 @@ fun RegistrationFormScreen(
             }
 
             // Each input has its own white card (no big container)
-            FormInputField("Nama Lengkap", name) { name = it }
-            FormInputField("NIM", nim) { nim = it }
+            FormInputField(
+                label = "Nama Lengkap",
+                value = name,
+                onValueChange = { name = it }
+            )
+            FormInputField(
+                label = "NIM",
+                value = nim,
+                onValueChange = { newValue ->
+                    // Hanya terima angka atau string kosong (untuk delete)
+                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                        nim = newValue
+                    }
+                },
+                keyboardType = KeyboardType.Number
+            )
 
             DropdownInput(
                 label = "Fakultas",
@@ -355,8 +377,22 @@ fun RegistrationFormScreen(
                 enabled = availableJurusan.isNotEmpty()
             )
 
-            FormInputField("Email", email) { email = it }
-            FormInputField("No Telepon", phone) { phone = it }
+            FormInputField(
+                label = "Email",
+                value = email,
+                onValueChange = { email = it }
+            )
+            FormInputField(
+                label = "No Telepon",
+                value = phone,
+                onValueChange = { newValue ->
+                    // Hanya terima angka atau string kosong (untuk delete)
+                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                        phone = newValue
+                    }
+                },
+                keyboardType = KeyboardType.Phone
+            )
 
             UploadKRSInput(
                 label = "KRS",
@@ -366,9 +402,27 @@ fun RegistrationFormScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // DEBUG: Show validation status
+            if (!isFormValid) {
+                Text(
+                    text = "Form belum lengkap: " +
+                            "name=${name.isNotEmpty()}, " +
+                            "nim=${nim.isNotEmpty()}, " +
+                            "email=${email.isNotEmpty()}, " +
+                            "phone=${phone.isNotEmpty()}, " +
+                            "fakultas=${selectedFakultas != "Pilih Fakultas"}, " +
+                            "jurusan=${selectedJurusan != "Pilih Jurusan"}, " +
+                            "file=${selectedFileUri != null}",
+                    fontSize = 10.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+
             PrimaryButton(
                 text = "Daftar",
                 onClick = {
+                    android.util.Log.d("RegistrationForm", "Button clicked! isFormValid=$isFormValid")
                     if (isFormValid) {
                         // 1. Buat objek Registration
                         val registrationData = Registration(
@@ -382,18 +436,29 @@ fun RegistrationFormScreen(
                             krsUri = selectedFileUri.toString()
                         )
 
-                        // 2. Kirim event DAN data pendaftaran ke ViewModel (dan simpan ke database)
-                        viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
-
-                        // --- PERBAIKAN NAVIGASI ---
-                        // 3. Navigasi ke "Event Saya" dan bersihkan back stack
-                        navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
-                            // Hapus semua layar di atas Home dari tumpukan
-                            popUpTo(Screen.Home.route)
-                            // Pastikan hanya ada satu instance "Event Saya" di tumpukan
-                            launchSingleTop = true
-                        }
-                        // --------------------------
+                        android.util.Log.d("RegistrationForm", "Calling registerForEvent...")
+                        // 2. Kirim event DAN data pendaftaran ke ViewModel dengan callback
+                        viewModel.registerForEvent(
+                            event = eventToRegister,
+                            data = registrationData,
+                            userId = currentUserId,
+                            context = context,
+                            onSuccess = {
+                                android.util.Log.d("RegistrationForm", "Registration success! Navigating...")
+                                // 3. HANYA navigate jika berhasil
+                                navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
+                                    popUpTo(Screen.Home.route)
+                                    launchSingleTop = true
+                                }
+                            },
+                            onError = { errorMessage ->
+                                android.util.Log.e("RegistrationForm", "Registration error: $errorMessage")
+                                // Error sudah di-handle di ViewModel (notification message)
+                                // Tidak perlu navigate, biarkan user tetap di form
+                            }
+                        )
+                    } else {
+                        android.util.Log.w("RegistrationForm", "Form not valid, button should be disabled")
                     }
                 },
                 enabled = isFormValid,

@@ -30,7 +30,7 @@ import com.example.uventapp.data.network.UpdateDocumentationRequest
 import com.example.uventapp.data.network.UpdateDocumentationResponse
 import com.example.uventapp.data.network.UploadImageResponse
 import com.example.uventapp.utils.isNetworkAvailable
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import android.net.Uri
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -128,6 +128,9 @@ class EventManagementViewModel : ViewModel() {
     private val _isUploading = mutableStateOf(false)
     val isUploading: State<Boolean> = _isUploading
 
+    private val _isLoadingCreatedEvents = mutableStateOf(false)
+    val isLoadingCreatedEvents: State<Boolean> = _isLoadingCreatedEvents
+
     // Fungsi untuk upload gambar ke server dan mendapatkan URL
     fun uploadImage(
         context: Context,
@@ -201,37 +204,38 @@ class EventManagementViewModel : ViewModel() {
     }
 
     fun loadAllEvents(context: Context) {
-        // Selalu set dummyEvents sebagai data awal
-        if (_allEvents.value.isEmpty()) {
-            _allEvents.value = dummyEvents
-        }
+        Log.d("ViewModel", "=== LOAD ALL EVENTS CALLED ===")
+        Log.d("ViewModel", "Current _allEvents size: ${_allEvents.value.size}")
         
         if (!isNetworkAvailable(context)) {
-            _notificationMessage.value = "Offline. Menggunakan data lokal."
-            _allEvents.value = dummyEvents
+            Log.e("ViewModel", "No network available")
+            _notificationMessage.value = "Offline. Tidak dapat memuat event."
             return
         }
 
+        Log.d("ViewModel", "Calling API getAllEvents...")
         ApiClient.instance.getAllEvents().enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                Log.d("ViewModel", "API Response received: ${response.code()}")
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
-                    val eventsFromApi = body.data.map { it.toEventModel() }
-                    _allEvents.value = (eventsFromApi + dummyEvents).distinctBy { it.id }
-                } else {
-                    Log.e("ViewModel", "Gagal load all events: ${response.message()}")
-                    // Fallback ke dummyEvents jika belum ada data
-                    if (_allEvents.value.isEmpty()) {
-                        _allEvents.value = dummyEvents
+                    val events = body.data.map { it.toEventModel() }
+                    Log.d("ViewModel", "✅ Events loaded from API: ${events.size} events")
+                    events.forEach {
+                        Log.d("ViewModel", "  - Event: id=${it.id}, title=${it.title}")
                     }
+                    _allEvents.value = events
+                    Log.d("ViewModel", "_allEvents updated. New size: ${_allEvents.value.size}")
+                } else {
+                    Log.e("ViewModel", "❌ Gagal load all events: ${response.message()}")
+                    Log.e("ViewModel", "Response body status: ${body?.status}")
+                    _notificationMessage.value = "Gagal memuat event dari server."
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
-                Log.e("ViewModel", "API Failure: ${t.message}")
-                // Fallback ke dummyEvents saat API gagal
-                if (_allEvents.value.isEmpty()) {
-                    _allEvents.value = dummyEvents
-                }
+                Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                t.printStackTrace()
+                _notificationMessage.value = "Gagal terhubung ke server."
             }
         })
     }
@@ -239,15 +243,46 @@ class EventManagementViewModel : ViewModel() {
     fun loadCreatedEvents(userId: Int, context: Context) {
         if (!isNetworkAvailable(context)) return
 
+        // Clear old data dan set loading state SEBELUM API call
+        _isLoadingCreatedEvents.value = true
+        _createdEvents.value = emptyList() // Clear data lama untuk hindari flash
+
         ApiClient.instance.getMyCreatedEvents(userId).enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                _isLoadingCreatedEvents.value = false
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
                     _createdEvents.value = body.data.map { it.toEventModel() }
+                    Log.d("ViewModel", "✅ Loaded ${body.data.size} created events")
+                } else {
+                    Log.e("ViewModel", "❌ Failed to load created events: ${response.message()}")
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
+                _isLoadingCreatedEvents.value = false
                 Log.e("ViewModel", "Gagal load created events: ${t.message}")
+            }
+        })
+    }
+
+    // Load event yang diikuti dari backend
+    fun loadFollowedEvents(userId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+
+        ApiClient.instance.getMyRegistrationsByUserId(userId).enqueue(object : Callback<GetEventsResponse> {
+            override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    // Clear dan populate followedEvents dari API
+                    _followedEvents.clear()
+                    _followedEvents.addAll(body.data.map { it.toEventModel() })
+                    Log.d("ViewModel", "✅ Loaded ${body.data.size} followed events")
+                } else {
+                    Log.e("ViewModel", "❌ Failed to load followed events: ${response.message()}")
+                }
+            }
+            override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
+                Log.e("ViewModel", "Gagal load followed events: ${t.message}")
             }
         })
     }
@@ -363,7 +398,6 @@ class EventManagementViewModel : ViewModel() {
         return _createdEvents.value.find { it.id == eventId }
             ?: _allEvents.value.find { it.id == eventId }
             ?: _followedEvents.find { it.id == eventId }
-            ?: dummyEvents.find { it.id == eventId }
     }
 
     fun deleteEvent(eventId: Int, context: Context) {
@@ -580,10 +614,18 @@ class EventManagementViewModel : ViewModel() {
 
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
-    fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
+    fun registerForEvent(
+        event: Event, 
+        data: Registration, 
+        userId: Int?, 
+        context: Context,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         // Cek apakah sudah terdaftar secara lokal
         if (_followedEvents.any { it.id == event.id }) {
             _notificationMessage.value = "Anda sudah terdaftar di event ini"
+            onError("Anda sudah terdaftar di event ini")
             return
         }
 
@@ -614,6 +656,7 @@ class EventManagementViewModel : ViewModel() {
                         _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
                         _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
                         Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
+                        onSuccess() // Panggil callback sukses
                     } else {
                         // Tangani error termasuk 409 Conflict (sudah terdaftar)
                         val errorMessage = when (response.code()) {
@@ -622,12 +665,15 @@ class EventManagementViewModel : ViewModel() {
                         }
                         _notificationMessage.value = errorMessage
                         Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
+                        onError(errorMessage) // Panggil callback error
                     }
                 }
 
                 override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
                     Log.e("ViewModel", "API Failure: ${t.message}")
-                    _notificationMessage.value = "Gagal terhubung ke server"
+                    val errorMsg = "Gagal terhubung ke server"
+                    _notificationMessage.value = errorMsg
+                    onError(errorMsg) // Panggil callback error
                 }
             })
         } else {
@@ -635,6 +681,7 @@ class EventManagementViewModel : ViewModel() {
             _followedEvents.add(event)
             _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
             _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
+            onSuccess() // Offline dianggap sukses
         }
     }
     fun getRegistrationData(eventId: Int): Registration? = _registrations.value[eventId]

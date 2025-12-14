@@ -1,5 +1,7 @@
 package com.example.uventapp.ui.screen.registration
 
+import coil.request.CachePolicy
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -119,12 +121,14 @@ fun MyRegisteredEventScreen(
     // PERBAIKAN: Gunakan langsung state dari ViewModel, jangan difilter manual dari allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents // List event yang diikuti
+    val isLoadingCreatedEvents by viewModel.isLoadingCreatedEvents // Loading state
 
     // 3. Load Data saat Screen Dibuka
-    // Ini PENTING agar event yang baru dibuat langsung muncul
+    // Ini PENTING agar event yang baru dibuat/diikuti langsung muncul
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             viewModel.loadCreatedEvents(currentUserId, context)
+            viewModel.loadFollowedEvents(currentUserId, context) // Load event yang diikuti
         }
     }
 
@@ -240,8 +244,22 @@ fun MyRegisteredEventScreen(
                             createdEvents.filter { it.type.equals(selectedCategory, ignoreCase = true) }
                         }
 
-                        if (filteredCreatedEvents.isNotEmpty()) {
-                            items(filteredCreatedEvents, key = { it.id }) { event ->
+                        // TAMPILKAN LOADING SKELETON saat data sedang dimuat
+                        if (isLoadingCreatedEvents) {
+                            items(3) { // Show 3 skeleton items
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFE0E0E0))
+                                )
+                            }
+                        } else if (filteredCreatedEvents.isNotEmpty()) {
+                            items(
+                                items = filteredCreatedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 CreatedEventCard(
                                     event = event,
@@ -413,9 +431,10 @@ private fun CreatedEventCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(true)
+                        .crossfade(false) // Disable crossfade to prevent flash
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)  // Disable disk cache
                         .build(),
-                    placeholder = painterResource(R.drawable.placeholder_poster),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,
@@ -561,7 +580,9 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(true)
+                        .crossfade(false) // Disable crossfade
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)   // Disable disk cache
                         .build(),
                     placeholder = painterResource(R.drawable.placeholder_poster),
                     error = painterResource(R.drawable.placeholder_poster),

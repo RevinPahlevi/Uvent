@@ -7,9 +7,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiClient {
 
-    // --- UPDATED: Menggunakan IP Laptop Anda yang baru ---
-    // Pastikan server backend Anda (Node.js) berjalan di port 3000
-    private const val BASE_URL = "http://10.100.5.58:3000/api/"
+    // --- UNTUK ANDROID EMULATOR: Gunakan 10.0.2.2 untuk akses localhost ---
+    // 10.0.2.2 adalah alamat khusus yang mengarah ke localhost laptop Anda dari emulator
+    // JANGAN gunakan 'localhost' atau '127.0.0.1' - itu akan merujuk ke emulator itu sendiri
+    private const val BASE_URL = "http://10.0.2.2:3000/api/"
 
     val instance: ApiService by lazy {
         val logging = HttpLoggingInterceptor()
