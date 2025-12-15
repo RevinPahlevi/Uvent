@@ -299,6 +299,7 @@ fun RegistrationFormScreen(
         mutableStateOf(currentUserProfile?.name ?: "") 
     }
     var nim by remember { mutableStateOf("") }
+    var nimError by remember { mutableStateOf<String?>(null) }
     var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
     var selectedJurusan by remember { mutableStateOf("Pilih Jurusan") }
     var availableJurusan by remember { mutableStateOf(listOf<String>()) }
@@ -311,6 +312,38 @@ fun RegistrationFormScreen(
     }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf("Tidak ada file dipilih") }
+
+    // State untuk tracking pendaftaran
+    var isRegistering by remember { mutableStateOf(false) }
+
+    // Observe notification message untuk handle error
+    val notificationMessage by viewModel.notificationMessage
+    LaunchedEffect(notificationMessage) {
+        if (isRegistering && notificationMessage != null) {
+            when {
+                notificationMessage!!.contains("Berhasil", ignoreCase = true) -> {
+                    // Sukses - navigasi ke Event Saya
+                    eventToRegister?.let { event ->
+                        navController.navigate(Screen.MyRegisteredEvent.createRoute(event.title)) {
+                            popUpTo(Screen.Home.route)
+                            launchSingleTop = true
+                        }
+                    }
+                    isRegistering = false
+                }
+                notificationMessage!!.contains("NIM", ignoreCase = true) -> {
+                    // Error NIM
+                    nimError = "Masukkan NIM anda dengan benar"
+                    isRegistering = false
+                }
+                else -> {
+                    // Error lain (kuota penuh, sudah terdaftar, dll)
+                    isRegistering = false
+                }
+            }
+            viewModel.clearNotification()
+        }
+    }
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
@@ -372,7 +405,22 @@ fun RegistrationFormScreen(
 
             // Each input has its own white card (no big container)
             FormInputField("Nama Lengkap", name, onValueChange = { name = it }, enabled = false) // Read-only
-            FormInputField("NIM", nim, onValueChange = { nim = it }, keyboardType = KeyboardType.Number) // Numbers only
+            FormInputField("NIM", nim, onValueChange = { 
+                nim = it
+                nimError = null // Clear error saat user mengetik
+            }, keyboardType = KeyboardType.Number) // Numbers only
+
+            // Warning NIM error
+            if (nimError != null) {
+                Text(
+                    text = nimError!!,
+                    color = Color(0xFFC62828),
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, top = 2.dp)
+                )
+            }
 
             DropdownInput(
                 label = "Fakultas",
@@ -437,17 +485,9 @@ fun RegistrationFormScreen(
                         )
 
                         // 2. Kirim event DAN data pendaftaran ke ViewModel (dan simpan ke database)
+                        isRegistering = true
                         viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
-
-                        // --- PERBAIKAN NAVIGASI ---
-                        // 3. Navigasi ke "Event Saya" dan bersihkan back stack
-                        navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
-                            // Hapus semua layar di atas Home dari tumpukan
-                            popUpTo(Screen.Home.route)
-                            // Pastikan hanya ada satu instance "Event Saya" di tumpukan
-                            launchSingleTop = true
-                        }
-                        // --------------------------
+                        // Navigasi di-handle oleh LaunchedEffect yang observe notificationMessage
                     }
                 },
                 enabled = isFormValid,

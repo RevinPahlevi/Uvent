@@ -692,12 +692,20 @@ class EventManagementViewModel : ViewModel() {
                         _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
                         Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
                     } else {
-                        // Tangani error termasuk 409 Conflict (sudah terdaftar)
-                        val errorMessage = when (response.code()) {
-                            409 -> "Anda sudah terdaftar di event ini"
+                        // Tangani error termasuk 409 Conflict (sudah terdaftar atau kuota penuh)
+                        val errorBody = response.errorBody()?.string()
+                        val errorMessage = when {
+                            response.code() == 409 && errorBody?.contains("sudah terdaftar") == true -> 
+                                "Anda sudah terdaftar di event ini"
+                            response.code() == 409 && errorBody?.contains("kuota", ignoreCase = true) == true -> 
+                                "Kuota event sudah penuh. Tidak dapat mendaftar."
+                            response.code() == 409 && errorBody?.contains("NIM") == true ->
+                                "NIM sudah terdaftar di event ini"
                             else -> body?.message ?: "Gagal mendaftar: ${response.message()}"
                         }
                         _notificationMessage.value = errorMessage
+                        // Refresh registration count untuk update UI
+                        loadRegistrationCount(event.id, context)
                         Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
                     }
                 }
