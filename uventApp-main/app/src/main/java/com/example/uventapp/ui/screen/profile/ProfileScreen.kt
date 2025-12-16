@@ -99,7 +99,7 @@ fun ProfileScreen(
                         label = "Email",
                         value = profile?.email ?: "..."
                     )
-                    Divider(color = Color.LightGray, thickness = 1.dp)
+                    HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
                     ProfileInfoRow(
                         icon = Icons.Default.Phone,
                         label = "No Telepon",

@@ -37,6 +37,11 @@ import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.theme.PrimaryGreen
+import com.example.uventapp.data.network.ApiClient
+import com.example.uventapp.data.network.CheckNimResponse
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 // ---------------------------
 // Helper Composables (JANGAN HAPUS)
@@ -276,6 +281,7 @@ fun RegistrationFormScreen(
         mutableStateOf(currentUserProfile?.name ?: "") 
     }
     var nim by remember { mutableStateOf("") }
+    var nimError by remember { mutableStateOf<String?>(null) }
     var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
     var selectedJurusan by remember { mutableStateOf("Pilih Jurusan") }
     var availableJurusan by remember { mutableStateOf(listOf<String>()) }
@@ -288,6 +294,38 @@ fun RegistrationFormScreen(
     }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf("Tidak ada file dipilih") }
+
+    // State untuk tracking pendaftaran
+    var isRegistering by remember { mutableStateOf(false) }
+
+    // Observe notification message untuk handle error
+    val notificationMessage by viewModel.notificationMessage
+    LaunchedEffect(notificationMessage) {
+        if (isRegistering && notificationMessage != null) {
+            when {
+                notificationMessage!!.contains("Berhasil", ignoreCase = true) -> {
+                    // Sukses - navigasi ke Event Saya
+                    eventToRegister?.let { event ->
+                        navController.navigate(Screen.MyRegisteredEvent.createRoute(event.title)) {
+                            popUpTo(Screen.Home.route)
+                            launchSingleTop = true
+                        }
+                    }
+                    isRegistering = false
+                }
+                notificationMessage!!.contains("NIM", ignoreCase = true) -> {
+                    // Error NIM
+                    nimError = "Masukkan NIM anda dengan benar"
+                    isRegistering = false
+                }
+                else -> {
+                    // Error lain (kuota penuh, sudah terdaftar, dll)
+                    isRegistering = false
+                }
+            }
+            viewModel.clearNotification()
+        }
+    }
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
@@ -340,7 +378,6 @@ fun RegistrationFormScreen(
                 )
             }
 
-            // Each input has its own white card (no big container)
             FormInputField(
                 label = "Nama Lengkap",
                 value = name,
@@ -353,10 +390,23 @@ fun RegistrationFormScreen(
                     // Hanya terima angka atau string kosong (untuk delete)
                     if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
                         nim = newValue
+                        nimError = null // Clear error saat user mengetik
                     }
                 },
                 keyboardType = KeyboardType.Number
             )
+
+            // Warning NIM error dari main branch
+            if (nimError != null) {
+                Text(
+                    text = nimError!!,
+                    color = Color(0xFFC62828),
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, top = 2.dp)
+                )
+            }
 
             DropdownInput(
                 label = "Fakultas",
@@ -424,58 +474,84 @@ fun RegistrationFormScreen(
                 onClick = {
                     android.util.Log.d("RegistrationForm", "Button clicked! isFormValid=$isFormValid")
                     if (isFormValid && selectedFileUri != null) {
+                        // COMBINED FLOW: 1. Check NIM, 2. Upload KRS, 3. Register
+                        isRegistering = true
                         
-                        // ===== FLOW BARU: Upload KRS dulu, baru submit registrasi =====
-                        android.util.Log.d("RegistrationForm", "Starting KRS upload...")
-                        
-                        // Step 1: Upload file KRS ke server
-                        viewModel.uploadKRS(
-                            context = context,
-                            krsUri = selectedFileUri!!,
-                            onSuccess = { krsUrl ->
-                                android.util.Log.d("RegistrationForm", "KRS uploaded! URL: $krsUrl")
-                                
-                                // Step 2: Buat objek Registration dengan KRS URL dari server
-                                val registrationData = Registration(
-                                    eventId = eventToRegister!!.id,
-                                    name = name,
-                                    nim = nim,
-                                    fakultas = selectedFakultas,
-                                    jurusan = selectedJurusan,
-                                    email = email,
-                                    phone = phone,
-                                    krsUri = krsUrl // ✅ Ini URL dari server, bukan URI lokal!
-                                )
-                                
-                                android.util.Log.d("RegistrationForm", "Calling registerForEvent with KRS URL: $krsUrl")
-                                
-                                // Step 3: Submit registrasi dengan KRS URL
-                                viewModel.registerForEvent(
-                                    event = eventToRegister,
-                                    data = registrationData,
-                                    userId = currentUserId,
-                                    context = context,
-                                    onSuccess = {
-                                        android.util.Log.d("RegistrationForm", "Registration success! Navigating...")
-                                        // Navigate ke MyRegisteredEvent
-                                        navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
-                                            popUpTo(Screen.Home.route)
-                                            launchSingleTop = true
+                        // Step 1: Cek NIM terlebih dahulu dari main branch
+                        ApiClient.instance.checkNimExists(eventToRegister!!.id, nim)
+                            .enqueue(object : Callback<CheckNimResponse> {
+                                override fun onResponse(
+                                    call: Call<CheckNimResponse>,
+                                    response: Response<CheckNimResponse>
+                                ) {
+                                    val body = response.body()
+                                    if (response.isSuccessful && body?.status == "success") {
+                                        if (body.data?.exists == true) {
+                                            // NIM sudah terdaftar - tampilkan pesan error
+                                            nimError = "Masukkan NIM anda dengan benar"
+                                            isRegistering = false
+                                        } else {
+                                            // NIM belum terdaftar - lanjut upload KRS
+                                            proceedWithRegistration()
                                         }
-                                    },
-                                    onError = { errorMessage ->
-                                        android.util.Log.e("RegistrationForm", "Registration error: $errorMessage")
-                                        // Error sudah di-handle di ViewModel (notification message)
+                                    } else {
+                                        // Error dari API - lanjut saja
+                                        proceedWithRegistration()
                                     }
-                                )
-                            },
-                            onError = { errorMessage ->
-                                android.util.Log.e("RegistrationForm", "KRS upload error: $errorMessage")
-                                // Error message akan dimunculkan di ViewModel notification
-                            }
-                        )
-                        // ==============================================================
-                        
+                                }
+
+                                override fun onFailure(call: Call<CheckNimResponse>, t: Throwable) {
+                                    // Jika check gagal, lanjut saja
+                                    proceedWithRegistration()
+                                }
+                                
+                                fun proceedWithRegistration() {
+                                    // Step 2: Upload file KRS ke server (dari loly branch)
+                                    android.util.Log.d("RegistrationForm", "Starting KRS upload...")
+                                    viewModel.uploadKRS(
+                                        context = context,
+                                        krsUri = selectedFileUri!!,
+                                        onSuccess = { krsUrl ->
+                                            android.util.Log.d("RegistrationForm", "KRS uploaded! URL: $krsUrl")
+                                            
+                                            // Step 3: Submit registrasi dengan KRS URL
+                                            val registrationData = Registration(
+                                                eventId = eventToRegister.id,
+                                                name = name,
+                                                nim = nim,
+                                                fakultas = selectedFakultas,
+                                                jurusan = selectedJurusan,
+                                                email = email,
+                                                phone = phone,
+                                                krsUri = krsUrl
+                                            )
+                                            
+                                            android.util.Log.d("RegistrationForm", "Calling registerForEvent with KRS URL: $krsUrl")
+                                            viewModel.registerForEvent(
+                                                event = eventToRegister,
+                                                data = registrationData,
+                                                userId = currentUserId,
+                                                context = context,
+                                                onSuccess = {
+                                                    android.util.Log.d("RegistrationForm", "Registration success! Navigating...")
+                                                    navController.navigate(Screen.MyRegisteredEvent.createRoute(eventToRegister.title)) {
+                                                        popUpTo(Screen.Home.route)
+                                                        launchSingleTop = true
+                                                    }
+                                                },
+                                                onError = { errorMessage ->
+                                                    android.util.Log.e("RegistrationForm", "Registration error: $errorMessage")
+                                                    isRegistering = false
+                                                }
+                                            )
+                                        },
+                                        onError = { errorMessage ->
+                                            android.util.Log.e("RegistrationForm", "KRS upload error: $errorMessage")
+                                            isRegistering = false
+                                        }
+                                    )
+                                }
+                            })
                     } else {
                         android.util.Log.w("RegistrationForm", "Form not valid or no file selected")
                     }

@@ -115,7 +115,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllFeedbackScreen(navController, eventViewModel, eventId)
+            AllFeedbackScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AllDocumentation.route,

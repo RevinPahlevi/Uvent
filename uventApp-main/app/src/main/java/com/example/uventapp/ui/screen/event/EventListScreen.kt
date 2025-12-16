@@ -36,11 +36,13 @@ import com.example.uventapp.data.model.Event
 import com.example.uventapp.utils.ImageUrlHelper
 import com.example.uventapp.utils.EventTimeHelper
 
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
+
 @Composable
 fun EventListScreen(
     navController: NavController,
     viewModel: EventManagementViewModel,
-    profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel
+    profileViewModel: ProfileViewModel
 ) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
 
@@ -56,10 +58,14 @@ fun EventListScreen(
     android.util.Log.d("EventListScreen", "Current user profile: $currentUserProfile")
     android.util.Log.d("EventListScreen", "Current userId: $currentUserId")
 
+    // Load all events on startup
+    LaunchedEffect(key1 = true) {
+        viewModel.loadAllEvents(context)
+    }
+
     // Load data saat screen dibuka - dengan logging untuk debug
     LaunchedEffect(key1 = currentUserId) {
         android.util.Log.d("EventListScreen", "LaunchedEffect triggered with userId: $currentUserId")
-        viewModel.loadAllEvents(context)
         if (currentUserId != -1) {
             android.util.Log.d("EventListScreen", "Loading createdEvents and followedEvents...")
             viewModel.loadFollowedEvents(currentUserId, context)

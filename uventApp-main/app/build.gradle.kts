@@ -72,6 +72,9 @@ dependencies {
     // Coil untuk load gambar event (poster)
     implementation("io.coil-kt:coil-compose:2.4.0")
 
+    // WorkManager for background tasks (notification scheduling)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     // Test
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
