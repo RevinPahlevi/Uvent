@@ -150,15 +150,27 @@ fun MyRegisteredEventScreen(
             }
         }
     }
+    // Handle navigation from registration success and edit success
     LaunchedEffect(eventName) {
         if (eventName.isNotEmpty()) {
-            scope.launch {
+            if (eventName == "_return_to_followed") {
+                // Just switch to Diikuti tab without message
+                selectedTab = 1
+            } else if (eventName == "_edit_success") {
+                // Show edit success message and switch to Diikuti tab
+                selectedTab = 1
                 snackbarHostState.showSnackbar(
-                    "Pendaftaran $eventName Berhasil",
+                    message = "Perubahan berhasil disimpan",
+                    duration = SnackbarDuration.Short
+                )
+            } else {
+                // Registration success - show message and switch to Diikuti tab
+                selectedTab = 1
+                snackbarHostState.showSnackbar(
+                    message = "Berhasil mendaftar event \"$eventName\"!",
                     duration = SnackbarDuration.Short
                 )
             }
-            selectedTab = 1 // Pindah otomatis ke tab "Diikuti"
         }
     }
     LaunchedEffect(showSuccessBanner) {
@@ -313,7 +325,10 @@ fun MyRegisteredEventScreen(
                         }
 
                         if (filteredFollowedEvents.isNotEmpty()) {
-                            items(filteredFollowedEvents, key = { it.id }) { event ->
+                            items(
+                                items = filteredFollowedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 MyEventCard(
                                     event = event,
@@ -595,7 +610,6 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
                         .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
                         .diskCachePolicy(CachePolicy.DISABLED)   // Disable disk cache
                         .build(),
-                    placeholder = painterResource(R.drawable.placeholder_poster),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,

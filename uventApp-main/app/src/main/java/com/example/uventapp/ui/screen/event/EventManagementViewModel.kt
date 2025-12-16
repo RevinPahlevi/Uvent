@@ -131,6 +131,9 @@ class EventManagementViewModel : ViewModel() {
     private val _isLoadingCreatedEvents = mutableStateOf(false)
     val isLoadingCreatedEvents: State<Boolean> = _isLoadingCreatedEvents
 
+    private val _isLoadingAllEvents = mutableStateOf(false)
+    val isLoadingAllEvents: State<Boolean> = _isLoadingAllEvents
+
     // Fungsi untuk upload gambar ke server dan mendapatkan URL
     fun uploadImage(
         context: Context,
@@ -287,9 +290,15 @@ class EventManagementViewModel : ViewModel() {
             return
         }
 
+        // Set loading state to true BEFORE API call
+        _isLoadingAllEvents.value = true
+
         Log.d("ViewModel", "Calling API getAllEvents...")
         ApiClient.instance.getAllEvents().enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                // Set loading to false when response received
+                _isLoadingAllEvents.value = false
+                
                 Log.d("ViewModel", "API Response received: ${response.code()}")
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
@@ -307,6 +316,9 @@ class EventManagementViewModel : ViewModel() {
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
+                // Set loading to false on failure too
+                _isLoadingAllEvents.value = false
+                
                 Log.e("ViewModel", "❌ API Failure: ${t.message}")
                 t.printStackTrace()
                 _notificationMessage.value = "Gagal terhubung ke server."

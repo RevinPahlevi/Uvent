@@ -35,24 +35,6 @@ data class UpdateDocumentationResponse(
     val message: String
 )
 
-// Update Registration Request
-data class UpdateRegistrationRequest(
-    @SerializedName("user_id") val userId: Int?,
-    val name: String,
-    val nim: String,
-    val fakultas: String,
-    val jurusan: String,
-    val email: String,
-    val phone: String,
-    @SerializedName("krs_uri") val krsUri: String?
-)
-
-// Update Registration Response
-data class UpdateRegistrationResponse(
-    val status: String,
-    val message: String
-)
-
 // Get Registrations Response
 data class GetRegistrationsResponse(
     val status: String,
@@ -95,4 +77,45 @@ data class UploadImageData(
     val filename: String,
     val url: String,
     val size: Long
+)
+
+// Registration ID Response
+data class RegistrationIdResponse(
+    val status: String,
+    val data: RegistrationIdData?
+)
+
+data class RegistrationIdData(
+    @com.google.gson.annotations.SerializedName("registration_id")
+    val registrationId: Int
+)
+
+// Registration Data Response for Edit
+data class RegistrationDataResponse(
+    val status: String,
+    val data: RegistrationDataFull?
+)
+
+// Update Registration Request
+data class UpdateRegistrationRequest(
+    val name: String,
+    val nim: String,
+    val fakultas: String,
+    val jurusan: String,
+    val email: String,
+    val phone: String,
+    val krsUri: String?
+)
+
+// Update Registration Response
+data class UpdateRegistrationResponse(
+    val status: String,
+    val message: String
+)
+
+// NIM Check for Edit
+data class NimCheckResponse(
+    val status: String,
+    val available: Boolean,
+    val message: String
 )

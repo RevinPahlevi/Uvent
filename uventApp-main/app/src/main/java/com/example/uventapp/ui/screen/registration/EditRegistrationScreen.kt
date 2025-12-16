@@ -28,6 +28,7 @@ import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 // -----------------------------
 import com.example.uventapp.ui.components.*
+import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import kotlinx.coroutines.delay
@@ -68,7 +69,13 @@ fun EditRegistrationScreen(
     var selectedFileUri by remember { mutableStateOf(existingData?.krsUri?.toUri()) }
     var selectedFileName by remember(selectedFileUri) {
         mutableStateOf(
-            selectedFileUri?.lastPathSegment?.substringAfterLast("/") ?: "File KRS Sebelumnya"
+            if (selectedFileUri != null) {
+                selectedFileUri?.lastPathSegment?.substringAfterLast("/") ?: "KRS.pdf"
+            } else if (existingData?.krsUri != null) {
+                existingData.krsUri?.substringAfterLast("/") ?: "KRS.pdf"
+            } else {
+                "KRS.pdf" // Placeholder instead of "File KRS Sebelumnya" to ensure consistent UI
+            }
         )
     }
     // ----------------------------------------------
@@ -100,7 +107,11 @@ fun EditRegistrationScreen(
         topBar = {
             CustomAppBar(
                 title = "Edit Pendaftaran",
-                onBack = { navController.popBackStack() }
+                onBack = {
+                    navController.navigate(Screen.MyRegisteredEvent.createRoute("_return_to_followed")) {
+                        popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                    }
+                }
             )
         },
         containerColor = LightBackground
@@ -221,12 +232,12 @@ fun EditRegistrationScreen(
                 }
             }
 
-            // Auto-close success banner dan kembali ke layar sebelumnya
+            // Auto-navigate after successful save
             LaunchedEffect(showSuccessBanner) {
                 if (showSuccessBanner) {
-                    delay(2000)
-                    showSuccessBanner = false
-                    navController.popBackStack()
+                    navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
+                        popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                    }
                 }
             }
         }

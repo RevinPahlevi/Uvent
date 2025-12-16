@@ -72,6 +72,7 @@ fun EventListScreen(
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
+    val isLoading by viewModel.isLoadingAllEvents
     
     // Debug: Log changes in createdEvents
     LaunchedEffect(createdEvents.size) {
@@ -173,29 +174,47 @@ fun EventListScreen(
                 }
             }
 
-            if (filteredEvents.isNotEmpty()) {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredEvents, key = { it.id }) { event ->
-                        // Get badge status from pre-computed map
-                        val isMyEvent = eventBadgeStatus["created"]?.contains(event.id) == true
-                        val isRegistered = eventBadgeStatus["followed"]?.contains(event.id) == true
-                        
-                        android.util.Log.d("EventListScreen", "Event ${event.id}: isMyEvent=$isMyEvent, isRegistered=$isRegistered")
-                        
-                        EventCard(
-                            event = event,
-                            isMyEvent = isMyEvent,
-                            isRegistered = isRegistered,
-                            onClick = { navController.navigate(Screen.DetailEvent.createRoute(event.id)) }
-                        )
+            // ✅ PERBAIKAN: 3-state logic dengan loading indicator
+            when {
+                isLoading -> {
+                    // State 1: Loading - show CircularProgressIndicator
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = PrimaryGreen)
                     }
                 }
-            } else {
-                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text("Tidak ada event ditemukan", color = Color.Gray)
+                filteredEvents.isNotEmpty() -> {
+                    // State 2: Has data - show event list
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredEvents, key = { it.id }) { event ->
+                            // Get badge status from pre-computed map
+                            val isMyEvent = eventBadgeStatus["created"]?.contains(event.id) == true
+                            val isRegistered = eventBadgeStatus["followed"]?.contains(event.id) == true
+                            
+                            android.util.Log.d("EventListScreen", "Event ${event.id}: isMyEvent=$isMyEvent, isRegistered=$isRegistered")
+                            
+                            EventCard(
+                                event = event,
+                                isMyEvent = isMyEvent,
+                                isRegistered = isRegistered,
+                                onClick = { navController.navigate(Screen.DetailEvent.createRoute(event.id)) }
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // State 3: Empty - show empty message (ONLY when NOT loading)
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tidak ada event ditemukan", color = Color.Gray)
+                    }
                 }
             }
         }
