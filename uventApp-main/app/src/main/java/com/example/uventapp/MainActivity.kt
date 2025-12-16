@@ -34,17 +34,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Create notification channel
-        NotificationHelper.createNotificationChannel(this)
-        
         // Request notification permission for Android 13+
+        // Note: WorkManager initialization is now in UventApplication
         requestNotificationPermission()
-        
-        // Schedule feedback notification worker (every 15 minutes)
-        EventFeedbackWorker.schedule(this)
-        
-        // Also run immediately to check for any ended events right now
-        EventFeedbackWorker.runOnce(this)
         
         setContent {
             val navController = rememberNavController()
