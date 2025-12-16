@@ -840,7 +840,7 @@ class EventManagementViewModel : ViewModel() {
                         }
                         _notificationMessage.value = errorMessage
                         // Refresh registration count untuk update UI
-                        loadRegistrationCount(event.id, context)
+                        // TODO: loadRegistrationCount(event.id, context) - function not implemented yet
                         Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
                         onError(errorMessage) // Panggil callback error
                     }

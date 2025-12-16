@@ -46,7 +46,6 @@ import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.data.model.Feedback
-import com.example.uventapp.data.model.dummyEvents
 import com.example.uventapp.ui.components.BottomNavBar
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
@@ -75,11 +74,10 @@ fun AddFeedbackScreen(
 
     val allEvents by viewModel.allEvents
     
-    val event = remember(eventId, allEvents, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
+    val event = remember(eventId, allEvents, viewModel.createdEvents.value, viewModel.followedEvents) {
         allEvents.find { it.id == eventId }
             ?: viewModel.createdEvents.value.find { it.id == eventId }
             ?: viewModel.followedEvents.find { it.id == eventId }
-            ?: dummyEvents.find { it.id == eventId }
     }
 
     val isEventCreator = remember(event, currentUserId) {
