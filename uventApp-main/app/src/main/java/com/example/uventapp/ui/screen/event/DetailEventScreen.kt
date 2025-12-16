@@ -100,6 +100,16 @@ fun DetailEventScreen(
         viewModel.loadAllEvents(context)
     }
     
+    // Load followed events untuk check registration status
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != null && currentUserId > 0) {
+            android.util.Log.d("DetailEventScreen", "Loading followed events for user: $currentUserId")
+            viewModel.loadFollowedEvents(currentUserId, context)
+        } else {
+            android.util.Log.w("DetailEventScreen", "No valid userId, skipping loadFollowedEvents")
+        }
+    }
+    
     // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
     val event = eventId?.let { id ->
         viewModel.allEvents.value.find { it.id == id }
