@@ -600,7 +600,7 @@ private fun FormDropdownField(
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                 placeholder = { Text(placeholder, color = Color.Gray) },
                 trailingIcon = {
                     Icon(

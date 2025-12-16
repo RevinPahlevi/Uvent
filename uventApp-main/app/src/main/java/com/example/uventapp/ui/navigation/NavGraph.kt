@@ -40,7 +40,7 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Login.route) { LoginScreen(navController, profileViewModel) }
         composable(Screen.Register.route) { RegistrationScreen(navController, profileViewModel) }
         composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel) }
+        composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel, profileViewModel) }
 
         composable(
             route = Screen.DetailEvent.route,
@@ -115,7 +115,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllFeedbackScreen(navController, eventViewModel, eventId)
+            AllFeedbackScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AllDocumentation.route,

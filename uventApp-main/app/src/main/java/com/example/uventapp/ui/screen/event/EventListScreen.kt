@@ -34,10 +34,13 @@ import com.example.uventapp.ui.theme.*
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.utils.ImageUrlHelper
 
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
+
 @Composable
 fun EventListScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel
+    viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel
 ) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
 
@@ -46,8 +49,21 @@ fun EventListScreen(
 
     val context = LocalContext.current
 
+    // Get current user profile for loading followed events
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+
+    // Load all events and followed events on startup
     LaunchedEffect(key1 = true) {
         viewModel.loadAllEvents(context)
+    }
+
+    // Load followed events when userId is available
+    LaunchedEffect(currentUserId) {
+        currentUserId?.let { userId ->
+            viewModel.loadFollowedEvents(userId, context)
+            viewModel.loadCreatedEvents(userId, context)
+        }
     }
 
     val allEvents by viewModel.allEvents

@@ -78,8 +78,8 @@ fun LoginScreen(
                 // 4. Cek jika API sukses DAN status-nya "success"
                 if (response.isSuccessful && body?.status == "success" && body.data != null) {
 
-                    // --- PENTING: Simpan data user ke ViewModel ---
-                    profileViewModel.saveUserProfile(body.data.user)
+                    // --- PENTING: Simpan data user ke ViewModel dan SharedPreferences ---
+                    profileViewModel.saveUserProfile(body.data.user, context)
                     // ----------------------------------------------
 
                     Log.d("LoginScreen", "Login API berhasil. User: ${body.data.user.name}")

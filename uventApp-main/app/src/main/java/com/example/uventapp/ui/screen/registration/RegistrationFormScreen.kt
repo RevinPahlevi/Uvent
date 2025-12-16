@@ -37,6 +37,11 @@ import com.example.uventapp.data.model.dummyEvents
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.theme.PrimaryGreen
+import com.example.uventapp.data.network.ApiClient
+import com.example.uventapp.data.network.CheckNimResponse
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 // ---------------------------
 // Helper Composables (JANGAN HAPUS)
@@ -472,22 +477,65 @@ fun RegistrationFormScreen(
                 text = "Daftar",
                 onClick = {
                     if (isFormValid) {
-                        // 1. Buat objek Registration
-                        val registrationData = Registration(
-                            eventId = eventToRegister!!.id,
-                            name = name,
-                            nim = nim,
-                            fakultas = selectedFakultas,
-                            jurusan = selectedJurusan,
-                            email = email,
-                            phone = phone,
-                            krsUri = selectedFileUri.toString()
-                        )
-
-                        // 2. Kirim event DAN data pendaftaran ke ViewModel (dan simpan ke database)
+                        // 1. Cek NIM terlebih dahulu sebelum mendaftar
                         isRegistering = true
-                        viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
-                        // Navigasi di-handle oleh LaunchedEffect yang observe notificationMessage
+                        ApiClient.instance.checkNimExists(eventToRegister!!.id, nim)
+                            .enqueue(object : Callback<CheckNimResponse> {
+                                override fun onResponse(
+                                    call: Call<CheckNimResponse>,
+                                    response: Response<CheckNimResponse>
+                                ) {
+                                    val body = response.body()
+                                    if (response.isSuccessful && body?.status == "success") {
+                                        if (body.data?.exists == true) {
+                                            // NIM sudah terdaftar - tampilkan pesan error
+                                            nimError = "Masukkan NIM anda dengan benar"
+                                            isRegistering = false
+                                        } else {
+                                            // NIM belum terdaftar - lanjut proses pendaftaran
+                                            val registrationData = Registration(
+                                                eventId = eventToRegister.id,
+                                                name = name,
+                                                nim = nim,
+                                                fakultas = selectedFakultas,
+                                                jurusan = selectedJurusan,
+                                                email = email,
+                                                phone = phone,
+                                                krsUri = selectedFileUri.toString()
+                                            )
+                                            viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
+                                        }
+                                    } else {
+                                        // Error dari API - lanjut saja, biar server yg handle
+                                        val registrationData = Registration(
+                                            eventId = eventToRegister.id,
+                                            name = name,
+                                            nim = nim,
+                                            fakultas = selectedFakultas,
+                                            jurusan = selectedJurusan,
+                                            email = email,
+                                            phone = phone,
+                                            krsUri = selectedFileUri.toString()
+                                        )
+                                        viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
+                                    }
+                                }
+
+                                override fun onFailure(call: Call<CheckNimResponse>, t: Throwable) {
+                                    // Jika check gagal, lanjut saja proses pendaftaran
+                                    val registrationData = Registration(
+                                        eventId = eventToRegister.id,
+                                        name = name,
+                                        nim = nim,
+                                        fakultas = selectedFakultas,
+                                        jurusan = selectedJurusan,
+                                        email = email,
+                                        phone = phone,
+                                        krsUri = selectedFileUri.toString()
+                                    )
+                                    viewModel.registerForEvent(eventToRegister, registrationData, currentUserId, context)
+                                }
+                            })
                     }
                 },
                 enabled = isFormValid,

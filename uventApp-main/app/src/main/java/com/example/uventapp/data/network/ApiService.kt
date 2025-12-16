@@ -74,6 +74,12 @@ interface ApiService {
         @Path("userId") userId: Int
     ): Call<GetEventsResponse>
 
+    // Get registered events with full data (for notification worker)
+    @GET("registrations/user/{userId}")
+    fun getRegisteredEvents(
+        @Path("userId") userId: Int
+    ): Call<GetRegistrationsResponse>
+
     // --- API FEEDBACK ---
     @POST("feedback")
     fun createFeedback(
@@ -91,9 +97,10 @@ interface ApiService {
         @Body request: UpdateFeedbackRequest
     ): Call<UpdateFeedbackResponse>
 
-    @DELETE("feedback/{id}")
+    @DELETE("feedback/{id}/{userId}")
     fun deleteFeedback(
-        @Path("id") feedbackId: Int
+        @Path("id") feedbackId: Int,
+        @Path("userId") userId: Int
     ): Call<DeleteResponse>
 
     // --- API DOKUMENTASI ---
@@ -140,8 +147,25 @@ interface ApiService {
         @Path("eventId") eventId: Int
     ): Call<GetParticipantsResponse>
 
+    // Cek apakah NIM sudah terdaftar di event
+    @GET("registrations/check-nim/{eventId}/{nim}")
+    fun checkNimExists(
+        @Path("eventId") eventId: Int,
+        @Path("nim") nim: String
+    ): Call<CheckNimResponse>
+
     // ==================================================
 }
+
+// Response untuk cek NIM
+data class CheckNimResponse(
+    val status: String,
+    val data: CheckNimData?
+)
+
+data class CheckNimData(
+    val exists: Boolean
+)
 
 // Response untuk upload KRS
 data class UploadKRSResponse(

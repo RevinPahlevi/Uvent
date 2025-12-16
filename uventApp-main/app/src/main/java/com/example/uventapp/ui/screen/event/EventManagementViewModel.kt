@@ -472,26 +472,64 @@ class EventManagementViewModel : ViewModel() {
         }
     }
 
+    // Load feedbacks dari API untuk suatu event
+    fun loadFeedbacksFromApi(eventId: Int, currentUserId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+
+        Log.d("LoadFeedbacks", "Loading feedbacks for event $eventId")
+
+        ApiClient.instance.getFeedbacksByEvent(eventId).enqueue(object : Callback<com.example.uventapp.data.network.GetFeedbacksResponse> {
+            override fun onResponse(
+                call: Call<com.example.uventapp.data.network.GetFeedbacksResponse>,
+                response: Response<com.example.uventapp.data.network.GetFeedbacksResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    val feedbackList = body.data.map { item ->
+                        Feedback(
+                            id = item.id,
+                            eventId = item.eventId,
+                            rating = item.rating,
+                            review = item.review ?: "",
+                            photoUri = item.photoUri,
+                            userName = item.userName ?: "Anonymous",
+                            postDate = item.createdAt?.split("T")?.first() ?: "",
+                            isAnda = item.userId == currentUserId
+                        )
+                    }
+                    _feedbacks.value = _feedbacks.value.toMutableMap().apply {
+                        put(eventId, feedbackList)
+                    }
+                    Log.d("LoadFeedbacks", "Loaded ${feedbackList.size} feedbacks for event $eventId")
+                } else {
+                    Log.e("LoadFeedbacks", "Failed to load feedbacks: ${response.message()}")
+                }
+            }
+
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetFeedbacksResponse>, t: Throwable) {
+                Log.e("LoadFeedbacks", "API Failure: ${t.message}")
+            }
+        })
+    }
+
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> = _feedbacks.value[eventId] ?: emptyList()
     
-    fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context) {
+    fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context, isEdit: Boolean = false, existingFeedbackId: Int? = null) {
         Log.d("SubmitFeedback", "=== SUBMIT FEEDBACK ===")
         Log.d("SubmitFeedback", "eventId: $eventId")
         Log.d("SubmitFeedback", "userId: $userId")
         Log.d("SubmitFeedback", "rating: ${feedback.rating}")
         Log.d("SubmitFeedback", "review: ${feedback.review}")
+        Log.d("SubmitFeedback", "isEdit: $isEdit")
+        Log.d("SubmitFeedback", "existingFeedbackId: $existingFeedbackId")
         
-        // PERBAIKAN: Cek apakah feedback dengan ID yang sama sudah ada
+        // Update local state
         val existingList = _feedbacks.value[eventId] ?: emptyList()
-        val existingFeedback = existingList.find { it.id == feedback.id }
-        
-        val updatedList = if (existingFeedback != null) {
-            // Jika sudah ada (edit), ganti feedback lama dengan yang baru
-            Log.d("SubmitFeedback", "Mengganti feedback existing dengan ID: ${feedback.id}")
-            existingList.map { if (it.id == feedback.id) feedback else it }
+        val updatedList = if (isEdit && existingFeedbackId != null) {
+            Log.d("SubmitFeedback", "Mengganti feedback existing dengan ID: $existingFeedbackId")
+            existingList.map { if (it.id == existingFeedbackId) feedback.copy(id = existingFeedbackId) else it }
         } else {
-            // Jika baru, tambahkan ke list
-            Log.d("SubmitFeedback", "Menambahkan feedback baru dengan ID: ${feedback.id}")
+            Log.d("SubmitFeedback", "Menambahkan feedback baru")
             existingList + feedback
         }
         
@@ -501,41 +539,76 @@ class EventManagementViewModel : ViewModel() {
         if (isNetworkAvailable(context)) {
             Log.d("SubmitFeedback", "Network available, sending to API...")
             
-            val request = FeedbackRequest(
-                eventId = eventId,
-                userId = userId,
-                rating = feedback.rating,
-                review = feedback.review,
-                photoUri = feedback.photoUri
-            )
-            
-            Log.d("SubmitFeedback", "Request object: $request")
-
-            ApiClient.instance.createFeedback(request).enqueue(object : Callback<FeedbackResponse> {
-                override fun onResponse(
-                    call: Call<FeedbackResponse>,
-                    response: Response<FeedbackResponse>
-                ) {
-                    Log.d("SubmitFeedback", "Response code: ${response.code()}")
-                    Log.d("SubmitFeedback", "Response body: ${response.body()}")
-                    Log.d("SubmitFeedback", "Response errorBody: ${response.errorBody()?.string()}")
-                    
-                    val body = response.body()
-                    if (response.isSuccessful && body?.status == "success") {
-                        _notificationMessage.value = "Ulasan berhasil ditambahkan"
-                        Log.d("SubmitFeedback", "Feedback berhasil disimpan ke server")
-                    } else {
-                        _notificationMessage.value = body?.message ?: "Gagal menyimpan ulasan"
-                        Log.e("SubmitFeedback", "Gagal submit feedback: ${body?.message}")
+            if (isEdit && existingFeedbackId != null) {
+                // UPDATE existing feedback
+                val updateRequest = UpdateFeedbackRequest(
+                    userId = userId,
+                    rating = feedback.rating,
+                    review = feedback.review,
+                    photoUri = feedback.photoUri
+                )
+                
+                Log.d("SubmitFeedback", "Calling updateFeedback API with id: $existingFeedbackId")
+                
+                ApiClient.instance.updateFeedback(existingFeedbackId, updateRequest).enqueue(object : Callback<UpdateFeedbackResponse> {
+                    override fun onResponse(
+                        call: Call<UpdateFeedbackResponse>,
+                        response: Response<UpdateFeedbackResponse>
+                    ) {
+                        Log.d("SubmitFeedback", "Update Response code: ${response.code()}")
+                        val body = response.body()
+                        if (response.isSuccessful && body?.status == "success") {
+                            _notificationMessage.value = "Ulasan berhasil diperbarui"
+                            Log.d("SubmitFeedback", "Feedback berhasil diupdate di server")
+                            // Reload from API to sync
+                            loadFeedbacksFromApi(eventId, userId, context)
+                        } else {
+                            _notificationMessage.value = body?.message ?: "Gagal memperbarui ulasan"
+                            Log.e("SubmitFeedback", "Gagal update feedback: ${body?.message}")
+                        }
                     }
-                }
 
-                override fun onFailure(call: Call<FeedbackResponse>, t: Throwable) {
-                    Log.e("SubmitFeedback", "API Failure: ${t.message}")
-                    t.printStackTrace()
-                    _notificationMessage.value = "Ulasan tersimpan lokal, gagal sinkronisasi ke server"
-                }
-            })
+                    override fun onFailure(call: Call<UpdateFeedbackResponse>, t: Throwable) {
+                        Log.e("SubmitFeedback", "Update API Failure: ${t.message}")
+                        _notificationMessage.value = "Gagal memperbarui ulasan"
+                    }
+                })
+            } else {
+                // CREATE new feedback
+                val createRequest = FeedbackRequest(
+                    eventId = eventId,
+                    userId = userId,
+                    rating = feedback.rating,
+                    review = feedback.review,
+                    photoUri = feedback.photoUri
+                )
+                
+                Log.d("SubmitFeedback", "Calling createFeedback API")
+
+                ApiClient.instance.createFeedback(createRequest).enqueue(object : Callback<FeedbackResponse> {
+                    override fun onResponse(
+                        call: Call<FeedbackResponse>,
+                        response: Response<FeedbackResponse>
+                    ) {
+                        Log.d("SubmitFeedback", "Create Response code: ${response.code()}")
+                        val body = response.body()
+                        if (response.isSuccessful && body?.status == "success") {
+                            _notificationMessage.value = "Ulasan berhasil ditambahkan"
+                            Log.d("SubmitFeedback", "Feedback berhasil disimpan ke server")
+                            // Reload from API to get the real ID
+                            loadFeedbacksFromApi(eventId, userId, context)
+                        } else {
+                            _notificationMessage.value = body?.message ?: "Gagal menyimpan ulasan"
+                            Log.e("SubmitFeedback", "Gagal submit feedback: ${body?.message}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<FeedbackResponse>, t: Throwable) {
+                        Log.e("SubmitFeedback", "Create API Failure: ${t.message}")
+                        _notificationMessage.value = "Gagal menyimpan ulasan"
+                    }
+                })
+            }
         } else {
             Log.d("SubmitFeedback", "No network, saving locally")
             _notificationMessage.value = "Ulasan ditambahkan (offline)"
@@ -543,6 +616,9 @@ class EventManagementViewModel : ViewModel() {
     }
     
     fun deleteFeedback(eventId: Int, feedbackId: Int, userId: Int, context: Context) {
+        Log.d("DeleteFeedback", "=== DELETE FEEDBACK ===")
+        Log.d("DeleteFeedback", "eventId: $eventId, feedbackId: $feedbackId, userId: $userId")
+        
         // Update local state first
         val existingList = _feedbacks.value[eventId] ?: emptyList()
         _feedbacks.value = _feedbacks.value.toMutableMap().apply {
@@ -551,21 +627,28 @@ class EventManagementViewModel : ViewModel() {
 
         // Sync with API
         if (isNetworkAvailable(context)) {
-            ApiClient.instance.deleteFeedback(feedbackId).enqueue(object : Callback<DeleteResponse> {
+            ApiClient.instance.deleteFeedback(feedbackId, userId).enqueue(object : Callback<DeleteResponse> {
                 override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
                     val body = response.body()
+                    Log.d("DeleteFeedback", "Response: ${response.code()} - ${body?.status}")
                     if (response.isSuccessful && body?.status == "success") {
                         _notificationMessage.value = "Ulasan berhasil dihapus"
                         Log.d("DeleteFeedback", "Feedback deleted from server")
+                        // Reload feedbacks from API untuk sync
+                        loadFeedbacksFromApi(eventId, userId, context)
                     } else {
                         _notificationMessage.value = body?.message ?: "Gagal menghapus ulasan dari server"
                         Log.e("DeleteFeedback", "Failed: ${body?.message}")
+                        // Restore local state on failure
+                        loadFeedbacksFromApi(eventId, userId, context)
                     }
                 }
 
                 override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
                     Log.e("DeleteFeedback", "API Failure: ${t.message}")
-                    _notificationMessage.value = "Ulasan dihapus (offline)"
+                    _notificationMessage.value = "Gagal menghapus ulasan"
+                    // Restore local state on failure
+                    loadFeedbacksFromApi(eventId, userId, context)
                 }
             })
         } else {
