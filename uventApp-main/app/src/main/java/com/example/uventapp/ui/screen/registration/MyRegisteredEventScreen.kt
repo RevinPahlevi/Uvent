@@ -135,7 +135,6 @@ fun MyRegisteredEventScreen(
     val notificationMessage by viewModel.notificationMessage
     var showDeleteDialog by remember { mutableStateOf<Int?>(null) }
     var showCancelDialog by remember { mutableStateOf<Event?>(null) }
-    var showSuccessBanner by remember { mutableStateOf<String?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
 
     // Efek Notifikasi Snackbar
@@ -156,6 +155,9 @@ fun MyRegisteredEventScreen(
             if (eventName == "_return_to_followed") {
                 // Just switch to Diikuti tab without message
                 selectedTab = 1
+            } else if (eventName == "_no_change") {
+                // No changes made - just switch to Diikuti tab without message
+                selectedTab = 1
             } else if (eventName == "_edit_success") {
                 // Show edit success message and switch to Diikuti tab
                 selectedTab = 1
@@ -171,12 +173,6 @@ fun MyRegisteredEventScreen(
                     duration = SnackbarDuration.Short
                 )
             }
-        }
-    }
-    LaunchedEffect(showSuccessBanner) {
-        if (showSuccessBanner != null) {
-            delay(3000L)
-            showSuccessBanner = null
         }
     }
 
@@ -227,8 +223,7 @@ fun MyRegisteredEventScreen(
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(White)
-                        .padding(vertical = 12.dp),
+                        .padding(top = 8.dp, bottom = 4.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -353,21 +348,26 @@ fun MyRegisteredEventScreen(
                 }
             }
 
-            // --- DIALOGS & BANNERS ---
-            CancelSuccessBanner(
-                eventName = showSuccessBanner,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = paddingValues.calculateTopPadding() + 16.dp)
-                    .padding(horizontal = 16.dp)
-            )
+            // --- DIALOGS ---
             showCancelDialog?.let { eventToCancel ->
                 CancelConfirmationDialog(
                     eventName = eventToCancel.title,
                     onDismiss = { showCancelDialog = null },
                     onConfirm = {
-                        showSuccessBanner = eventToCancel.title
-                        viewModel.unfollowEvent(eventToCancel.id)
+                        viewModel.unfollowEvent(
+                            eventId = eventToCancel.id,
+                            context = context,
+                            onSuccess = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Pendaftaran berhasil dibatalkan")
+                                }
+                            },
+                            onError = { errorMsg ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(errorMsg)
+                                }
+                            }
+                        )
                         showCancelDialog = null
                     }
                 )
@@ -646,11 +646,22 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
 
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    val borderColor = if (isSelected) PrimaryGreen else Color.LightGray
-    val containerColor = if (isSelected) PrimaryGreen else White
-    val contentColor = if (isSelected) White else Color.Gray
-    Button(onClick = onClick, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor), border = BorderStroke(1.dp, borderColor), elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(text = text, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) PrimaryGreen else White,
+            contentColor = if (isSelected) White else Color.Gray
+        ),
+        border = if (!isSelected) BorderStroke(1.dp, Color.LightGray) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }
 
@@ -683,21 +694,6 @@ fun CancelConfirmationDialog(eventName: String, onDismiss: () -> Unit, onConfirm
     }
 }
 
-@Composable
-fun CancelSuccessBanner(eventName: String?, modifier: Modifier = Modifier) {
-    AnimatedVisibility(visible = eventName != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically(), modifier = modifier) {
-        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(4.dp), border = BorderStroke(2.dp, PrimaryGreen)) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Success", tint = PrimaryGreen, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(text = eventName ?: "", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 15.sp)
-                    Text(text = "Pendaftaran Event Dibatalkan", fontSize = 13.sp, color = Color.DarkGray)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun DeleteConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {

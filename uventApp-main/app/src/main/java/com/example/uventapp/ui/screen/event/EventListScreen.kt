@@ -165,7 +165,7 @@ fun EventListScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 8.dp, bottom = 4.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -231,18 +231,18 @@ fun EventListScreen(
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) PrimaryGreen else White,
             contentColor = if (isSelected) White else Color.Gray
         ),
         border = if (!isSelected) BorderStroke(1.dp, Color.LightGray) else null,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
@@ -331,7 +331,7 @@ fun EventCard(
                 isRegistered -> {
                     // Badge biru untuk event yang sudah didaftar
                     Text(
-                        text = "Sudah Terdaftar",
+                        text = "Terdaftar",
                         color = White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,

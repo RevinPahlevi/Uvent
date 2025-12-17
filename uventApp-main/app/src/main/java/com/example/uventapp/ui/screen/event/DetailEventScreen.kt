@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,11 +112,13 @@ fun DetailEventScreen(
         }
     }
     
-    // Event dicari dari semua sumber - ini akan update otomatis saat state berubah
-    val event = eventId?.let { id ->
-        viewModel.allEvents.value.find { it.id == id }
-            ?: viewModel.createdEvents.value.find { it.id == id }
-            ?: viewModel.followedEvents.find { it.id == id }
+    // Event dicari dari semua sumber - use remember dengan key untuk avoid flash bug
+    val event = remember(eventId, allEvents, createdEvents, followedEvents) {
+        eventId?.let { id ->
+            viewModel.allEvents.value.find { it.id == id }
+                ?: viewModel.createdEvents.value.find { it.id == id }
+                ?: viewModel.followedEvents.find { it.id == id }
+        }
     }
     
     val isRegistered = followedEvents.any { it.id == eventId }
@@ -137,7 +141,9 @@ fun DetailEventScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            if (event != null) {
+            // CRITICAL: Only render if event found AND matches the requested eventId
+            // This prevents flash bug from rendering wrong event data
+            if (event != null && event.id == eventId) {
                 // Check if current user is the event creator
                 val isMyEvent = event.creatorId != null && event.creatorId == currentUserId
                 
@@ -148,25 +154,29 @@ fun DetailEventScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Fix image URL for Android - replace localhost with server IP
-                        val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri) 
-                            ?: event.thumbnailResId 
-                            ?: R.drawable.placeholder_poster
-                        
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(imageSource)
-                                .crossfade(true)
-                                .build(),
-                            placeholder = painterResource(R.drawable.placeholder_poster),
-                            error = painterResource(R.drawable.placeholder_poster),
-                            contentDescription = "Event Banner",
-                            contentScale = ContentScale.Fit, // Changed from Crop to Fit - shows full poster
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(2f / 3f) // Standard portrait poster ratio (width:height = 2:3)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
+                        // Wrap image section dengan key() untuk force recomposition saat event berubah
+                        // Ini mencegah Coil cache show gambar lama
+                        key(event.id) {
+                            // Fix image URL for Android - replace localhost with server IP
+                            val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri) 
+                                ?: event.thumbnailResId 
+                                ?: R.drawable.placeholder_poster
+                            
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(imageSource)
+                                    .crossfade(false) // Disable crossfade - prevents flash transition
+                                    .build(),
+                                placeholder = painterResource(R.drawable.placeholder_poster),
+                                error = painterResource(R.drawable.placeholder_poster),
+                                contentDescription = "Event Banner",
+                                contentScale = ContentScale.Fit, // Changed from Crop to Fit - shows full poster
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(2f / 3f) // Standard portrait poster ratio (width:height = 2:3)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 

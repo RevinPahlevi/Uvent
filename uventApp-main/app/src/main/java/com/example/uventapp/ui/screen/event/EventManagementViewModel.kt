@@ -21,6 +21,7 @@ import com.example.uventapp.data.network.FeedbackResponse
 import com.example.uventapp.data.network.DocumentationRequest
 import com.example.uventapp.data.network.DocumentationResponse
 import com.example.uventapp.data.network.GetEventsResponse
+import com.example.uventapp.data.network.GetRegistrationsResponse
 import com.example.uventapp.data.network.UpdateEventRequest
 import com.example.uventapp.data.network.UpdateEventResponse
 import com.example.uventapp.data.network.DeleteResponse
@@ -109,6 +110,9 @@ class EventManagementViewModel : ViewModel() {
 
     private val _followedEvents = mutableStateListOf<Event>()
     val followedEvents: List<Event> = _followedEvents
+    
+    // Map eventId -> registrationId untuk cancel registration
+    private val _eventRegistrationIds = mutableMapOf<Int, Int>()
 
     private val _notificationMessage = mutableStateOf<String?>(null)
     val notificationMessage: State<String?> = _notificationMessage
@@ -353,22 +357,78 @@ class EventManagementViewModel : ViewModel() {
 
     // Load event yang diikuti dari backend
     fun loadFollowedEvents(userId: Int, context: Context) {
-        if (!isNetworkAvailable(context)) return
+        if (!isNetworkAvailable(context)) {
+            android.util.Log.w("ViewModel", "loadFollowedEvents: No network available")
+            return
+        }
 
-        ApiClient.instance.getMyRegistrationsByUserId(userId).enqueue(object : Callback<GetEventsResponse> {
-            override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+        android.util.Log.d("ViewModel", "=== LOAD FOLLOWED EVENTS ===")
+        android.util.Log.d("ViewModel", "Calling API getMyRegistrations with userId: $userId")
+        
+        // Gunakan getMyRegistrations untuk mendapatkan registration_id
+        ApiClient.instance.getMyRegistrations(userId).enqueue(object : Callback<com.example.uventapp.data.network.GetRegistrationsResponse> {
+            override fun onResponse(call: Call<com.example.uventapp.data.network.GetRegistrationsResponse>, response: Response<com.example.uventapp.data.network.GetRegistrationsResponse>) {
+                android.util.Log.d("ViewModel", "API Response received: ${response.code()}")
                 val body = response.body()
-                if (response.isSuccessful && body?.status == "success") {
-                    // Clear dan populate followedEvents dari API
+                android.util.Log.d("ViewModel", "Response body status: ${body?.status}")
+                
+                if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                    // Clear data lama
                     _followedEvents.clear()
-                    _followedEvents.addAll(body.data.map { it.toEventModel() })
-                    Log.d("ViewModel", "✅ Loaded ${body.data.size} followed events")
+                    _eventRegistrationIds.clear()
+                    val newRegistrations = mutableMapOf<Int, Registration>()
+                    
+                    // Populate followedEvents dan simpan registrationId mapping
+                    body.data.forEach { regData ->
+                        // Simpan mapping eventId -> registrationId
+                        _eventRegistrationIds[regData.eventId] = regData.registrationId
+                        
+                        // Simpan full registration data
+                        newRegistrations[regData.eventId] = Registration(
+                            eventId = regData.eventId,
+                            name = regData.name,
+                            nim = regData.nim,
+                            fakultas = regData.fakultas ?: "",
+                            jurusan = regData.jurusan ?: "",
+                            email = regData.email,
+                            phone = regData.phone,
+                            krsUri = regData.krsUri,
+                            registrationId = regData.registrationId  // ✅ FIX: Include registrationId!
+                        )
+                        
+                        // Buat Event object dari registration data
+                        val event = Event(
+                            id = regData.eventId,
+                            title = regData.title ?: "N/A",
+                            type = regData.type ?: "N/A",
+                            date = reformatDateForUi(regData.date),
+                            timeStart = reformatTimeForUi(regData.timeStart),
+                            timeEnd = reformatTimeForUi(regData.timeEnd),
+                            platformType = regData.platformType ?: "N/A",
+                            locationDetail = regData.locationDetail ?: "N/A",
+                            quota = regData.quota?.toString() ?: "0",
+                            status = regData.status ?: "Aktif",
+                            thumbnailResId = null,
+                            thumbnailUri = regData.thumbnailUri,
+                            creatorId = regData.creatorId
+                        )
+                        _followedEvents.add(event)
+                    }
+                    
+                    // Update _registrations state
+                    _registrations.value = newRegistrations
+                    
+                    android.util.Log.d("ViewModel", "✅ Loaded ${_followedEvents.size} followed events with registrationId mapping")
+                    _followedEvents.forEach { event ->
+                        android.util.Log.d("ViewModel", "  - Event ID: ${event.id}, RegID: ${_eventRegistrationIds[event.id]}, Title: ${event.title}")
+                    }
                 } else {
-                    Log.e("ViewModel", "❌ Failed to load followed events: ${response.message()}")
+                    android.util.Log.e("ViewModel", "❌ Failed to load followed events: ${response.message()}")
                 }
             }
-            override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
-                Log.e("ViewModel", "Gagal load followed events: ${t.message}")
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetRegistrationsResponse>, t: Throwable) {
+                android.util.Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                t.printStackTrace()
             }
         })
     }
@@ -895,9 +955,34 @@ class EventManagementViewModel : ViewModel() {
         }
     }
     
-    fun unfollowEvent(eventId: Int) {
-        _followedEvents.removeIf { it.id == eventId }
-        _registrations.value = _registrations.value.toMutableMap().apply { remove(eventId) }
+    fun unfollowEvent(eventId: Int, context: Context, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        val registrationId = _eventRegistrationIds[eventId]
+        if (registrationId == null) {
+            android.util.Log.e("ViewModel", "❌ Registration ID not found for event $eventId")
+            onError("Data pendaftaran tidak ditemukan")
+            return
+        }
+        
+        android.util.Log.d("ViewModel", "Canceling registration: EventID=$eventId, RegID=$registrationId")
+        
+        ApiClient.instance.cancelRegistration(registrationId).enqueue(object : Callback<DeleteResponse> {
+            override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    // Hapus dari local state setelah DELETE berhasil
+                    _followedEvents.removeIf { it.id == eventId }
+                    _eventRegistrationIds.remove(eventId)
+                    android.util.Log.d("ViewModel", "✅ Registration canceled successfully")
+                    onSuccess()
+                } else {
+                    android.util.Log.e("ViewModel", "❌ Failed to cancel: ${response.message()}")
+                    onError("Gagal membatalkan pendaftaran")
+                }
+            }
+            override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                android.util.Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                onError("Gagal terhubung ke server")
+            }
+        })
     }
     
     fun clearNotification() { _notificationMessage.value = null }

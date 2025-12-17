@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.uventapp.data.model.fakultasList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -52,7 +54,8 @@ fun FormInputField(
     label: String, 
     value: String, 
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    errorMessage: String? = null  // Add error message parameter
 ) {
     // Individual white card for each input
     Card(
@@ -94,6 +97,15 @@ fun FormInputField(
                 placeholder = { Text("") },
                 singleLine = true
             )
+            // Show error message if exists
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    fontSize = 11.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
     }
 }
@@ -326,6 +338,30 @@ fun RegistrationFormScreen(
             viewModel.clearNotification()
         }
     }
+    
+    // Real-time NIM validation - check via API
+    LaunchedEffect(nim, eventId) {
+        if (eventId != null && nim.isNotEmpty()) {
+            // Check NIM duplicate setelah user ketik
+            try {
+                withContext(Dispatchers.IO) {
+                    val response = ApiClient.instance.checkNimExists(eventId, nim).execute()
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful && response.body()?.data?.exists == true) {
+                            nimError = "NIM yang anda masukkan sudah terdaftar pada event ini"
+                        } else {
+                            nimError = null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore error, don't block user
+                nimError = null
+            }
+        } else if (nim.isEmpty()) {
+            nimError = null
+        }
+    }
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
@@ -337,7 +373,8 @@ fun RegistrationFormScreen(
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan" &&
                 selectedFileUri != null &&
-                eventToRegister != null // Pastikan event ada
+                eventToRegister != null && // Pastikan event ada
+                nimError == null  // Form valid hanya jika tidak ada error NIM
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -393,20 +430,10 @@ fun RegistrationFormScreen(
                         nimError = null // Clear error saat user mengetik
                     }
                 },
-                keyboardType = KeyboardType.Number
+                keyboardType = KeyboardType.Number,
+                errorMessage = nimError  // Show error message untuk NIM
             )
-
-            // Warning NIM error dari main branch
-            if (nimError != null) {
-                Text(
-                    text = nimError!!,
-                    color = Color(0xFFC62828),
-                    fontSize = 12.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 4.dp, top = 2.dp)
-                )
-            }
+            // Removed duplicate NIM error display - error sudah ditampilkan inline di FormInputField
 
             DropdownInput(
                 label = "Fakultas",
@@ -450,24 +477,7 @@ fun RegistrationFormScreen(
                 onUploadClick = { filePickerLauncher.launch("application/pdf") }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // DEBUG: Show validation status
-            if (!isFormValid) {
-                Text(
-                    text = "Form belum lengkap: " +
-                            "name=${name.isNotEmpty()}, " +
-                            "nim=${nim.isNotEmpty()}, " +
-                            "email=${email.isNotEmpty()}, " +
-                            "phone=${phone.isNotEmpty()}, " +
-                            "fakultas=${selectedFakultas != "Pilih Fakultas"}, " +
-                            "jurusan=${selectedJurusan != "Pilih Jurusan"}, " +
-                            "file=${selectedFileUri != null}",
-                    fontSize = 10.sp,
-                    color = Color.Red,
-                    modifier = Modifier.padding(8.dp)
-                )
-            }
+            // Removed technical debug message - cleaner UX
 
             PrimaryButton(
                 text = if (viewModel.isUploading.value) "Mengupload..." else "Daftar",

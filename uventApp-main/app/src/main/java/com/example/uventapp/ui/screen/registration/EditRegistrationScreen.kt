@@ -9,8 +9,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,11 +35,23 @@ import com.example.uventapp.data.model.Registration
 // Removed dummy events import
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 // -----------------------------
+import com.example.uventapp.data.network.ApiClient
+import com.example.uventapp.data.network.CheckNimResponse
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import com.example.uventapp.ui.components.*
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
+import com.example.uventapp.ui.theme.White
+import com.example.uventapp.data.network.UpdateRegistrationRequest
+import com.example.uventapp.data.network.UpdateRegistrationResponse
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,15 +111,61 @@ fun EditRegistrationScreen(
                 selectedJurusan != "Pilih Jurusan"
         // (Kita anggap KRS tidak wajib di-upload ulang)
     }
-
+    
+    var nimErrorMessage by remember { mutableStateOf<String?>(null) }
     var showSuccessBanner by remember { mutableStateOf(false) }
+    
+    // States untuk popup dialogs
+    var showNoChangeDialog by remember { mutableStateOf(false) }
+    var showConfirmSaveDialog by remember { mutableStateOf(false) }
+    
+    // Fungsi untuk detect apakah ada perubahan
+    val hasChanges by remember(name, nim, selectedFakultas, selectedJurusan, email, phone, selectedFileUri) {
+        derivedStateOf {
+            name != (existingData?.name ?: "") ||
+            nim != (existingData?.nim ?: "") ||
+            selectedFakultas != (existingData?.fakultas ?: "Pilih Fakultas") ||
+            selectedJurusan != (existingData?.jurusan ?: "Pilih Jurusan") ||
+            email != (existingData?.email ?: "") ||
+            phone != (existingData?.phone ?: "") ||
+            selectedFileUri?.toString() != existingData?.krsUri
+        }
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            selectedFileUri = it
-            // Nama file diperbarui oleh state 'remember(selectedFileUri)' di atas
+        selectedFileUri = uri
+        selectedFileName = uri?.lastPathSegment ?: "No file chosen"
+    }
+    
+    // Real-time NIM validation
+    LaunchedEffect(nim, existingData) {
+        if (eventId != null && nim.isNotEmpty()) {
+            val originalNim = existingData?.nim ?: ""
+            if (nim != originalNim) {
+                // NIM berubah, check duplikat via API
+                try {
+                    withContext(Dispatchers.IO) {
+                        val response = ApiClient.instance.checkNimExists(eventId, nim).execute()
+                        withContext(Dispatchers.Main) {
+                            if (response.isSuccessful && response.body()?.data?.exists == true) {
+                                nimErrorMessage = "NIM yang anda masukkan sudah terdaftar pada event ini"
+                            } else {
+                                nimErrorMessage = null
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore error, don't block user
+                    nimErrorMessage = null
+                }
+            } else {
+                // NIM sama dengan original, clear error
+                nimErrorMessage = null
+            }
+        } else if (nim.isEmpty()) {
+            nimErrorMessage = null
         }
     }
 
@@ -166,8 +232,24 @@ fun EditRegistrationScreen(
                     FormInputField(
                         label = "NIM",
                         value = nim,
-                        onValueChange = { nim = it }
+                        onValueChange = { newValue ->
+                            // Filter: hanya terima digit
+                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                                nim = newValue
+                                nimErrorMessage = null // Clear error saat user edit
+                            }
+                        },
+                        keyboardType = KeyboardType.Number
                     )
+                    // Tampilkan error message jika ada
+                    nimErrorMessage?.let { error ->
+                        Text(
+                            text = error,
+                            color = Color.Red,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                        )
+                    }
                     DropdownInput(
                         label = "Fakultas",
                         selectedOption = selectedFakultas,
@@ -194,7 +276,13 @@ fun EditRegistrationScreen(
                     FormInputField(
                         label = "No Telepon",
                         value = phone,
-                        onValueChange = { phone = it }
+                        onValueChange = { newValue ->
+                            // Filter: hanya terima digit
+                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                                phone = newValue
+                            }
+                        },
+                        keyboardType = KeyboardType.Number
                     )
                     UploadKRSInput(
                         label = "KRS (Klik untuk mengganti)",
@@ -207,42 +295,284 @@ fun EditRegistrationScreen(
                     PrimaryButton(
                         text = "Simpan Perubahan",
                         onClick = {
-                            if (isFormValid && eventId != null) {
-                                // --- SIMPAN DATA BARU KE VIEWMODEL ---
-                                val updatedData = Registration( // <-- Perbaikan tipe
-                                    eventId = eventId,
-                                    name = name,
-                                    nim = nim,
-                                    fakultas = selectedFakultas,
-                                    jurusan = selectedJurusan,
-                                    email = email,
-                                    phone = phone,
-                                    krsUri = selectedFileUri.toString()
-                                )
-                                viewModel.updateRegistrationData(eventId, updatedData) // <-- Perbaikan tipe
-                                showSuccessBanner = true
-                                // -------------------------------------
+                            if (isFormValid && eventId != null && nimErrorMessage == null) {
+                                // Check jika tidak ada perubahan
+                                if (!hasChanges) {
+                                    showNoChangeDialog = true
+                                } else {
+                                    // Ada perubahan, tampilkan konfirmasi
+                                    showConfirmSaveDialog = true
+                                }
                             }
                         },
-                        enabled = isFormValid,
+                        enabled = isFormValid && nimErrorMessage == null,
                         modifier = Modifier.fillMaxWidth(0.6f)
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+            
+            // === POPUP DIALOGS ===
+            
+            // Popup: Tidak ada perubahan
+            if (showNoChangeDialog) {
+                NoChangeInfoDialog(
+                    onDismiss = { showNoChangeDialog = false },
+                    onContinueEdit = { showNoChangeDialog = false },
+                    onOke = {
+                        showNoChangeDialog = false
+                        navController.navigate(Screen.MyRegisteredEvent.createRoute("_no_change")) {
+                            popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            // Popup: Konfirmasi simpan perubahan
+            if (showConfirmSaveDialog && eventId != null) {
+                ConfirmSaveDialog(
+                    onDismiss = { showConfirmSaveDialog = false },
+                    onConfirm = {
+                        showConfirmSaveDialog = false
+                        // Simpan data ke backend
+                        saveRegistrationData(eventId, name, nim, selectedFakultas, selectedJurusan, email, phone, selectedFileUri, viewModel) {
+                            // onSuccess callback - langsung navigate tanpa popup
+                            navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
+                                popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
 
-            // Auto-navigate after successful save
-            LaunchedEffect(showSuccessBanner) {
-                if (showSuccessBanner) {
-                    navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
-                        popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+// Helper function untuk save registration data
+private fun saveRegistrationData(
+    eventId: Int,
+    name: String,
+    nim: String,
+    fakultas: String,
+    jurusan: String,
+    email: String,
+    phone: String,
+    krsUri: Uri?,
+    viewModel: EventManagementViewModel,
+    onSuccess: () -> Unit
+) {
+    android.util.Log.d("EditRegistration", "=== SAVE REGISTRATION DATA ===")
+    android.util.Log.d("EditRegistration", "EventId: $eventId")
+    
+    // Get registrationId from ViewModel
+    val registrationData = viewModel.getRegistrationData(eventId)
+    android.util.Log.d("EditRegistration", "Registration data: $registrationData")
+    
+    val registrationId = registrationData?.registrationId
+    if (registrationId == null) {
+        android.util.Log.e("EditRegistration", "❌ REGISTRATION ID IS NULL! Cannot save.")
+        return
+    }
+    
+    android.util.Log.d("EditRegistration", "RegistrationId: $registrationId")
+    
+    // Create update request
+    val updateRequest = UpdateRegistrationRequest(
+        name = name,
+        nim = nim,
+        fakultas = fakultas,
+        jurusan = jurusan,
+        email = email,
+        phone = phone,
+        krsUri = krsUri?.toString()
+    )
+    
+    android.util.Log.d("EditRegistration", "Calling API updateRegistration with ID: $registrationId")
+    
+    // Call API to update registration
+    ApiClient.instance.updateRegistration(registrationId, updateRequest).enqueue(object : Callback<UpdateRegistrationResponse> {
+        override fun onResponse(call: Call<UpdateRegistrationResponse>, response: Response<UpdateRegistrationResponse>) {
+            android.util.Log.d("EditRegistration", "API Response code: ${response.code()}")
+            if (response.isSuccessful) {
+                android.util.Log.d("EditRegistration", "✅ UPDATE SUCCESS!")
+                // Update local state
+                val updatedData = Registration(
+                    eventId = eventId,
+                    name = name,
+                    nim = nim,
+                    fakultas = fakultas,
+                    jurusan = jurusan,
+                    email = email,
+                    phone = phone,
+                    krsUri = krsUri.toString(),
+                    registrationId = registrationId
+                )
+                viewModel.updateRegistrationData(eventId, updatedData)
+                onSuccess()
+            } else {
+                android.util.Log.e("EditRegistration", "❌ API Error: ${response.code()} - ${response.message()}")
+                android.util.Log.e("EditRegistration", "Error body: ${response.errorBody()?.string()}")
+            }
+        }
+        override fun onFailure(call: Call<UpdateRegistrationResponse>, t: Throwable) {
+            android.util.Log.e("EditRegistration", "❌ API CALL FAILED: ${t.message}", t)
+        }
+    })
+}
+
+// === POPUP DIALOGS ===
+
+@Composable
+private fun NoChangeInfoDialog(
+    onDismiss: () -> Unit,
+    onContinueEdit: () -> Unit,
+    onOke: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = White)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE3F2FD)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Text(
+                    text = "Tidak Ada Perubahan",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = "Anda belum melakukan perubahan apa pun pada data pendaftaran.",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = onContinueEdit,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryGreen,
+                            contentColor = White
+                        )
+                    ) {
+                        Text("Lanjut Edit")
+                    }
+                    Button(
+                        onClick = onOke,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935),
+                            contentColor = White
+                        )
+                    ) {
+                        Text("Oke")
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun ConfirmSaveDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = White)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFF3E0)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Help,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9800),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Text(
+                    text = "Simpan perubahan?",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                Text(
+                    text = "Apakah anda yakin untuk menyimpan perubahan data pendaftaran ini?",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryGreen,
+                            contentColor = White
+                        )
+                    ) {
+                        Text("Ya")
+                    }
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE53935),
+                            contentColor = White
+                        )
+                    ) {
+                        Text("Tidak")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// SuccessSaveDialog removed - langsung navigate dengan Snackbar message untuk cleaner UX
 
 @Composable
 fun RegistrationSuccessBanner(eventName: String, successText: String) {
