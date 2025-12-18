@@ -37,6 +37,7 @@ import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
 // --- Import Pengecek Jaringan ---
 import com.example.uventapp.utils.isNetworkAvailable
+import com.example.uventapp.utils.FCMTokenManager
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -81,6 +82,9 @@ fun LoginScreen(
                     // --- PENTING: Simpan data user ke ViewModel dan SharedPreferences ---
                     profileViewModel.saveUserProfile(body.data.user, context)
                     // ----------------------------------------------
+                    
+                    // Save FCM token to backend for push notifications
+                    FCMTokenManager.saveFCMTokenToBackend(context, body.data.user.id)
 
                     Log.d("LoginScreen", "Login API berhasil. User: ${body.data.user.name}")
                     // 5. Navigasi ke Home

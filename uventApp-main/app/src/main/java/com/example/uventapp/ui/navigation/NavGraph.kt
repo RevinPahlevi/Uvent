@@ -146,7 +146,11 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.Notifications.route) {
-            com.example.uventapp.ui.screen.notification.NotificationScreen(navController)
+            val userId = profileViewModel.profile.value?.id ?: 0
+            com.example.uventapp.ui.screen.notification.NotificationScreen(
+                navController = navController,
+                userId = userId
+            )
         }
 
         // ===== FITUR BARU: Participant List Screen =====

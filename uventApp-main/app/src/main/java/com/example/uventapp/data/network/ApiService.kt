@@ -7,6 +7,10 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import com.example.uventapp.data.model.GetNotificationsResponse
+import com.example.uventapp.data.model.MarkAsReadResponse
+import com.example.uventapp.data.model.SaveFCMTokenRequest
+import com.example.uventapp.data.model.SaveFCMTokenResponse
 
 interface ApiService {
 
@@ -153,6 +157,32 @@ interface ApiService {
         @Path("eventId") eventId: Int,
         @Path("nim") nim: String
     ): Call<CheckNimResponse>
+    
+    // ===== NOTIFICATION API =====
+    
+    // Get user notifications
+    @GET("notifications/user/{userId}")
+    fun getUserNotifications(
+        @Path("userId") userId: Int
+    ): Call<GetNotificationsResponse>
+    
+    // Mark notification as read
+    @PUT("notifications/{id}/read")
+    fun markNotificationAsRead(
+        @Path("id") notificationId: Int
+    ): Call<MarkAsReadResponse>
+    
+    // Mark all notifications as read
+    @PUT("notifications/user/{userId}/read-all")
+    fun markAllNotificationsAsRead(
+        @Path("userId") userId: Int
+    ): Call<MarkAsReadResponse>
+    
+    // Save FCM token for push notifications
+    @POST("notifications/fcm-token")
+    fun saveFCMToken(
+        @Body request: SaveFCMTokenRequest
+    ): Call<SaveFCMTokenResponse>
     
     // ==================================================
 }
