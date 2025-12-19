@@ -84,7 +84,10 @@ fun EditEventScreen(
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
-    )
+    ).apply {
+        // Set minimum date ke hari ini (tidak bisa pilih tanggal lampau)
+        datePicker.minDate = System.currentTimeMillis() - 1000
+    }
     if (showDatePicker) {
         datePickerDialog.show()
         datePickerDialog.setOnDismissListener { showDatePicker = false }
@@ -241,7 +244,7 @@ fun EditEventScreen(
                         quota = kuota,
                         thumbnailUri = imageUri?.toString() ?: event.thumbnailUri
                     )
-                    viewModel.updateEvent(updatedEvent)
+                    viewModel.updateEvent(updatedEvent, context)
                     navController.popBackStack()
                 })
             }
@@ -275,7 +278,7 @@ private fun EditPosterUploadBox(
                         .crossfade(true)
                         .build(),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -283,7 +286,7 @@ private fun EditPosterUploadBox(
                 Image(
                     painter = painterResource(id = existingResId),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -364,7 +367,7 @@ private fun EditFormDropdownField(
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,

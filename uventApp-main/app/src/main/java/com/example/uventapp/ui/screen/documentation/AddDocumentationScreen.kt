@@ -30,7 +30,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.data.model.Documentation
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -41,17 +41,25 @@ import com.example.uventapp.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddDocumentationScreen(
     navController: NavController,
     viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel,
     eventId: Int?,
     docId: Int? // <-- PARAMETER BARU
 ) {
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    val context = LocalContext.current
+    
+    // Ambil ID user yang sedang login
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id
+    
+    val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
+        (viewModel.allEvents.value + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
     }
 
     // --- PERBAIKAN: Cari dokumen yang ada jika ini mode Edit ---
@@ -156,7 +164,14 @@ fun AddDocumentationScreen(
                         postTime = existingDoc?.postTime ?: currentTime,
                         isAnda = true
                     )
-                    viewModel.submitDocumentation(event.id, newDoc)
+                    
+                    // Kirim dokumentasi ke API dengan userId dan context
+                    if (currentUserId != null && currentUserId > 0) {
+                        viewModel.submitDocumentation(event.id, newDoc, currentUserId, context)
+                    } else {
+                        // Fallback: Gunakan ID 1 untuk testing jika belum login
+                        viewModel.submitDocumentation(event.id, newDoc, 1, context)
+                    }
 
                     // Kembali ke layar AllDocumentation
                     navController.navigate(Screen.AllDocumentation.createRoute(event.id)) {

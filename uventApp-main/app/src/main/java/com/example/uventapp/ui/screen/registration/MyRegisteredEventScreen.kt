@@ -1,5 +1,7 @@
 package com.example.uventapp.ui.screen.registration
 
+import coil.request.CachePolicy
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -51,6 +53,7 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.*
+import com.example.uventapp.utils.ImageUrlHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.ParseException
@@ -60,14 +63,41 @@ import java.util.Locale
 
 // --- HELPER FUNCTION ---
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
-    return try {
-        val eventEndString = "$date $timeEnd"
-        val formatter = SimpleDateFormat("d/M/yyyy HH:mm", Locale.getDefault())
-        val eventEndDate: Date = formatter.parse(eventEndString) ?: return false
-        val now = Date()
-        now.after(eventEndDate)
+    try {
+        // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
+        val dateParts = date.split("/")
+        if (dateParts.size != 3) return false
+        
+        val day = dateParts[0].toIntOrNull() ?: return false
+        val month = dateParts[1].toIntOrNull() ?: return false
+        val year = dateParts[2].toIntOrNull() ?: return false
+        
+        // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
+        val timeParts = timeEnd.split(":")
+        if (timeParts.size < 2) return false
+        
+        val hour = timeParts[0].toIntOrNull() ?: return false
+        val minute = timeParts[1].toIntOrNull() ?: return false
+        
+        // Buat Calendar untuk waktu akhir event
+        val eventEndCalendar = java.util.Calendar.getInstance()
+        eventEndCalendar.set(java.util.Calendar.YEAR, year)
+        eventEndCalendar.set(java.util.Calendar.MONTH, month - 1) // Calendar month is 0-indexed
+        eventEndCalendar.set(java.util.Calendar.DAY_OF_MONTH, day)
+        eventEndCalendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+        eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
+        eventEndCalendar.set(java.util.Calendar.SECOND, 0)
+        eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
+        
+        // Waktu sekarang
+        val now = java.util.Calendar.getInstance()
+        
+        // Event selesai jika waktu sekarang SETELAH waktu akhir event
+        return now.after(eventEndCalendar)
     } catch (e: Exception) {
-        false
+        // Jika ada error parsing, anggap event BELUM selesai (safe default)
+        android.util.Log.e("isEventFinished", "Error parsing date=$date, timeEnd=$timeEnd: ${e.message}")
+        return false
     }
 }
 
@@ -91,19 +121,20 @@ fun MyRegisteredEventScreen(
     // PERBAIKAN: Gunakan langsung state dari ViewModel, jangan difilter manual dari allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents // List event yang diikuti
+    val isLoadingCreatedEvents by viewModel.isLoadingCreatedEvents // Loading state
 
     // 3. Load Data saat Screen Dibuka
-    // Ini PENTING agar event yang baru dibuat langsung muncul
+    // Ini PENTING agar event yang baru dibuat/diikuti langsung muncul
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             viewModel.loadCreatedEvents(currentUserId, context)
+            viewModel.loadFollowedEvents(currentUserId, context) // Load event yang diikuti
         }
     }
 
     val notificationMessage by viewModel.notificationMessage
     var showDeleteDialog by remember { mutableStateOf<Int?>(null) }
     var showCancelDialog by remember { mutableStateOf<Event?>(null) }
-    var showSuccessBanner by remember { mutableStateOf<String?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
 
     // Efek Notifikasi Snackbar
@@ -118,21 +149,30 @@ fun MyRegisteredEventScreen(
             }
         }
     }
+    // Handle navigation from registration success and edit success
     LaunchedEffect(eventName) {
         if (eventName.isNotEmpty()) {
-            scope.launch {
+            if (eventName == "_return_to_followed") {
+                // Just switch to Diikuti tab without message
+                selectedTab = 1
+            } else if (eventName == "_no_change") {
+                // No changes made - just switch to Diikuti tab without message
+                selectedTab = 1
+            } else if (eventName == "_edit_success") {
+                // Show edit success message and switch to Diikuti tab
+                selectedTab = 1
                 snackbarHostState.showSnackbar(
-                    "Pendaftaran $eventName Berhasil",
+                    message = "Perubahan berhasil disimpan",
+                    duration = SnackbarDuration.Short
+                )
+            } else {
+                // Registration success - show message and switch to Diikuti tab
+                selectedTab = 1
+                snackbarHostState.showSnackbar(
+                    message = "Berhasil mendaftar event \"$eventName\"!",
                     duration = SnackbarDuration.Short
                 )
             }
-            selectedTab = 1 // Pindah otomatis ke tab "Diikuti"
-        }
-    }
-    LaunchedEffect(showSuccessBanner) {
-        if (showSuccessBanner != null) {
-            delay(3000L)
-            showSuccessBanner = null
         }
     }
 
@@ -183,8 +223,7 @@ fun MyRegisteredEventScreen(
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(White)
-                        .padding(vertical = 12.dp),
+                        .padding(top = 8.dp, bottom = 4.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -212,12 +251,27 @@ fun MyRegisteredEventScreen(
                             createdEvents.filter { it.type.equals(selectedCategory, ignoreCase = true) }
                         }
 
-                        if (filteredCreatedEvents.isNotEmpty()) {
-                            items(filteredCreatedEvents, key = { it.id }) { event ->
+                        // TAMPILKAN LOADING SKELETON saat data sedang dimuat
+                        if (isLoadingCreatedEvents) {
+                            items(3) { // Show 3 skeleton items
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFE0E0E0))
+                                )
+                            }
+                        } else if (filteredCreatedEvents.isNotEmpty()) {
+                            items(
+                                items = filteredCreatedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 CreatedEventCard(
                                     event = event,
                                     isFinished = isFinished,
+                                    navController = navController,
                                     onEditClick = {
                                         navController.navigate(Screen.EditEvent.createRoute(event.id))
                                     },
@@ -266,7 +320,10 @@ fun MyRegisteredEventScreen(
                         }
 
                         if (filteredFollowedEvents.isNotEmpty()) {
-                            items(filteredFollowedEvents, key = { it.id }) { event ->
+                            items(
+                                items = filteredFollowedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 MyEventCard(
                                     event = event,
@@ -291,21 +348,26 @@ fun MyRegisteredEventScreen(
                 }
             }
 
-            // --- DIALOGS & BANNERS ---
-            CancelSuccessBanner(
-                eventName = showSuccessBanner,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = paddingValues.calculateTopPadding() + 16.dp)
-                    .padding(horizontal = 16.dp)
-            )
+            // --- DIALOGS ---
             showCancelDialog?.let { eventToCancel ->
                 CancelConfirmationDialog(
                     eventName = eventToCancel.title,
                     onDismiss = { showCancelDialog = null },
                     onConfirm = {
-                        showSuccessBanner = eventToCancel.title
-                        viewModel.unfollowEvent(eventToCancel.id)
+                        viewModel.unfollowEvent(
+                            eventId = eventToCancel.id,
+                            context = context,
+                            onSuccess = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Pendaftaran berhasil dibatalkan")
+                                }
+                            },
+                            onError = { errorMsg ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(errorMsg)
+                                }
+                            }
+                        )
                         showCancelDialog = null
                     }
                 )
@@ -314,7 +376,7 @@ fun MyRegisteredEventScreen(
                 DeleteConfirmationDialog(
                     onDismiss = { showDeleteDialog = null },
                     onConfirm = {
-                        viewModel.deleteEvent(eventIdToCancel)
+                        viewModel.deleteEvent(eventIdToCancel, context)
                         showDeleteDialog = null
                         // Refresh data setelah delete
                         if (currentUserId != null) {
@@ -354,79 +416,148 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: 
 private fun CreatedEventCard(
     event: Event,
     isFinished: Boolean,
+    navController: NavController,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onLihatFeedbackClick: () -> Unit
 ) {
+    // Tentukan warna dan teks status verifikasi
+    val (verificationStatusText, verificationStatusColor) = when (event.status.lowercase()) {
+        "menunggu" -> "Diproses" to Color(0xFFFF9800) // Orange
+        "disetujui" -> "Disetujui" to Color(0xFF4CAF50) // Green
+        "ditolak" -> "Ditolak" to Color(0xFFE53935) // Red
+        else -> "Diproses" to Color(0xFFFF9800)
+    }
+    
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
-                    .crossfade(true)
-                    .build(),
-                placeholder = painterResource(R.drawable.placeholder_poster),
-                contentDescription = "Event Poster",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .width(80.dp)
-                    .height(90.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        Box {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-                Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
-                EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // Fix image URL for Android
+                val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
+                    ?: event.thumbnailResId
+                    ?: R.drawable.placeholder_poster
+                
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageSource)
+                        .crossfade(false) // Disable crossfade to prevent flash
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)  // Disable disk cache
+                        .build(),
+                    error = painterResource(R.drawable.placeholder_poster),
+                    contentDescription = "Event Poster",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(90.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
-                    if (isFinished) {
-                        Button(
-                            onClick = onLihatFeedbackClick,
-                            modifier = Modifier.height(32.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen, contentColor = Color.White),
-                            contentPadding = PaddingValues(horizontal = 10.dp)
-                        ) {
-                            Text("Lihat Feedback", fontSize = 11.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
-                        }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Button(
-                                onClick = onEditClick,
-                                modifier = Modifier.height(32.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-                                contentPadding = PaddingValues(horizontal = 10.dp)
-                            ) { Text("Edit", fontSize = 11.sp) }
-                            Button(
-                                onClick = onDeleteClick,
-                                modifier = Modifier.height(32.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                contentPadding = PaddingValues(horizontal = 10.dp)
-                            ) { Text("Hapus", fontSize = 11.sp) }
+                    Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+                    Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
+                    EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
+                        
+                        // Tampilkan tombol berdasarkan status
+                        when {
+                            isFinished && event.status.lowercase() == "disetujui" -> {
+                                // Event selesai dan disetujui - tampilkan tombol Lihat Feedback
+                                Button(
+                                    onClick = onLihatFeedbackClick,
+                                    modifier = Modifier.height(32.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen, contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 10.dp)
+                                ) {
+                                    Text("Lihat Feedback", fontSize = 11.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                            event.status.lowercase() == "disetujui" && !isFinished -> {
+                                // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = {
+                                            navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
+                                        },
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Peserta", fontSize = 11.sp) }
+                                    Button(
+                                        onClick = onEditClick,
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Edit", fontSize = 11.sp) }
+                                    Button(
+                                        onClick = onDeleteClick,
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Hapus", fontSize = 11.sp) }
+                                }
+                            }
+                            event.status.lowercase() == "menunggu" -> {
+                                // Event masih menunggu verifikasi - hanya tombol Hapus
+                                Button(
+                                    onClick = onDeleteClick,
+                                    modifier = Modifier.height(32.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 10.dp)
+                                ) { Text("Batalkan", fontSize = 11.sp) }
+                            }
+                            event.status.lowercase() == "ditolak" -> {
+                                // Event ditolak - hanya tombol Hapus
+                                Button(
+                                    onClick = onDeleteClick,
+                                    modifier = Modifier.height(32.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 10.dp)
+                                ) { Text("Hapus", fontSize = 11.sp) }
+                            }
                         }
                     }
                 }
             }
+            
+            // Status Badge di pojok kanan atas
+            Text(
+                text = verificationStatusText,
+                color = White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .background(
+                        color = verificationStatusColor,
+                        shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
         }
     }
 }
@@ -467,9 +598,19 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
     ) {
         Box {
             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
+                // Fix image URL for Android
+                val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
+                    ?: event.thumbnailResId
+                    ?: R.drawable.placeholder_poster
+                
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current).data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster).crossfade(true).build(),
-                    placeholder = painterResource(R.drawable.placeholder_poster),
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageSource)
+                        .crossfade(false) // Disable crossfade
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)   // Disable disk cache
+                        .build(),
+                    error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.width(80.dp).height(90.dp).clip(RoundedCornerShape(8.dp))
@@ -505,11 +646,22 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
 
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    val borderColor = if (isSelected) PrimaryGreen else Color.LightGray
-    val containerColor = if (isSelected) PrimaryGreen else White
-    val contentColor = if (isSelected) White else Color.Gray
-    Button(onClick = onClick, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor), border = BorderStroke(1.dp, borderColor), elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(text = text, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) PrimaryGreen else White,
+            contentColor = if (isSelected) White else Color.Gray
+        ),
+        border = if (!isSelected) BorderStroke(1.dp, Color.LightGray) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }
 
@@ -542,21 +694,6 @@ fun CancelConfirmationDialog(eventName: String, onDismiss: () -> Unit, onConfirm
     }
 }
 
-@Composable
-fun CancelSuccessBanner(eventName: String?, modifier: Modifier = Modifier) {
-    AnimatedVisibility(visible = eventName != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically(), modifier = modifier) {
-        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(4.dp), border = BorderStroke(2.dp, PrimaryGreen)) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Success", tint = PrimaryGreen, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(text = eventName ?: "", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 15.sp)
-                    Text(text = "Pendaftaran Event Dibatalkan", fontSize = 13.sp, color = Color.DarkGray)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun DeleteConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {

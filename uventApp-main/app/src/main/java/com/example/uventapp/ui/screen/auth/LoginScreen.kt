@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -36,6 +37,7 @@ import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
 // --- Import Pengecek Jaringan ---
 import com.example.uventapp.utils.isNetworkAvailable
+import com.example.uventapp.utils.FCMTokenManager
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -77,9 +79,12 @@ fun LoginScreen(
                 // 4. Cek jika API sukses DAN status-nya "success"
                 if (response.isSuccessful && body?.status == "success" && body.data != null) {
 
-                    // --- PENTING: Simpan data user ke ViewModel ---
-                    profileViewModel.saveUserProfile(body.data.user)
+                    // --- PENTING: Simpan data user ke ViewModel dan SharedPreferences ---
+                    profileViewModel.saveUserProfile(body.data.user, context)
                     // ----------------------------------------------
+                    
+                    // Save FCM token to backend for push notifications
+                    FCMTokenManager.saveFCMTokenToBackend(context, body.data.user.id)
 
                     Log.d("LoginScreen", "Login API berhasil. User: ${body.data.user.name}")
                     // 5. Navigasi ke Home
@@ -107,7 +112,14 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(LightBackground),
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        LightBackground,
+                        Color(0xFFE8F5E9) // Subtle green tint at bottom
+                    )
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -116,7 +128,7 @@ fun LoginScreen(
         ) {
             Text(
                 text = "Masuk",
-                style = MaterialTheme.typography.headlineMedium.copy(
+                style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = PrimaryGreen
                 ),
@@ -124,17 +136,17 @@ fun LoginScreen(
             )
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
+                    .fillMaxWidth(0.88f)
                     .padding(horizontal = 16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier.padding(28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
                     AuthInputField(
                         value = email,

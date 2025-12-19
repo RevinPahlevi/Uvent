@@ -9,5 +9,6 @@ data class Registration(
     val jurusan: String,
     val email: String,
     val phone: String,
-    val krsUri: String? // Simpan URI sebagai String
+    val krsUri: String?, // Simpan URI sebagai String
+    val registrationId: Int? = null // ID dari backend untuk cancel registration
 )

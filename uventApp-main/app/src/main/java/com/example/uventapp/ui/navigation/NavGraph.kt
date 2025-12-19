@@ -25,7 +25,7 @@ import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
-import com.example.uventapp.ui.screen.notification.NotificationScreen
+import com.example.uventapp.ui.screen.participants.ParticipantListScreen // IMPORT BARU
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -40,14 +40,14 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Login.route) { LoginScreen(navController, profileViewModel) }
         composable(Screen.Register.route) { RegistrationScreen(navController, profileViewModel) }
         composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel) }
-        composable(Screen.Notification.route) { NotificationScreen(navController = navController) }
+        composable(Screen.EventList.route) { EventListScreen(navController, eventViewModel, profileViewModel) }
+
         composable(
             route = Screen.DetailEvent.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            DetailEventScreen(navController, eventId, eventViewModel)
+            DetailEventScreen(navController, eventId, eventViewModel, profileViewModel)
         }
 
         composable(
@@ -55,7 +55,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            RegistrationFormScreen(navController, eventViewModel, eventId)
+            RegistrationFormScreen(navController, eventViewModel, profileViewModel, eventId)
         }
 
         composable(
@@ -108,14 +108,14 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AddFeedbackScreen(navController, eventViewModel, eventId)
+            AddFeedbackScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AllFeedback.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllFeedbackScreen(navController, eventViewModel, eventId)
+            AllFeedbackScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AllDocumentation.route,
@@ -138,7 +138,7 @@ fun NavGraph(navController: NavHostController) {
             val eventId = backStackEntry.arguments?.getInt("eventId")
             val docIdString = backStackEntry.arguments?.getString("docId")
             val docId = docIdString?.toIntOrNull()
-            AddDocumentationScreen(navController, eventViewModel, eventId, docId)
+            AddDocumentationScreen(navController, eventViewModel, profileViewModel, eventId, docId)
         }
 
         composable(Screen.Profile.route) {
@@ -146,7 +146,25 @@ fun NavGraph(navController: NavHostController) {
         }
 
         composable(Screen.Notifications.route) {
-            com.example.uventapp.ui.screen.notification.NotificationScreen(navController)
+            val userId = profileViewModel.profile.value?.id ?: 0
+            com.example.uventapp.ui.screen.notification.NotificationScreen(
+                navController = navController,
+                userId = userId
+            )
         }
+
+        // ===== FITUR BARU: Participant List Screen =====
+        composable(
+            route = Screen.ParticipantList.route,
+            arguments = listOf(
+                navArgument("eventId") { type = NavType.IntType },
+                navArgument("eventTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId") ?: 0
+            val eventTitle = backStackEntry.arguments?.getString("eventTitle") ?: ""
+            ParticipantListScreen(navController, eventId, eventTitle)
+        }
+        // ===============================================
     }
 }
