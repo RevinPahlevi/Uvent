@@ -26,32 +26,118 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         
         Log.d(TAG, "Message received from: ${message.from}")
+        Log.d(TAG, "Message data: ${message.data}")
         
-        message.notification?.let {
-            showNotification(it.title ?: "Uvent", it.body ?: "")
+        // Get notification type and related data
+        val type = message.data["type"]
+        val relatedId = message.data["related_id"]?.toIntOrNull() ?: 0
+        val eventTitle = message.data["event_title"] ?: ""
+        
+        val title = message.notification?.title ?: "Uvent"
+        val body = message.notification?.body ?: ""
+        
+        when (type) {
+            "feedback_reminder" -> {
+                Log.d(TAG, "Handling feedback_reminder for event: $relatedId")
+                showFeedbackNotification(title, body, relatedId)
+            }
+            "new_feedback" -> {
+                // Notification for event creator when someone gives feedback
+                showEventNotification(title, body, relatedId)
+            }
+            else -> {
+                // Generic notification
+                showNotification(title, body)
+            }
         }
     }
     
+    /**
+     * Show notification for feedback reminder - navigates to AddFeedbackScreen
+     */
+    private fun showFeedbackNotification(title: String, body: String, eventId: Int) {
+        val channelId = "uvent_notifications"
+        
+        createNotificationChannel(channelId)
+        
+        // Intent to open app with deep link to feedback screen
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "feedback")
+            putExtra("event_id", eventId)
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            eventId, // Use eventId as request code for uniqueness
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(R.drawable.ic_notification_uvent)
+            .setColor(0xFF4CAF50.toInt())
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .build()
+        
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(eventId, notification)
+        
+        Log.d(TAG, "Feedback notification shown for event: $eventId")
+    }
+    
+    /**
+     * Show notification with deep link to event detail
+     */
+    private fun showEventNotification(title: String, body: String, eventId: Int) {
+        val channelId = "uvent_notifications"
+        
+        createNotificationChannel(channelId)
+        
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "event_detail")
+            putExtra("event_id", eventId)
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            eventId + 10000, // Offset to avoid collision with feedback notifications
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(R.drawable.ic_notification_uvent)
+            .setColor(0xFF4CAF50.toInt())
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .build()
+        
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(eventId + 10000, notification)
+        
+        Log.d(TAG, "Event notification shown for event: $eventId")
+    }
+    
+    /**
+     * Show generic notification (no deep link)
+     */
     private fun showNotification(title: String, body: String) {
         val channelId = "uvent_notifications"
         
-        // Create notification channel (Android 8.0+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Uvent Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for event registrations and updates"
-                enableVibration(true)
-                enableLights(true)
-            }
-            
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
-        }
+        createNotificationChannel(channelId)
         
-        // Intent to open app
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -63,26 +149,46 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         
-        // Build notification with Uvent branding
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.drawable.ic_notification_uvent) // Uvent U icon
-            .setColor(0xFF4CAF50.toInt()) // Uvent green color
+            .setSmallIcon(R.drawable.ic_notification_uvent)
+            .setColor(0xFF4CAF50.toInt())
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setVibrate(longArrayOf(0, 500, 200, 500))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body)) // Allow long text
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .build()
         
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
         
-        Log.d(TAG, "Notification shown: $title")
+        Log.d(TAG, "Generic notification shown: $title")
+    }
+    
+    /**
+     * Create notification channel (Android 8.0+)
+     */
+    private fun createNotificationChannel(channelId: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Uvent Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for event registrations, feedback, and updates"
+                enableVibration(true)
+                enableLights(true)
+            }
+            
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
     }
     
     companion object {
         private const val TAG = "FCM_Service"
     }
 }
+

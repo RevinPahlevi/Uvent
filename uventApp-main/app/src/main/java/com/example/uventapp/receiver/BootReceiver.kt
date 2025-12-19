@@ -4,11 +4,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.example.uventapp.worker.EventFeedbackWorker
 
 /**
- * BroadcastReceiver that listens for device boot completion
- * and reschedules the WorkManager job for background notifications
+ * BroadcastReceiver that listens for device boot completion.
+ * 
+ * Note: EventFeedbackWorker has been removed.
+ * Feedback notifications are now handled by backend via Firebase FCM.
+ * This receiver is kept for potential future use cases.
  */
 class BootReceiver : BroadcastReceiver() {
     
@@ -20,15 +22,11 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
             intent.action == "android.intent.action.QUICKBOOT_POWERON") {
             
-            Log.d(TAG, "Device boot completed - rescheduling background worker")
+            Log.d(TAG, "Device boot completed")
             
-            // Reschedule the periodic worker after device reboot
-            EventFeedbackWorker.schedule(context)
-            
-            // Also run once immediately to check for any ended events
-            EventFeedbackWorker.runOnce(context)
-            
-            Log.d(TAG, "Background worker rescheduled after boot")
+            // Note: EventFeedbackWorker is no longer used
+            // Feedback reminder notifications are now sent from backend via FCM
+            // No action needed on device boot
         }
     }
 }

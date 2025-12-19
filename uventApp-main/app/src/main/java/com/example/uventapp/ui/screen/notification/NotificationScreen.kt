@@ -166,8 +166,21 @@ fun NotificationScreen(
                                         viewModel.markAsRead(notification.id, userId)
                                     }
                                     
-                                    // Navigate to related screen if needed
-                                    // TODO: Handle navigation berdasarkan notification.type
+                                    // Navigate based on notification type
+                                    val relatedId = notification.relatedId
+                                    if (relatedId != null && relatedId > 0) {
+                                        when (notification.type) {
+                                            "feedback_reminder" -> {
+                                                // Navigate to add feedback screen
+                                                navController.navigate("add_feedback/$relatedId")
+                                            }
+                                            "new_feedback", "registration" -> {
+                                                // Navigate to event detail
+                                                navController.navigate("detail_event/$relatedId")
+                                            }
+                                            // Add more types as needed
+                                        }
+                                    }
                                 }
                             )
                         }
