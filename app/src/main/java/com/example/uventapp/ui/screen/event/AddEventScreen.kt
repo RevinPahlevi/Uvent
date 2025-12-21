@@ -337,22 +337,14 @@ fun AddEventScreen(
                         else -> "Detail Lokasi"
                     }
                     val locationPlaceholder = when (platformType) {
-<<<<<<< HEAD:app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
-                        "Online" -> "Masukkan link (Zoom/GMeet/Teams)"
-                        "Offline" -> "Masukkan lokasi event"
-                        else -> "Masukkan detail lokasi"
-=======
                         "Online" -> "https://meet.google.com/xxx atau https://zoom.us/j/xxx"
                         "Offline" -> "Contoh: Gedung A Lantai 2, Ruang 201"
                         else -> "Masukkan lokasi event"
->>>>>>> 82d5226370c90fb58dc7eabd0094e85d78386693:uventApp-main/app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
                     }
                     val locationKeyboardType = when (platformType) {
                         "Online" -> KeyboardType.Uri
                         else -> KeyboardType.Text
                     }
-<<<<<<< HEAD:app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
-=======
                     
                     Text(
                         text = locationLabel,
@@ -361,21 +353,14 @@ fun AddEventScreen(
                         color = Color(0xFF333333),
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
->>>>>>> 82d5226370c90fb58dc7eabd0094e85d78386693:uventApp-main/app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
                     OutlinedTextField(
                         value = locationDetail,
                         onValueChange = { locationDetail = it },
                         modifier = Modifier.fillMaxWidth(),
-<<<<<<< HEAD:app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
-                        placeholder = { Text(locationPlaceholder, color = Color.Gray) },
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-=======
                         placeholder = { Text(locationPlaceholder, color = Color.Gray, fontSize = 13.sp) },
                         shape = RoundedCornerShape(8.dp),
                         singleLine = false,
                         maxLines = 2,
->>>>>>> 82d5226370c90fb58dc7eabd0094e85d78386693:uventApp-main/app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
                         keyboardOptions = KeyboardOptions(keyboardType = locationKeyboardType),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PrimaryGreen,
@@ -508,11 +493,7 @@ private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-<<<<<<< HEAD:app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
-            .height(240.dp)
-=======
             .aspectRatio(2f / 3f) // Standard portrait poster ratio
->>>>>>> 82d5226370c90fb58dc7eabd0094e85d78386693:uventApp-main/app/src/main/java/com/example/uventapp/ui/screen/event/AddEventScreen.kt
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFFF0FFF0)) // Light green background
             .border(
