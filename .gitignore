@@ -1,5 +1,6 @@
 # Gradle
 .gradle/
+.kotlin/
 build/
 */build/
 local.properties
@@ -26,3 +27,6 @@ captures/
 # Misc
 /.tmp
 *.orig
+
+# Heap dump files
+*.hprof

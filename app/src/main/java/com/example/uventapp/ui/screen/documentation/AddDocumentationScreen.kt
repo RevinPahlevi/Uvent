@@ -30,7 +30,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.data.model.Documentation
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -58,8 +58,8 @@ fun AddDocumentationScreen(
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
     
-    val event = remember(eventId, viewModel.createdEvents.value, dummyEvents, viewModel.followedEvents) {
-        (dummyEvents + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
+        (viewModel.allEvents.value + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
     }
 
     // --- PERBAIKAN: Cari dokumen yang ada jika ini mode Edit ---

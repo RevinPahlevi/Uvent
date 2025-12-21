@@ -2,6 +2,7 @@ package com.example.uventapp.ui.screen.event
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,11 +34,15 @@ import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.*
 import com.example.uventapp.data.model.Event
 import com.example.uventapp.utils.ImageUrlHelper
+import com.example.uventapp.utils.EventTimeHelper
+
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
 
 @Composable
 fun EventListScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel
+    viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel
 ) {
     val categories = listOf("Semua", "Seminar", "Workshop", "Talkshow", "Skill Lab")
 
@@ -46,31 +51,72 @@ fun EventListScreen(
 
     val context = LocalContext.current
 
+    // Get current user ID dari ProfileViewModel (RELIABLE!)
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id ?: -1
+    
+    android.util.Log.d("EventListScreen", "Current user profile: $currentUserProfile")
+    android.util.Log.d("EventListScreen", "Current userId: $currentUserId")
+
+    // Load all events on startup
     LaunchedEffect(key1 = true) {
         viewModel.loadAllEvents(context)
+    }
+
+    // Load data saat screen dibuka - dengan logging untuk debug
+    LaunchedEffect(key1 = currentUserId) {
+        android.util.Log.d("EventListScreen", "LaunchedEffect triggered with userId: $currentUserId")
+        if (currentUserId != -1) {
+            android.util.Log.d("EventListScreen", "Loading createdEvents and followedEvents...")
+            viewModel.loadFollowedEvents(currentUserId, context)
+            viewModel.loadCreatedEvents(currentUserId, context)
+        } else {
+            android.util.Log.w("EventListScreen", "userId is -1, skipping createdEvents/followedEvents load")
+        }
     }
 
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
-
-    // Daftar event yang tersedia (sudah difilter dari yang diikuti)
-    val allAvailableEvents = remember(allEvents, createdEvents, followedEvents) {
-        val followedEventIds = followedEvents.map { it.id }.toSet()
-        val combinedEvents = (allEvents + createdEvents).distinctBy { it.id }
-        combinedEvents.filter { it.id !in followedEventIds }
+    val isLoading by viewModel.isLoadingAllEvents
+    
+    // Debug: Log changes in createdEvents
+    LaunchedEffect(createdEvents.size) {
+        android.util.Log.d("EventListScreen", "createdEvents size changed: ${createdEvents.size}")
+        createdEvents.forEach { 
+            android.util.Log.d("EventListScreen", "  - Created event: ${it.id} - ${it.title}")
+        }
+    }
+    LaunchedEffect(followedEvents.size) {
+        android.util.Log.d("EventListScreen", "followedEvents size changed: ${followedEvents.size}")
+        followedEvents.forEach {
+            android.util.Log.d("EventListScreen", "  - Followed event: ${it.id} - ${it.title}")
+        }
+    }
+    
+    // CRITICAL: Pre-compute badge status OUTSIDE items loop untuk reliable recomposition
+    val eventBadgeStatus = remember(createdEvents, followedEvents) {
+        val createdIds = createdEvents.map { it.id }.toSet()
+        val followedIds = followedEvents.map { it.id }.toSet()
+        android.util.Log.d("EventListScreen", "Computing badge status: created=${createdIds.size}, followed=${followedIds.size}")
+        
+        mapOf(
+            "created" to createdIds,
+            "followed" to followedIds
+        )
     }
 
-    // --- PERBAIKAN DI SINI ---
-    // Gunakan derivedStateOf agar filteredEvents *selalu* otomatis
-    // menghitung ulang nilainya ketika salah satu (allAvailableEvents,
-    // selectedCategory, atau searchText) berubah.
-    val filteredEvents by remember(allAvailableEvents, selectedCategory, searchText) {
+    // PERBAIKAN BESAR: TIDAK ADA FILTER! Semua event ditampilkan.
+    // Hanya filter berdasarkan kategori dan search, TIDAK filter by user
+    val filteredEvents by remember(allEvents, selectedCategory, searchText) {
         derivedStateOf {
-            allAvailableEvents.filter { event ->
+            allEvents.filter { event ->
+                // Filter HANYA berdasarkan kategori dan search text
                 val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
                 val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
-                categoryMatch && searchMatch
+                // Filter event yang sudah selesai
+                val notFinished = !EventTimeHelper.isEventFinished(event.date, event.timeEnd)
+                categoryMatch && searchMatch && notFinished
             }
         }
     }
@@ -119,7 +165,7 @@ fun EventListScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 8.dp, bottom = 4.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -134,21 +180,47 @@ fun EventListScreen(
                 }
             }
 
-            if (filteredEvents.isNotEmpty()) {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(filteredEvents, key = { it.id }) { event ->
-                        EventCard(
-                            event = event,
-                            onClick = { navController.navigate(Screen.DetailEvent.createRoute(event.id)) }
-                        )
+            // ✅ PERBAIKAN: 3-state logic dengan loading indicator
+            when {
+                isLoading -> {
+                    // State 1: Loading - show CircularProgressIndicator
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = PrimaryGreen)
                     }
                 }
-            } else {
-                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
-                    Text("Tidak ada event ditemukan", color = Color.Gray)
+                filteredEvents.isNotEmpty() -> {
+                    // State 2: Has data - show event list
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredEvents, key = { it.id }) { event ->
+                            // Get badge status from pre-computed map
+                            val isMyEvent = eventBadgeStatus["created"]?.contains(event.id) == true
+                            val isRegistered = eventBadgeStatus["followed"]?.contains(event.id) == true
+                            
+                            android.util.Log.d("EventListScreen", "Event ${event.id}: isMyEvent=$isMyEvent, isRegistered=$isRegistered")
+                            
+                            EventCard(
+                                event = event,
+                                isMyEvent = isMyEvent,
+                                isRegistered = isRegistered,
+                                onClick = { navController.navigate(Screen.DetailEvent.createRoute(event.id)) }
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // State 3: Empty - show empty message (ONLY when NOT loading)
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Tidak ada event ditemukan", color = Color.Gray)
+                    }
                 }
             }
         }
@@ -159,18 +231,18 @@ fun EventListScreen(
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(6.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) PrimaryGreen else White,
             contentColor = if (isSelected) White else Color.Gray
         ),
         border = if (!isSelected) BorderStroke(1.dp, Color.LightGray) else null,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
@@ -178,7 +250,12 @@ fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun EventCard(event: Event, onClick: () -> Unit) {
+fun EventCard(
+    event: Event,
+    isMyEvent: Boolean = false,
+    isRegistered: Boolean = false,
+    onClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -187,44 +264,85 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Fix image URL for Android
-            val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
-                ?: event.thumbnailResId
-                ?: R.drawable.placeholder_poster
-            
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageSource)
-                    .crossfade(true)
-                    .build(),
-                placeholder = painterResource(R.drawable.placeholder_poster),
-                error = painterResource(R.drawable.placeholder_poster),
-                contentDescription = "Event Poster",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
+        Box {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Fix image URL for Android
+                val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
+                    ?: event.thumbnailResId
+                    ?: R.drawable.placeholder_poster
+                
+                // PERBAIKAN: Disable cache untuk fix flash gambar lama
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageSource)
+                        .diskCachePolicy(coil.request.CachePolicy.DISABLED)
+                        .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                        .build(),
+                    error = painterResource(R.drawable.placeholder_poster),
+                    contentDescription = "Event Poster",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
 
-            Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Column {
-                Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
-                Text(event.type, fontSize = 14.sp, color = PrimaryGreen, modifier = Modifier.padding(bottom = 4.dp))
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+                    Text(event.type, fontSize = 14.sp, color = PrimaryGreen, modifier = Modifier.padding(bottom = 4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CalendarToday, contentDescription = "Tanggal", tint = Color.Gray, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("${event.date} - ${event.timeStart}", fontSize = 12.sp, color = Color.Gray)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.CalendarToday, contentDescription = "Tanggal", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("${event.date} - ${event.timeStart}", fontSize = 12.sp, color = Color.Gray)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.LocationOn, contentDescription = "Lokasi", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(event.locationDetail, fontSize = 12.sp, color = Color.Gray)
+                    }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = "Lokasi", tint = Color.Gray, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(event.locationDetail, fontSize = 12.sp, color = Color.Gray)
+            }
+            
+            // Badge status di POJOK KANAN ATAS (EXACT sama dengan MyRegisteredEventScreen)
+            when {
+                isMyEvent -> {
+                    // Badge hijau untuk event yang user buat
+                    Text(
+                        text = "Event Anda",
+                        color = White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .background(
+                                color = PrimaryGreen,
+                                shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+                isRegistered -> {
+                    // Badge biru untuk event yang sudah didaftar
+                    Text(
+                        text = "Terdaftar",
+                        color = White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .background(
+                                color = Color(0xFF2196F3),
+                                shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp)
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
                 }
             }
         }

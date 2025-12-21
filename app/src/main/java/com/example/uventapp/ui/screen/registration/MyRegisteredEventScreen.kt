@@ -1,5 +1,7 @@
 package com.example.uventapp.ui.screen.registration
 
+import coil.request.CachePolicy
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -119,19 +121,20 @@ fun MyRegisteredEventScreen(
     // PERBAIKAN: Gunakan langsung state dari ViewModel, jangan difilter manual dari allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents // List event yang diikuti
+    val isLoadingCreatedEvents by viewModel.isLoadingCreatedEvents // Loading state
 
     // 3. Load Data saat Screen Dibuka
-    // Ini PENTING agar event yang baru dibuat langsung muncul
+    // Ini PENTING agar event yang baru dibuat/diikuti langsung muncul
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             viewModel.loadCreatedEvents(currentUserId, context)
+            viewModel.loadFollowedEvents(currentUserId, context) // Load event yang diikuti
         }
     }
 
     val notificationMessage by viewModel.notificationMessage
     var showDeleteDialog by remember { mutableStateOf<Int?>(null) }
     var showCancelDialog by remember { mutableStateOf<Event?>(null) }
-    var showSuccessBanner by remember { mutableStateOf<String?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
 
     // Efek Notifikasi Snackbar
@@ -146,21 +149,30 @@ fun MyRegisteredEventScreen(
             }
         }
     }
+    // Handle navigation from registration success and edit success
     LaunchedEffect(eventName) {
         if (eventName.isNotEmpty()) {
-            scope.launch {
+            if (eventName == "_return_to_followed") {
+                // Just switch to Diikuti tab without message
+                selectedTab = 1
+            } else if (eventName == "_no_change") {
+                // No changes made - just switch to Diikuti tab without message
+                selectedTab = 1
+            } else if (eventName == "_edit_success") {
+                // Show edit success message and switch to Diikuti tab
+                selectedTab = 1
                 snackbarHostState.showSnackbar(
-                    "Pendaftaran $eventName Berhasil",
+                    message = "Perubahan berhasil disimpan",
+                    duration = SnackbarDuration.Short
+                )
+            } else {
+                // Registration success - show message and switch to Diikuti tab
+                selectedTab = 1
+                snackbarHostState.showSnackbar(
+                    message = "Berhasil mendaftar event \"$eventName\"!",
                     duration = SnackbarDuration.Short
                 )
             }
-            selectedTab = 1 // Pindah otomatis ke tab "Diikuti"
-        }
-    }
-    LaunchedEffect(showSuccessBanner) {
-        if (showSuccessBanner != null) {
-            delay(3000L)
-            showSuccessBanner = null
         }
     }
 
@@ -211,8 +223,7 @@ fun MyRegisteredEventScreen(
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(White)
-                        .padding(vertical = 12.dp),
+                        .padding(top = 8.dp, bottom = 4.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -240,12 +251,27 @@ fun MyRegisteredEventScreen(
                             createdEvents.filter { it.type.equals(selectedCategory, ignoreCase = true) }
                         }
 
-                        if (filteredCreatedEvents.isNotEmpty()) {
-                            items(filteredCreatedEvents, key = { it.id }) { event ->
+                        // TAMPILKAN LOADING SKELETON saat data sedang dimuat
+                        if (isLoadingCreatedEvents) {
+                            items(3) { // Show 3 skeleton items
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFE0E0E0))
+                                )
+                            }
+                        } else if (filteredCreatedEvents.isNotEmpty()) {
+                            items(
+                                items = filteredCreatedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 CreatedEventCard(
                                     event = event,
                                     isFinished = isFinished,
+                                    navController = navController,
                                     onEditClick = {
                                         navController.navigate(Screen.EditEvent.createRoute(event.id))
                                     },
@@ -294,7 +320,10 @@ fun MyRegisteredEventScreen(
                         }
 
                         if (filteredFollowedEvents.isNotEmpty()) {
-                            items(filteredFollowedEvents, key = { it.id }) { event ->
+                            items(
+                                items = filteredFollowedEvents,
+                                key = { event -> "${event.id}_${event.thumbnailUri}" }
+                            ) { event ->
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 MyEventCard(
                                     event = event,
@@ -319,21 +348,26 @@ fun MyRegisteredEventScreen(
                 }
             }
 
-            // --- DIALOGS & BANNERS ---
-            CancelSuccessBanner(
-                eventName = showSuccessBanner,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = paddingValues.calculateTopPadding() + 16.dp)
-                    .padding(horizontal = 16.dp)
-            )
+            // --- DIALOGS ---
             showCancelDialog?.let { eventToCancel ->
                 CancelConfirmationDialog(
                     eventName = eventToCancel.title,
                     onDismiss = { showCancelDialog = null },
                     onConfirm = {
-                        showSuccessBanner = eventToCancel.title
-                        viewModel.unfollowEvent(eventToCancel.id)
+                        viewModel.unfollowEvent(
+                            eventId = eventToCancel.id,
+                            context = context,
+                            onSuccess = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Pendaftaran berhasil dibatalkan")
+                                }
+                            },
+                            onError = { errorMsg ->
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(errorMsg)
+                                }
+                            }
+                        )
                         showCancelDialog = null
                     }
                 )
@@ -382,6 +416,7 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: 
 private fun CreatedEventCard(
     event: Event,
     isFinished: Boolean,
+    navController: NavController,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onLihatFeedbackClick: () -> Unit
@@ -413,9 +448,10 @@ private fun CreatedEventCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(true)
+                        .crossfade(false) // Disable crossfade to prevent flash
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)  // Disable disk cache
                         .build(),
-                    placeholder = painterResource(R.drawable.placeholder_poster),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,
@@ -456,21 +492,30 @@ private fun CreatedEventCard(
                                 }
                             }
                             event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - tampilkan Edit & Hapus
+                                // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = {
+                                            navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
+                                        },
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Peserta", fontSize = 11.sp) }
                                     Button(
                                         onClick = onEditClick,
                                         modifier = Modifier.height(32.dp),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
                                     ) { Text("Edit", fontSize = 11.sp) }
                                     Button(
                                         onClick = onDeleteClick,
                                         modifier = Modifier.height(32.dp),
                                         shape = RoundedCornerShape(8.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 10.dp)
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
                                     ) { Text("Hapus", fontSize = 11.sp) }
                                 }
                             }
@@ -561,9 +606,10 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(true)
+                        .crossfade(false) // Disable crossfade
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
+                        .diskCachePolicy(CachePolicy.DISABLED)   // Disable disk cache
                         .build(),
-                    placeholder = painterResource(R.drawable.placeholder_poster),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
                     contentScale = ContentScale.Crop,
@@ -600,11 +646,22 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
 
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    val borderColor = if (isSelected) PrimaryGreen else Color.LightGray
-    val containerColor = if (isSelected) PrimaryGreen else White
-    val contentColor = if (isSelected) White else Color.Gray
-    Button(onClick = onClick, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor), border = BorderStroke(1.dp, borderColor), elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(text = text, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) PrimaryGreen else White,
+            contentColor = if (isSelected) White else Color.Gray
+        ),
+        border = if (!isSelected) BorderStroke(1.dp, Color.LightGray) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+        )
     }
 }
 
@@ -637,21 +694,6 @@ fun CancelConfirmationDialog(eventName: String, onDismiss: () -> Unit, onConfirm
     }
 }
 
-@Composable
-fun CancelSuccessBanner(eventName: String?, modifier: Modifier = Modifier) {
-    AnimatedVisibility(visible = eventName != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically(), modifier = modifier) {
-        Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(4.dp), border = BorderStroke(2.dp, PrimaryGreen)) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Success", tint = PrimaryGreen, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(text = eventName ?: "", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 15.sp)
-                    Text(text = "Pendaftaran Event Dibatalkan", fontSize = 13.sp, color = Color.DarkGray)
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun DeleteConfirmationDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {

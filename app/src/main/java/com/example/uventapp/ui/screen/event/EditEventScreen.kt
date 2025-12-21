@@ -278,7 +278,7 @@ private fun EditPosterUploadBox(
                         .crossfade(true)
                         .build(),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -286,7 +286,7 @@ private fun EditPosterUploadBox(
                 Image(
                     painter = painterResource(id = existingResId),
                     contentDescription = "Poster Event",
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -367,7 +367,7 @@ private fun EditFormDropdownField(
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,

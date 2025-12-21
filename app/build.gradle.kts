@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -71,6 +72,21 @@ dependencies {
 
     // Coil untuk load gambar event (poster)
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // WorkManager for background tasks (notification scheduling)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // SwipeRefresh untuk pull-to-refresh (notification screen)
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.30.1")
+    
+    // Firebase BOM (manages all Firebase library versions)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    
+    // Firebase Cloud Messaging
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    
+    // Firebase Analytics (optional but recommended)
+    implementation("com.google.firebase:firebase-analytics-ktx")
 
     // Test
     testImplementation(libs.junit)

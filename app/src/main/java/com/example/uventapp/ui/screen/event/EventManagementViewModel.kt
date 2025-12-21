@@ -21,6 +21,7 @@ import com.example.uventapp.data.network.FeedbackResponse
 import com.example.uventapp.data.network.DocumentationRequest
 import com.example.uventapp.data.network.DocumentationResponse
 import com.example.uventapp.data.network.GetEventsResponse
+import com.example.uventapp.data.network.GetRegistrationsResponse
 import com.example.uventapp.data.network.UpdateEventRequest
 import com.example.uventapp.data.network.UpdateEventResponse
 import com.example.uventapp.data.network.DeleteResponse
@@ -30,7 +31,7 @@ import com.example.uventapp.data.network.UpdateDocumentationRequest
 import com.example.uventapp.data.network.UpdateDocumentationResponse
 import com.example.uventapp.data.network.UploadImageResponse
 import com.example.uventapp.utils.isNetworkAvailable
-import com.example.uventapp.data.model.dummyEvents
+// Removed dummy events import
 import android.net.Uri
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -109,6 +110,9 @@ class EventManagementViewModel : ViewModel() {
 
     private val _followedEvents = mutableStateListOf<Event>()
     val followedEvents: List<Event> = _followedEvents
+    
+    // Map eventId -> registrationId untuk cancel registration
+    private val _eventRegistrationIds = mutableMapOf<Int, Int>()
 
     private val _notificationMessage = mutableStateOf<String?>(null)
     val notificationMessage: State<String?> = _notificationMessage
@@ -127,6 +131,12 @@ class EventManagementViewModel : ViewModel() {
 
     private val _isUploading = mutableStateOf(false)
     val isUploading: State<Boolean> = _isUploading
+
+    private val _isLoadingCreatedEvents = mutableStateOf(false)
+    val isLoadingCreatedEvents: State<Boolean> = _isLoadingCreatedEvents
+
+    private val _isLoadingAllEvents = mutableStateOf(false)
+    val isLoadingAllEvents: State<Boolean> = _isLoadingAllEvents
 
     // Fungsi untuk upload gambar ke server dan mendapatkan URL
     fun uploadImage(
@@ -200,38 +210,122 @@ class EventManagementViewModel : ViewModel() {
         }
     }
 
-    fun loadAllEvents(context: Context) {
-        // Selalu set dummyEvents sebagai data awal
-        if (_allEvents.value.isEmpty()) {
-            _allEvents.value = dummyEvents
+    // ===== FITUR BARU: Upload file KRS (PDF) =====
+    fun uploadKRS(
+        context: Context,
+        krsUri: Uri,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        _isUploading.value = true
+        Log.d("UploadKRS", "=== UPLOAD KRS START ===")
+        Log.d("UploadKRS", "Input krsUri: $krsUri")
+        
+        try {
+            // Buat file sementara dari URI
+            val inputStream = context.contentResolver.openInputStream(krsUri)
+            val tempFile = File.createTempFile("krs_", ".pdf", context.cacheDir)
+            val outputStream = FileOutputStream(tempFile)
+            
+            inputStream?.copyTo(outputStream)
+            inputStream?.close()
+            outputStream.close()
+            
+            Log.d("UploadKRS", "Temp file created: ${tempFile.absolutePath}")
+            Log.d("UploadKRS", "Temp file size: ${tempFile.length()} bytes")
+            
+            // Siapkan multipart request untuk PDF
+            val requestBody = tempFile.asRequestBody("application/pdf".toMediaTypeOrNull())
+            val multipartBody = MultipartBody.Part.createFormData("krs", tempFile.name, requestBody)
+            
+            Log.d("UploadKRS", "Sending to API...")
+            
+            // Panggil API upload KRS
+            ApiClient.instance.uploadKRS(multipartBody).enqueue(object : Callback<com.example.uventapp.data.network.UploadKRSResponse> {
+                override fun onResponse(
+                    call: Call<com.example.uventapp.data.network.UploadKRSResponse>,
+                    response: Response<com.example.uventapp.data.network.UploadKRSResponse>
+                ) {
+                    _isUploading.value = false
+                    tempFile.delete() // Hapus file sementara
+                    
+                    Log.d("UploadKRS", "Response code: ${response.code()}")
+                    Log.d("UploadKRS", "Response body: ${response.body()}")
+                    
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                        Log.d("UploadKRS", "=== UPLOAD KRS SUCCESS ===")
+                        Log.d("UploadKRS", "Filename: ${body.data.filename}")
+                        Log.d("UploadKRS", "URL from server: ${body.data.url}")
+                        Log.d("UploadKRS", "Size: ${body.data.size}")
+                        onSuccess(body.data.url)
+                    } else {
+                        Log.e("UploadKRS", "Upload failed: ${response.message()}")
+                        Log.e("UploadKRS", "Body message: ${body?.message}")
+                        onError("Gagal upload KRS: ${body?.message ?: response.message()}")
+                    }
+                }
+                
+                override fun onFailure(call: Call<com.example.uventapp.data.network.UploadKRSResponse>, t: Throwable) {
+                    _isUploading.value = false
+                    tempFile.delete()
+                    Log.e("UploadKRS", "Upload error: ${t.message}")
+                    Log.e("UploadKRS", "Stack trace: ${t.stackTraceToString()}")
+                    onError("Error upload KRS: ${t.message}")
+                }
+            })
+        } catch (e: Exception) {
+            _isUploading.value = false
+            Log.e("UploadKRS", "Exception: ${e.message}")
+            Log.e("UploadKRS", "Stack trace: ${e.stackTraceToString()}")
+            onError("Error: ${e.message}")
         }
+    }
+    // ================================================
+
+
+    fun loadAllEvents(context: Context) {
+        Log.d("ViewModel", "=== LOAD ALL EVENTS CALLED ===")
+        Log.d("ViewModel", "Current _allEvents size: ${_allEvents.value.size}")
         
         if (!isNetworkAvailable(context)) {
-            _notificationMessage.value = "Offline. Menggunakan data lokal."
-            _allEvents.value = dummyEvents
+            Log.e("ViewModel", "No network available")
+            _notificationMessage.value = "Offline. Tidak dapat memuat event."
             return
         }
 
+        // Set loading state to true BEFORE API call
+        _isLoadingAllEvents.value = true
+
+        Log.d("ViewModel", "Calling API getAllEvents...")
         ApiClient.instance.getAllEvents().enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                // Set loading to false when response received
+                _isLoadingAllEvents.value = false
+                
+                Log.d("ViewModel", "API Response received: ${response.code()}")
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
-                    val eventsFromApi = body.data.map { it.toEventModel() }
-                    _allEvents.value = (eventsFromApi + dummyEvents).distinctBy { it.id }
-                } else {
-                    Log.e("ViewModel", "Gagal load all events: ${response.message()}")
-                    // Fallback ke dummyEvents jika belum ada data
-                    if (_allEvents.value.isEmpty()) {
-                        _allEvents.value = dummyEvents
+                    val events = body.data.map { it.toEventModel() }
+                    Log.d("ViewModel", "✅ Events loaded from API: ${events.size} events")
+                    events.forEach {
+                        Log.d("ViewModel", "  - Event: id=${it.id}, title=${it.title}")
                     }
+                    _allEvents.value = events
+                    Log.d("ViewModel", "_allEvents updated. New size: ${_allEvents.value.size}")
+                } else {
+                    Log.e("ViewModel", "❌ Gagal load all events: ${response.message()}")
+                    Log.e("ViewModel", "Response body status: ${body?.status}")
+                    _notificationMessage.value = "Gagal memuat event dari server."
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
-                Log.e("ViewModel", "API Failure: ${t.message}")
-                // Fallback ke dummyEvents saat API gagal
-                if (_allEvents.value.isEmpty()) {
-                    _allEvents.value = dummyEvents
-                }
+                // Set loading to false on failure too
+                _isLoadingAllEvents.value = false
+                
+                Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                t.printStackTrace()
+                _notificationMessage.value = "Gagal terhubung ke server."
             }
         })
     }
@@ -239,15 +333,102 @@ class EventManagementViewModel : ViewModel() {
     fun loadCreatedEvents(userId: Int, context: Context) {
         if (!isNetworkAvailable(context)) return
 
+        // Clear old data dan set loading state SEBELUM API call
+        _isLoadingCreatedEvents.value = true
+        _createdEvents.value = emptyList() // Clear data lama untuk hindari flash
+
         ApiClient.instance.getMyCreatedEvents(userId).enqueue(object : Callback<GetEventsResponse> {
             override fun onResponse(call: Call<GetEventsResponse>, response: Response<GetEventsResponse>) {
+                _isLoadingCreatedEvents.value = false
                 val body = response.body()
                 if (response.isSuccessful && body?.status == "success") {
                     _createdEvents.value = body.data.map { it.toEventModel() }
+                    Log.d("ViewModel", "✅ Loaded ${body.data.size} created events")
+                } else {
+                    Log.e("ViewModel", "❌ Failed to load created events: ${response.message()}")
                 }
             }
             override fun onFailure(call: Call<GetEventsResponse>, t: Throwable) {
+                _isLoadingCreatedEvents.value = false
                 Log.e("ViewModel", "Gagal load created events: ${t.message}")
+            }
+        })
+    }
+
+    // Load event yang diikuti dari backend
+    fun loadFollowedEvents(userId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) {
+            android.util.Log.w("ViewModel", "loadFollowedEvents: No network available")
+            return
+        }
+
+        android.util.Log.d("ViewModel", "=== LOAD FOLLOWED EVENTS ===")
+        android.util.Log.d("ViewModel", "Calling API getMyRegistrations with userId: $userId")
+        
+        // Gunakan getMyRegistrations untuk mendapatkan registration_id
+        ApiClient.instance.getMyRegistrations(userId).enqueue(object : Callback<com.example.uventapp.data.network.GetRegistrationsResponse> {
+            override fun onResponse(call: Call<com.example.uventapp.data.network.GetRegistrationsResponse>, response: Response<com.example.uventapp.data.network.GetRegistrationsResponse>) {
+                android.util.Log.d("ViewModel", "API Response received: ${response.code()}")
+                val body = response.body()
+                android.util.Log.d("ViewModel", "Response body status: ${body?.status}")
+                
+                if (response.isSuccessful && body?.status == "success" && body.data != null) {
+                    // Clear data lama
+                    _followedEvents.clear()
+                    _eventRegistrationIds.clear()
+                    val newRegistrations = mutableMapOf<Int, Registration>()
+                    
+                    // Populate followedEvents dan simpan registrationId mapping
+                    body.data.forEach { regData ->
+                        // Simpan mapping eventId -> registrationId
+                        _eventRegistrationIds[regData.eventId] = regData.registrationId
+                        
+                        // Simpan full registration data
+                        newRegistrations[regData.eventId] = Registration(
+                            eventId = regData.eventId,
+                            name = regData.name,
+                            nim = regData.nim,
+                            fakultas = regData.fakultas ?: "",
+                            jurusan = regData.jurusan ?: "",
+                            email = regData.email,
+                            phone = regData.phone,
+                            krsUri = regData.krsUri,
+                            registrationId = regData.registrationId  // ✅ FIX: Include registrationId!
+                        )
+                        
+                        // Buat Event object dari registration data
+                        val event = Event(
+                            id = regData.eventId,
+                            title = regData.title ?: "N/A",
+                            type = regData.type ?: "N/A",
+                            date = reformatDateForUi(regData.date),
+                            timeStart = reformatTimeForUi(regData.timeStart),
+                            timeEnd = reformatTimeForUi(regData.timeEnd),
+                            platformType = regData.platformType ?: "N/A",
+                            locationDetail = regData.locationDetail ?: "N/A",
+                            quota = regData.quota?.toString() ?: "0",
+                            status = regData.status ?: "Aktif",
+                            thumbnailResId = null,
+                            thumbnailUri = regData.thumbnailUri,
+                            creatorId = regData.creatorId
+                        )
+                        _followedEvents.add(event)
+                    }
+                    
+                    // Update _registrations state
+                    _registrations.value = newRegistrations
+                    
+                    android.util.Log.d("ViewModel", "✅ Loaded ${_followedEvents.size} followed events with registrationId mapping")
+                    _followedEvents.forEach { event ->
+                        android.util.Log.d("ViewModel", "  - Event ID: ${event.id}, RegID: ${_eventRegistrationIds[event.id]}, Title: ${event.title}")
+                    }
+                } else {
+                    android.util.Log.e("ViewModel", "❌ Failed to load followed events: ${response.message()}")
+                }
+            }
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetRegistrationsResponse>, t: Throwable) {
+                android.util.Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                t.printStackTrace()
             }
         })
     }
@@ -363,7 +544,6 @@ class EventManagementViewModel : ViewModel() {
         return _createdEvents.value.find { it.id == eventId }
             ?: _allEvents.value.find { it.id == eventId }
             ?: _followedEvents.find { it.id == eventId }
-            ?: dummyEvents.find { it.id == eventId }
     }
 
     fun deleteEvent(eventId: Int, context: Context) {
@@ -395,26 +575,64 @@ class EventManagementViewModel : ViewModel() {
         }
     }
 
+    // Load feedbacks dari API untuk suatu event
+    fun loadFeedbacksFromApi(eventId: Int, currentUserId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+
+        Log.d("LoadFeedbacks", "Loading feedbacks for event $eventId")
+
+        ApiClient.instance.getFeedbacksByEvent(eventId).enqueue(object : Callback<com.example.uventapp.data.network.GetFeedbacksResponse> {
+            override fun onResponse(
+                call: Call<com.example.uventapp.data.network.GetFeedbacksResponse>,
+                response: Response<com.example.uventapp.data.network.GetFeedbacksResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    val feedbackList = body.data.map { item ->
+                        Feedback(
+                            id = item.id,
+                            eventId = item.eventId,
+                            rating = item.rating,
+                            review = item.review ?: "",
+                            photoUri = item.photoUri,
+                            userName = item.userName ?: "Anonymous",
+                            postDate = item.createdAt?.split("T")?.first() ?: "",
+                            isAnda = item.userId == currentUserId
+                        )
+                    }
+                    _feedbacks.value = _feedbacks.value.toMutableMap().apply {
+                        put(eventId, feedbackList)
+                    }
+                    Log.d("LoadFeedbacks", "Loaded ${feedbackList.size} feedbacks for event $eventId")
+                } else {
+                    Log.e("LoadFeedbacks", "Failed to load feedbacks: ${response.message()}")
+                }
+            }
+
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetFeedbacksResponse>, t: Throwable) {
+                Log.e("LoadFeedbacks", "API Failure: ${t.message}")
+            }
+        })
+    }
+
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> = _feedbacks.value[eventId] ?: emptyList()
     
-    fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context) {
+    fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context, isEdit: Boolean = false, existingFeedbackId: Int? = null) {
         Log.d("SubmitFeedback", "=== SUBMIT FEEDBACK ===")
         Log.d("SubmitFeedback", "eventId: $eventId")
         Log.d("SubmitFeedback", "userId: $userId")
         Log.d("SubmitFeedback", "rating: ${feedback.rating}")
         Log.d("SubmitFeedback", "review: ${feedback.review}")
+        Log.d("SubmitFeedback", "isEdit: $isEdit")
+        Log.d("SubmitFeedback", "existingFeedbackId: $existingFeedbackId")
         
-        // PERBAIKAN: Cek apakah feedback dengan ID yang sama sudah ada
+        // Update local state
         val existingList = _feedbacks.value[eventId] ?: emptyList()
-        val existingFeedback = existingList.find { it.id == feedback.id }
-        
-        val updatedList = if (existingFeedback != null) {
-            // Jika sudah ada (edit), ganti feedback lama dengan yang baru
-            Log.d("SubmitFeedback", "Mengganti feedback existing dengan ID: ${feedback.id}")
-            existingList.map { if (it.id == feedback.id) feedback else it }
+        val updatedList = if (isEdit && existingFeedbackId != null) {
+            Log.d("SubmitFeedback", "Mengganti feedback existing dengan ID: $existingFeedbackId")
+            existingList.map { if (it.id == existingFeedbackId) feedback.copy(id = existingFeedbackId) else it }
         } else {
-            // Jika baru, tambahkan ke list
-            Log.d("SubmitFeedback", "Menambahkan feedback baru dengan ID: ${feedback.id}")
+            Log.d("SubmitFeedback", "Menambahkan feedback baru")
             existingList + feedback
         }
         
@@ -424,41 +642,76 @@ class EventManagementViewModel : ViewModel() {
         if (isNetworkAvailable(context)) {
             Log.d("SubmitFeedback", "Network available, sending to API...")
             
-            val request = FeedbackRequest(
-                eventId = eventId,
-                userId = userId,
-                rating = feedback.rating,
-                review = feedback.review,
-                photoUri = feedback.photoUri
-            )
-            
-            Log.d("SubmitFeedback", "Request object: $request")
-
-            ApiClient.instance.createFeedback(request).enqueue(object : Callback<FeedbackResponse> {
-                override fun onResponse(
-                    call: Call<FeedbackResponse>,
-                    response: Response<FeedbackResponse>
-                ) {
-                    Log.d("SubmitFeedback", "Response code: ${response.code()}")
-                    Log.d("SubmitFeedback", "Response body: ${response.body()}")
-                    Log.d("SubmitFeedback", "Response errorBody: ${response.errorBody()?.string()}")
-                    
-                    val body = response.body()
-                    if (response.isSuccessful && body?.status == "success") {
-                        _notificationMessage.value = "Ulasan berhasil ditambahkan"
-                        Log.d("SubmitFeedback", "Feedback berhasil disimpan ke server")
-                    } else {
-                        _notificationMessage.value = body?.message ?: "Gagal menyimpan ulasan"
-                        Log.e("SubmitFeedback", "Gagal submit feedback: ${body?.message}")
+            if (isEdit && existingFeedbackId != null) {
+                // UPDATE existing feedback
+                val updateRequest = UpdateFeedbackRequest(
+                    userId = userId,
+                    rating = feedback.rating,
+                    review = feedback.review,
+                    photoUri = feedback.photoUri
+                )
+                
+                Log.d("SubmitFeedback", "Calling updateFeedback API with id: $existingFeedbackId")
+                
+                ApiClient.instance.updateFeedback(existingFeedbackId, updateRequest).enqueue(object : Callback<UpdateFeedbackResponse> {
+                    override fun onResponse(
+                        call: Call<UpdateFeedbackResponse>,
+                        response: Response<UpdateFeedbackResponse>
+                    ) {
+                        Log.d("SubmitFeedback", "Update Response code: ${response.code()}")
+                        val body = response.body()
+                        if (response.isSuccessful && body?.status == "success") {
+                            _notificationMessage.value = "Ulasan berhasil diperbarui"
+                            Log.d("SubmitFeedback", "Feedback berhasil diupdate di server")
+                            // Reload from API to sync
+                            loadFeedbacksFromApi(eventId, userId, context)
+                        } else {
+                            _notificationMessage.value = body?.message ?: "Gagal memperbarui ulasan"
+                            Log.e("SubmitFeedback", "Gagal update feedback: ${body?.message}")
+                        }
                     }
-                }
 
-                override fun onFailure(call: Call<FeedbackResponse>, t: Throwable) {
-                    Log.e("SubmitFeedback", "API Failure: ${t.message}")
-                    t.printStackTrace()
-                    _notificationMessage.value = "Ulasan tersimpan lokal, gagal sinkronisasi ke server"
-                }
-            })
+                    override fun onFailure(call: Call<UpdateFeedbackResponse>, t: Throwable) {
+                        Log.e("SubmitFeedback", "Update API Failure: ${t.message}")
+                        _notificationMessage.value = "Gagal memperbarui ulasan"
+                    }
+                })
+            } else {
+                // CREATE new feedback
+                val createRequest = FeedbackRequest(
+                    eventId = eventId,
+                    userId = userId,
+                    rating = feedback.rating,
+                    review = feedback.review,
+                    photoUri = feedback.photoUri
+                )
+                
+                Log.d("SubmitFeedback", "Calling createFeedback API")
+
+                ApiClient.instance.createFeedback(createRequest).enqueue(object : Callback<FeedbackResponse> {
+                    override fun onResponse(
+                        call: Call<FeedbackResponse>,
+                        response: Response<FeedbackResponse>
+                    ) {
+                        Log.d("SubmitFeedback", "Create Response code: ${response.code()}")
+                        val body = response.body()
+                        if (response.isSuccessful && body?.status == "success") {
+                            _notificationMessage.value = "Ulasan berhasil ditambahkan"
+                            Log.d("SubmitFeedback", "Feedback berhasil disimpan ke server")
+                            // Reload from API to get the real ID
+                            loadFeedbacksFromApi(eventId, userId, context)
+                        } else {
+                            _notificationMessage.value = body?.message ?: "Gagal menyimpan ulasan"
+                            Log.e("SubmitFeedback", "Gagal submit feedback: ${body?.message}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<FeedbackResponse>, t: Throwable) {
+                        Log.e("SubmitFeedback", "Create API Failure: ${t.message}")
+                        _notificationMessage.value = "Gagal menyimpan ulasan"
+                    }
+                })
+            }
         } else {
             Log.d("SubmitFeedback", "No network, saving locally")
             _notificationMessage.value = "Ulasan ditambahkan (offline)"
@@ -466,6 +719,9 @@ class EventManagementViewModel : ViewModel() {
     }
     
     fun deleteFeedback(eventId: Int, feedbackId: Int, userId: Int, context: Context) {
+        Log.d("DeleteFeedback", "=== DELETE FEEDBACK ===")
+        Log.d("DeleteFeedback", "eventId: $eventId, feedbackId: $feedbackId, userId: $userId")
+        
         // Update local state first
         val existingList = _feedbacks.value[eventId] ?: emptyList()
         _feedbacks.value = _feedbacks.value.toMutableMap().apply {
@@ -474,21 +730,28 @@ class EventManagementViewModel : ViewModel() {
 
         // Sync with API
         if (isNetworkAvailable(context)) {
-            ApiClient.instance.deleteFeedback(feedbackId).enqueue(object : Callback<DeleteResponse> {
+            ApiClient.instance.deleteFeedback(feedbackId, userId).enqueue(object : Callback<DeleteResponse> {
                 override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
                     val body = response.body()
+                    Log.d("DeleteFeedback", "Response: ${response.code()} - ${body?.status}")
                     if (response.isSuccessful && body?.status == "success") {
                         _notificationMessage.value = "Ulasan berhasil dihapus"
                         Log.d("DeleteFeedback", "Feedback deleted from server")
+                        // Reload feedbacks from API untuk sync
+                        loadFeedbacksFromApi(eventId, userId, context)
                     } else {
                         _notificationMessage.value = body?.message ?: "Gagal menghapus ulasan dari server"
                         Log.e("DeleteFeedback", "Failed: ${body?.message}")
+                        // Restore local state on failure
+                        loadFeedbacksFromApi(eventId, userId, context)
                     }
                 }
 
                 override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
                     Log.e("DeleteFeedback", "API Failure: ${t.message}")
-                    _notificationMessage.value = "Ulasan dihapus (offline)"
+                    _notificationMessage.value = "Gagal menghapus ulasan"
+                    // Restore local state on failure
+                    loadFeedbacksFromApi(eventId, userId, context)
                 }
             })
         } else {
@@ -580,10 +843,18 @@ class EventManagementViewModel : ViewModel() {
 
     fun toggleDocumentationLike(docId: Int) { /* Logic like */ }
 
-    fun registerForEvent(event: Event, data: Registration, userId: Int?, context: Context) {
+    fun registerForEvent(
+        event: Event, 
+        data: Registration, 
+        userId: Int?, 
+        context: Context,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
         // Cek apakah sudah terdaftar secara lokal
         if (_followedEvents.any { it.id == event.id }) {
             _notificationMessage.value = "Anda sudah terdaftar di event ini"
+            onError("Anda sudah terdaftar di event ini")
             return
         }
 
@@ -614,20 +885,32 @@ class EventManagementViewModel : ViewModel() {
                         _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
                         _notificationMessage.value = "Berhasil mendaftar ke ${event.title}"
                         Log.d("ViewModel", "Pendaftaran berhasil disimpan ke server")
+                        onSuccess() // Panggil callback sukses
                     } else {
-                        // Tangani error termasuk 409 Conflict (sudah terdaftar)
-                        val errorMessage = when (response.code()) {
-                            409 -> "Anda sudah terdaftar di event ini"
+                        // Tangani error termasuk 409 Conflict (sudah terdaftar atau kuota penuh)
+                        val errorBody = response.errorBody()?.string()
+                        val errorMessage = when {
+                            response.code() == 409 && errorBody?.contains("sudah terdaftar") == true -> 
+                                "Anda sudah terdaftar di event ini"
+                            response.code() == 409 && errorBody?.contains("kuota", ignoreCase = true) == true -> 
+                                "Kuota event sudah penuh. Tidak dapat mendaftar."
+                            response.code() == 409 && errorBody?.contains("NIM") == true ->
+                                "NIM sudah terdaftar di event ini"
                             else -> body?.message ?: "Gagal mendaftar: ${response.message()}"
                         }
                         _notificationMessage.value = errorMessage
+                        // Refresh registration count untuk update UI
+                        // TODO: loadRegistrationCount(event.id, context) - function not implemented yet
                         Log.e("ViewModel", "Gagal register: code=${response.code()}, message=$errorMessage")
+                        onError(errorMessage) // Panggil callback error
                     }
                 }
 
                 override fun onFailure(call: Call<EventRegistrationResponse>, t: Throwable) {
                     Log.e("ViewModel", "API Failure: ${t.message}")
-                    _notificationMessage.value = "Gagal terhubung ke server"
+                    val errorMsg = "Gagal terhubung ke server"
+                    _notificationMessage.value = errorMsg
+                    onError(errorMsg) // Panggil callback error
                 }
             })
         } else {
@@ -635,6 +918,7 @@ class EventManagementViewModel : ViewModel() {
             _followedEvents.add(event)
             _registrations.value = _registrations.value.toMutableMap().apply { put(event.id, data) }
             _notificationMessage.value = "Berhasil mendaftar ke ${event.title} (offline)"
+            onSuccess() // Offline dianggap sukses
         }
     }
     fun getRegistrationData(eventId: Int): Registration? = _registrations.value[eventId]
@@ -671,9 +955,34 @@ class EventManagementViewModel : ViewModel() {
         }
     }
     
-    fun unfollowEvent(eventId: Int) {
-        _followedEvents.removeIf { it.id == eventId }
-        _registrations.value = _registrations.value.toMutableMap().apply { remove(eventId) }
+    fun unfollowEvent(eventId: Int, context: Context, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        val registrationId = _eventRegistrationIds[eventId]
+        if (registrationId == null) {
+            android.util.Log.e("ViewModel", "❌ Registration ID not found for event $eventId")
+            onError("Data pendaftaran tidak ditemukan")
+            return
+        }
+        
+        android.util.Log.d("ViewModel", "Canceling registration: EventID=$eventId, RegID=$registrationId")
+        
+        ApiClient.instance.cancelRegistration(registrationId).enqueue(object : Callback<DeleteResponse> {
+            override fun onResponse(call: Call<DeleteResponse>, response: Response<DeleteResponse>) {
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    // Hapus dari local state setelah DELETE berhasil
+                    _followedEvents.removeIf { it.id == eventId }
+                    _eventRegistrationIds.remove(eventId)
+                    android.util.Log.d("ViewModel", "✅ Registration canceled successfully")
+                    onSuccess()
+                } else {
+                    android.util.Log.e("ViewModel", "❌ Failed to cancel: ${response.message()}")
+                    onError("Gagal membatalkan pendaftaran")
+                }
+            }
+            override fun onFailure(call: Call<DeleteResponse>, t: Throwable) {
+                android.util.Log.e("ViewModel", "❌ API Failure: ${t.message}")
+                onError("Gagal terhubung ke server")
+            }
+        })
     }
     
     fun clearNotification() { _notificationMessage.value = null }

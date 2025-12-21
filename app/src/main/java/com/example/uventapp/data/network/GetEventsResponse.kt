@@ -10,7 +10,7 @@ data class GetEventsResponse(
 )
 
 data class EventResponse(
-    @SerializedName("id")
+    @SerializedName(value = "id", alternate = ["event_id"])
     val id: Int,
 
     @SerializedName("title")
