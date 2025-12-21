@@ -41,6 +41,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 Log.d(TAG, "Handling feedback_reminder for event: $relatedId")
                 showFeedbackNotification(title, body, relatedId)
             }
+            "event_created" -> {
+                // Notification when new event is created
+                Log.d(TAG, "Handling event_created for event: $relatedId")
+                showEventNotification(title, body, relatedId)
+            }
             "new_feedback" -> {
                 // Notification for event creator when someone gives feedback
                 showEventNotification(title, body, relatedId)
