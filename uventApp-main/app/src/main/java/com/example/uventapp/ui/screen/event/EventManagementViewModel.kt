@@ -616,6 +616,53 @@ class EventManagementViewModel : ViewModel() {
     }
 
     fun getFeedbacksForEvent(eventId: Int): List<Feedback> = _feedbacks.value[eventId] ?: emptyList()
+
+    // Load documentations dari API untuk suatu event
+    fun loadDocumentationsFromApi(eventId: Int, currentUserId: Int, context: Context) {
+        if (!isNetworkAvailable(context)) return
+
+        Log.d("LoadDocs", "Loading documentations for event $eventId, currentUserId: $currentUserId")
+
+        ApiClient.instance.getDocumentationsByEvent(eventId).enqueue(object : Callback<com.example.uventapp.data.network.GetDocumentationsResponse> {
+            override fun onResponse(
+                call: Call<com.example.uventapp.data.network.GetDocumentationsResponse>,
+                response: Response<com.example.uventapp.data.network.GetDocumentationsResponse>
+            ) {
+                val body = response.body()
+                if (response.isSuccessful && body?.status == "success") {
+                    val dataList = body.data ?: emptyList()  // Handle null safely
+                    val docList = dataList.map { item ->
+                        // Parse created_at to get date and time
+                        val createdAtParts = item.createdAt?.split("T") ?: listOf("", "")
+                        val postDate = createdAtParts.getOrNull(0) ?: ""
+                        val postTime = createdAtParts.getOrNull(1)?.take(5) ?: "" // HH:mm
+                        
+                        Documentation(
+                            id = item.id,
+                            eventId = item.eventId,
+                            userId = item.userId,
+                            description = item.description ?: "",
+                            photoUri = item.photoUri,
+                            userName = item.userName ?: "Anonymous",
+                            postDate = postDate,
+                            postTime = postTime,
+                            isAnda = item.userId == currentUserId
+                        )
+                    }
+                    _documentations.value = _documentations.value.toMutableMap().apply {
+                        put(eventId, docList)
+                    }
+                    Log.d("LoadDocs", "Loaded ${docList.size} documentations for event $eventId")
+                } else {
+                    Log.e("LoadDocs", "Failed to load documentations: ${response.message()}")
+                }
+            }
+
+            override fun onFailure(call: Call<com.example.uventapp.data.network.GetDocumentationsResponse>, t: Throwable) {
+                Log.e("LoadDocs", "API Failure: ${t.message}")
+            }
+        })
+    }
     
     fun submitFeedback(eventId: Int, feedback: Feedback, userId: Int, context: Context, isEdit: Boolean = false, existingFeedbackId: Int? = null) {
         Log.d("SubmitFeedback", "=== SUBMIT FEEDBACK ===")

@@ -10,7 +10,7 @@ object ApiClient {
     // --- UNTUK ANDROID EMULATOR: Gunakan 10.0.2.2 untuk akses localhost ---
     // 10.0.2.2 adalah alamat khusus yang mengarah ke localhost laptop Anda dari emulator
     // JANGAN gunakan 'localhost' atau '127.0.0.1' - itu akan merujuk ke emulator itu sendiri
-    private const val BASE_URL = "http://10.44.9.220:3000/api/"
+    private const val BASE_URL = "http://192.168.1.119:3000/api/"
 
     val instance: ApiService by lazy {
         val logging = HttpLoggingInterceptor()

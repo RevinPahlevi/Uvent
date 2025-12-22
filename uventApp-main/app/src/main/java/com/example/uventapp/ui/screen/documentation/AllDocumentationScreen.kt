@@ -1,7 +1,7 @@
 package com.example.uventapp.ui.screen.documentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable // Pastikan import ini ada
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,10 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MoreVert // <-- IMPORT BARU: Titik tiga
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.FavoriteBorder // --- IMPORT Hati outline ---
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,11 +29,11 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
-// --- PERBAIKAN: Import model Documentation ---
 import com.example.uventapp.data.model.Documentation
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
+import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
@@ -45,20 +43,38 @@ import com.example.uventapp.ui.theme.White
 fun AllDocumentationScreen(
     navController: NavController,
     viewModel: EventManagementViewModel,
+    profileViewModel: ProfileViewModel,
     eventId: Int?
 ) {
     val context = LocalContext.current
     
-    // Ambil data dari getDocumentationForEvent
-    val documentationList by remember(viewModel.documentations.value) {
-        derivedStateOf { viewModel.getDocumentationForEvent(eventId ?: -1) }
+    // Get current user
+    val currentUserProfile by profileViewModel.profile
+    val currentUserId = currentUserProfile?.id ?: 0
+    
+    // Ambil data dari ViewModel
+    val documentationsState by viewModel.documentations
+    val documentationList = documentationsState[eventId ?: -1] ?: emptyList()
+    
+    // State untuk loading - false jika sudah ada data lokal
+    var isLoading by remember { mutableStateOf(documentationList.isEmpty()) }
+    
+    // Load documentations dari API saat screen dibuka
+    LaunchedEffect(eventId) {
+        if (eventId != null && eventId > 0) {
+            // Load in background, don't block UI
+            try {
+                viewModel.loadDocumentationsFromApi(eventId, currentUserId, context)
+            } catch (e: Exception) {
+                android.util.Log.e("AllDocScreen", "Error loading docs: ${e.message}")
+            }
+        }
+        kotlinx.coroutines.delay(500)
+        isLoading = false
     }
 
-    val likedDocIds by viewModel.likedDocIds
-
-    // --- STATE BARU UNTUK DIALOG HAPUS ---
+    // State untuk dialog hapus
     var showDeleteDialog by remember { mutableStateOf<Documentation?>(null) }
-    // -----------------------------------
 
     Scaffold(
         topBar = {
@@ -67,7 +83,6 @@ fun AllDocumentationScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // Navigasi ke AddDocumentation untuk 'Tambah Baru'
                     navController.navigate(Screen.AddDocumentation.createRoute(eventId ?: -1))
                 },
                 containerColor = PrimaryGreen,
@@ -80,191 +95,204 @@ fun AllDocumentationScreen(
         containerColor = LightBackground
     ) { paddingValues ->
 
-        if (documentationList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Belum ada dokumentasi untuk event ini.", color = Color.Gray)
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = PrimaryGreen)
+                }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
-            ) {
-                items(documentationList, key = { it.id }) { doc ->
-                    DocumentationCard(
-                        doc = doc,
-                        isLiked = likedDocIds.contains(doc.id),
-                        onLikeClick = { viewModel.toggleDocumentationLike(doc.id) },
-                        onEditClick = {
-                            // --- PERBAIKAN DI SINI ---
-                            // Navigasi ke rute Edit dengan eventId dan docId
-                            navController.navigate(Screen.AddDocumentation.createEditRoute(doc.eventId, doc.id))
-                            // -------------------------
-                        },
-                        onDeleteClick = {
-                            showDeleteDialog = doc // Tampilkan dialog
-                        }
-                    )
+            documentationList.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Belum ada dokumentasi untuk event ini.", color = Color.Gray)
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp)
+                ) {
+                    items(documentationList, key = { it.id }) { doc ->
+                        val isOwn = doc.isAnda || doc.userId == currentUserId
+                        DocumentationCard(
+                            doc = doc,
+                            isOwn = isOwn,
+                            onEditClick = {
+                                navController.navigate(Screen.AddDocumentation.createEditRoute(doc.eventId, doc.id))
+                            },
+                            onDeleteClick = {
+                                showDeleteDialog = doc
+                            }
+                        )
+                    }
                 }
             }
         }
 
-        // --- DIALOG KONFIRMASI HAPUS ---
+        // Dialog konfirmasi hapus
         showDeleteDialog?.let { docToDelete ->
-            DeleteDocumentationDialog(
+            DeleteConfirmDialog(
                 onDismiss = { showDeleteDialog = null },
                 onConfirm = {
-                    viewModel.deleteDocumentation(docToDelete.eventId, docToDelete.id, 0, context)
+                    viewModel.deleteDocumentation(docToDelete.eventId, docToDelete.id, currentUserId, context)
                     showDeleteDialog = null
                 }
             )
         }
-        // ---------------------------------
     }
 }
 
 @Composable
 private fun DocumentationCard(
     doc: Documentation,
-    isLiked: Boolean,
-    onLikeClick: () -> Unit,
+    isOwn: Boolean,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    // State untuk menu dropdown
     var menuExpanded by remember { mutableStateOf(false) }
-
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+    
+    // Tentukan warna dan alignment berdasarkan kepemilikan
+    val cardColor = if (isOwn) Color(0xFF00897B) else White
+    val textColor = if (isOwn) White else Color.Black
+    val alignment = if (isOwn) Arrangement.End else Arrangement.Start
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = alignment
     ) {
-        Column {
-            // --- Header (Nama, Tanggal, Menu) ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "User",
-                    tint = White,
+        Card(
+            shape = RoundedCornerShape(
+                topStart = if (isOwn) 16.dp else 4.dp,
+                topEnd = if (isOwn) 4.dp else 16.dp,
+                bottomStart = 16.dp,
+                bottomEnd = 16.dp
+            ),
+            colors = CardDefaults.cardColors(containerColor = cardColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.widthIn(max = 300.dp)
+        ) {
+            Column {
+                // Header
+                Row(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(PrimaryGreen)
-                        .padding(4.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Kolom untuk Nama, Tanggal, dan Waktu
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "${doc.userName}${if (doc.isAnda) " (Anda)" else ""}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = if (doc.isAnda) PrimaryGreen else Color.Black
-                    )
-                    // --- PERBAIKAN: Tampilkan tanggal DAN waktu ---
-                    Text(
-                        text = "${doc.postDate}, ${doc.postTime}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    // --------------------------------------------
-                }
-
-                // --- Tombol Titik Tiga (Hanya jika 'isAnda') ---
-                if (doc.isAnda) {
-                    Box {
-                        IconButton(onClick = { menuExpanded = true }) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Opsi",
-                                tint = Color.Gray
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = if (isOwn) White else PrimaryGreen,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (isOwn) White.copy(alpha = 0.2f) else PrimaryGreen.copy(alpha = 0.1f))
+                                .padding(4.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (isOwn) "Anda" else doc.userName,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = textColor
                             )
-                        }
-                        // --- Menu Dropdown ---
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Edit") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onEditClick()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Hapus") },
-                                onClick = {
-                                    menuExpanded = false
-                                    onDeleteClick()
-                                }
+                            Text(
+                                text = doc.postTime,
+                                fontSize = 11.sp,
+                                color = textColor.copy(alpha = 0.7f)
                             )
                         }
                     }
-                }
-                // ----------------------------------------------------
-            }
-
-            // --- Gambar Dokumentasi ---
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(doc.photoUri ?: R.drawable.placeholder_poster)
-                    .crossfade(true)
-                    .build(),
-                placeholder = painterResource(R.drawable.placeholder_poster),
-                contentDescription = "Foto Dokumentasi",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-                    .background(Color.LightGray)
-            )
-
-            // --- Deskripsi dan Tombol Like ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = doc.description,
-                    fontSize = 14.sp,
-                    color = Color.DarkGray,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Icon(
-                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "Like",
-                    tint = if (isLiked) Color.Red else Color.Gray,
-                    modifier = Modifier.clickable {
-                        onLikeClick() // Panggil fungsi dari ViewModel
+                    
+                    if (isOwn) {
+                        Box {
+                            IconButton(
+                                onClick = { menuExpanded = true },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Opsi",
+                                    tint = White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onEditClick()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Hapus", color = Color.Red) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDeleteClick()
+                                    }
+                                )
+                            }
+                        }
                     }
-                )
+                }
+
+                // Gambar
+                if (!doc.photoUri.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(doc.photoUri)
+                            .crossfade(true)
+                            .error(R.drawable.placeholder_poster)
+                            .build(),
+                        contentDescription = "Foto Dokumentasi",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .padding(horizontal = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
+
+                // Deskripsi
+                if (doc.description.isNotEmpty()) {
+                    Text(
+                        text = doc.description,
+                        fontSize = 14.sp,
+                        color = textColor,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
         }
     }
 }
 
-// --- DIALOG HAPUS (BARU) ---
 @Composable
-private fun DeleteDocumentationDialog(
+private fun DeleteConfirmDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
@@ -283,43 +311,33 @@ private fun DeleteDocumentationDialog(
                     text = "Hapus Dokumentasi?",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "Apakah kamu yakin ingin menghapus postingan ini?",
+                    text = "Dokumentasi yang dihapus tidak dapat dikembalikan.",
                     fontSize = 14.sp,
+                    color = Color.Gray,
                     textAlign = TextAlign.Center
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
+                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Batal")
+                    }
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE53935), // Merah
-                            contentColor = Color.White
-                        )
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935))
                     ) {
-                        Text("Ya, Hapus")
-                    }
-
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.LightGray,
-                            contentColor = Color.Black
-                        )
-                    ) {
-                        Text("Batal")
+                        Text("Hapus")
                     }
                 }
             }

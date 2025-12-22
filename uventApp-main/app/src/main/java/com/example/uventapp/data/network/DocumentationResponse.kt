@@ -21,10 +21,10 @@ data class DocumentationData(
 // Response untuk mengambil list dokumentasi
 data class GetDocumentationsResponse(
     @SerializedName("status")
-    val status: String,
+    val status: String?,
 
     @SerializedName("data")
-    val data: List<DocumentationItem>
+    val data: List<DocumentationItem>?  // Made nullable to prevent crash
 )
 
 data class DocumentationItem(

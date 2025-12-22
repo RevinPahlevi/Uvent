@@ -122,7 +122,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getInt("eventId")
-            AllDocumentationScreen(navController, eventViewModel, eventId)
+            AllDocumentationScreen(navController, eventViewModel, profileViewModel, eventId)
         }
         composable(
             route = Screen.AddDocumentation.route,
