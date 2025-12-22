@@ -371,19 +371,40 @@ fun AddEventScreen(
             }
             
             // Kuota
+            var quotaError by remember { mutableStateOf<String?>(null) }
+            
             FormCard {
-                FormInputTextField(
-                    label = "Kuota", 
-                    value = kuota, 
-                    onValueChange = { newValue ->
-                        // Only allow digits (0-9)
-                        if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                            kuota = newValue
-                        }
-                    }, 
-                    keyboardType = KeyboardType.Number,
-                    placeholder = "Masukkan kuota event"
-                )
+                Column {
+                    FormInputTextField(
+                        label = "Kuota", 
+                        value = kuota, 
+                        onValueChange = { newValue ->
+                            // Only allow digits (0-9)
+                            if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                kuota = newValue
+                                // Validate quota
+                                quotaError = when {
+                                    newValue.isEmpty() -> null
+                                    newValue.toIntOrNull() == null -> "Kuota harus berupa angka"
+                                    newValue.toInt() <= 0 -> "Kuota harus lebih dari 0"
+                                    else -> null
+                                }
+                            }
+                        }, 
+                        keyboardType = KeyboardType.Number,
+                        placeholder = "Masukkan kuota event"
+                    )
+                    
+                    // Error message for quota
+                    if (quotaError != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = quotaError!!,
+                            color = Color.Red,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -397,7 +418,10 @@ fun AddEventScreen(
                     platformType != "Pilih Tipe Lokasi" &&
                     locationDetail.isNotBlank() &&
                     kuota.isNotBlank() &&
-                    errorMessage == null // PENTING: Form tidak valid jika ada error
+                    kuota.toIntOrNull() != null &&
+                    kuota.toInt() > 0 &&
+                    errorMessage == null &&
+                    quotaError == null // PENTING: Form tidak valid jika ada error kuota
 
             // State untuk loading saat upload
             val isUploading by viewModel.isUploading
