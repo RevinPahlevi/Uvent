@@ -2,7 +2,6 @@ package com.example.uventapp.ui.screen.documentation
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -17,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -43,6 +42,7 @@ import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -88,13 +88,44 @@ fun AddDocumentationScreen(
     val appBarTitle = if (isEditMode) "Edit Dokumentasi" else "Tambah Dokumentasi"
     val buttonText = if (isEditMode) "Simpan Perubahan" else "Bagikan"
 
-    // Gallery launcher - hanya aktif jika bukan mode edit
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        if (!isEditMode) {  // Hanya boleh ganti foto jika bukan edit mode
-            selectedPhotoUri = uri
+    // Buat file untuk menyimpan foto dari kamera
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    
+    // Fungsi untuk membuat URI file sementara
+    fun createTempPhotoUri(): Uri {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val imageFileName = "DOC_${timeStamp}.jpg"
+        val storageDir = File(context.cacheDir, "camera_photos")
+        if (!storageDir.exists()) {
+            storageDir.mkdirs()
+        }
+        val imageFile = File(storageDir, imageFileName)
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            imageFile
+        )
+    }
+    
+    // Camera launcher
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && tempPhotoUri != null) {
+            selectedPhotoUri = tempPhotoUri
             uploadError = null
+        } else if (!success) {
+            uploadError = "Gagal mengambil foto"
+        }
+    }
+    
+    // Fungsi untuk membuka kamera
+    fun openCamera() {
+        if (!isEditMode) {
+            tempPhotoUri = createTempPhotoUri()
+            tempPhotoUri?.let { uri ->
+                cameraLauncher.launch(uri)
+            }
         }
     }
 
@@ -198,7 +229,7 @@ fun AddDocumentationScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Filled.Image,
+                                    imageVector = Icons.Filled.CameraAlt,
                                     contentDescription = null,
                                     tint = PrimaryGreen,
                                     modifier = Modifier.size(24.dp)
@@ -236,9 +267,7 @@ fun AddDocumentationScreen(
                                         shape = RoundedCornerShape(12.dp)
                                     )
                                     .clickable(enabled = !isUploading && !isEditMode) {
-                                        galleryLauncher.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
+                                        openCamera()
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -264,13 +293,13 @@ fun AddDocumentationScreen(
                                             )
                                         }
                                         Text(
-                                            text = "Ketuk untuk pilih foto",
+                                            text = "Ketuk untuk ambil foto",
                                             color = PrimaryGreen,
                                             fontWeight = FontWeight.Medium,
                                             fontSize = 15.sp
                                         )
                                         Text(
-                                            text = "Pilih dari galeri",
+                                            text = "Buka kamera",
                                             color = Color.Gray,
                                             fontSize = 13.sp
                                         )
@@ -297,14 +326,12 @@ fun AddDocumentationScreen(
                                                     .clip(RoundedCornerShape(20.dp))
                                                     .background(Color.Black.copy(alpha = 0.6f))
                                                     .clickable {
-                                                        galleryLauncher.launch(
-                                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                        )
+                                                        openCamera()
                                                     }
                                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                                             ) {
                                                 Text(
-                                                    text = "Ganti Foto",
+                                                    text = "Foto Ulang",
                                                     color = White,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Medium

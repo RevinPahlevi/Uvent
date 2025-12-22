@@ -52,6 +52,41 @@ fun AllDocumentationScreen(
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id ?: 0
     
+    // Get event data untuk cek waktu
+    val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
+        (viewModel.allEvents.value + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
+    }
+    
+    // Cek apakah waktu sekarang dalam rentang yang diizinkan untuk menambah dokumentasi
+    // Rentang: waktu mulai event sampai waktu selesai event + 3 jam
+    val canAddDocumentation = remember(event) {
+        if (event == null) return@remember false
+        
+        try {
+            val dateFormat = java.text.SimpleDateFormat("d/M/yyyy HH:mm", java.util.Locale.getDefault())
+            val now = java.util.Calendar.getInstance()
+            
+            // Parse waktu mulai event
+            val eventStartDateTime = dateFormat.parse("${event.date} ${event.timeStart}")
+            
+            // Parse waktu selesai event dan tambah 3 jam
+            val eventEndDateTime = dateFormat.parse("${event.date} ${event.timeEnd}")
+            val eventEndPlus3Hours = java.util.Calendar.getInstance().apply {
+                time = eventEndDateTime!!
+                add(java.util.Calendar.HOUR_OF_DAY, 3)
+            }
+            
+            // Cek apakah waktu sekarang dalam rentang
+            val isAfterStart = now.time.after(eventStartDateTime) || now.time == eventStartDateTime
+            val isBeforeEndPlus3 = now.time.before(eventEndPlus3Hours.time)
+            
+            isAfterStart && isBeforeEndPlus3
+        } catch (e: Exception) {
+            android.util.Log.e("AllDocScreen", "Error parsing event time: ${e.message}")
+            false
+        }
+    }
+    
     // Ambil data dari ViewModel
     val documentationsState by viewModel.documentations
     val documentationList = documentationsState[eventId ?: -1] ?: emptyList()
@@ -81,15 +116,18 @@ fun AllDocumentationScreen(
             CustomAppBar(title = "Dokumentasi", onBack = { navController.popBackStack() })
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    navController.navigate(Screen.AddDocumentation.createRoute(eventId ?: -1))
-                },
-                containerColor = PrimaryGreen,
-                contentColor = White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Tambah Dokumentasi")
+            // FAB hanya tampil jika dalam rentang waktu yang diizinkan
+            if (canAddDocumentation) {
+                FloatingActionButton(
+                    onClick = {
+                        navController.navigate(Screen.AddDocumentation.createRoute(eventId ?: -1))
+                    },
+                    containerColor = PrimaryGreen,
+                    contentColor = White,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Tambah Dokumentasi")
+                }
             }
         },
         containerColor = LightBackground
