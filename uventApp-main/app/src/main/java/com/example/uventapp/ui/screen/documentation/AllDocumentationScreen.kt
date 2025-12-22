@@ -37,6 +37,7 @@ import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
+import com.example.uventapp.utils.ImageUrlHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -301,7 +302,7 @@ private fun DocumentationCard(
                 if (!doc.photoUri.isNullOrEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(doc.photoUri)
+                            .data(ImageUrlHelper.fixImageUrl(doc.photoUri))
                             .crossfade(true)
                             .error(R.drawable.placeholder_poster)
                             .build(),

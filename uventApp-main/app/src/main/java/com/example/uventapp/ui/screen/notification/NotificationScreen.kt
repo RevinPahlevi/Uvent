@@ -174,6 +174,10 @@ fun NotificationScreen(
                                                 // Navigate to add feedback screen
                                                 navController.navigate("add_feedback/$relatedId")
                                             }
+                                            "documentation_reminder" -> {
+                                                // Navigate to all documentation screen
+                                                navController.navigate("all_documentation/$relatedId")
+                                            }
                                             "new_feedback", "registration" -> {
                                                 // Navigate to event detail
                                                 navController.navigate("detail_event/$relatedId")
