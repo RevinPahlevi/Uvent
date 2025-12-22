@@ -22,11 +22,9 @@ data class UpdateFeedbackResponse(
     val message: String
 )
 
-// Update Documentation Request
+// Update Documentation Request (hanya description, foto tidak boleh diubah)
 data class UpdateDocumentationRequest(
-    @SerializedName("user_id") val userId: Int,
-    val description: String?,
-    @SerializedName("photo_uri") val photoUri: String?
+    val description: String
 )
 
 // Update Documentation Response

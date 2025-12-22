@@ -88,35 +88,50 @@ fun AddDocumentationScreen(
     val appBarTitle = if (isEditMode) "Edit Dokumentasi" else "Tambah Dokumentasi"
     val buttonText = if (isEditMode) "Simpan Perubahan" else "Bagikan"
 
+    // Gallery launcher - hanya aktif jika bukan mode edit
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        selectedPhotoUri = uri
-        uploadError = null
+        if (!isEditMode) {  // Hanya boleh ganti foto jika bukan edit mode
+            selectedPhotoUri = uri
+            uploadError = null
+        }
     }
 
-    fun submitDocumentationWithServerUrl(serverPhotoUrl: String) {
+    // Fungsi untuk submit dokumentasi baru
+    fun submitNewDocumentation(serverPhotoUrl: String) {
         val registrationData = viewModel.getRegistrationData(event!!.id)
         val userName = registrationData?.name ?: "Mahasiswa (Anda)"
         val currentDate = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(Date())
         val currentTime = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 
         val newDoc = Documentation(
-            id = existingDoc?.id ?: (System.currentTimeMillis() % 10000).toInt(),
+            id = (System.currentTimeMillis() % 10000).toInt(),
             eventId = event.id,
             userId = currentUserId ?: 0,
             description = descriptionText,
             photoUri = serverPhotoUrl,
             userName = userName,
-            postDate = existingDoc?.postDate ?: currentDate,
-            postTime = existingDoc?.postTime ?: currentTime,
+            postDate = currentDate,
+            postTime = currentTime,
             isAnda = true
         )
         
         val userId = if (currentUserId != null && currentUserId > 0) currentUserId else 1
         viewModel.submitDocumentation(event.id, newDoc, userId, context)
-
-        // Kembali ke halaman sebelumnya
+        navController.popBackStack()
+    }
+    
+    // Fungsi untuk update dokumentasi yang sudah ada (hanya description)
+    fun updateExistingDocumentation() {
+        val userId = if (currentUserId != null && currentUserId > 0) currentUserId else 1
+        viewModel.updateDocumentation(
+            eventId = event!!.id,
+            docId = existingDoc!!.id,
+            newDescription = descriptionText,
+            userId = userId,
+            context = context
+        )
         navController.popBackStack()
     }
 
@@ -220,7 +235,7 @@ fun AddDocumentationScreen(
                                         ),
                                         shape = RoundedCornerShape(12.dp)
                                     )
-                                    .clickable(enabled = !isUploading) {
+                                    .clickable(enabled = !isUploading && !isEditMode) {
                                         galleryLauncher.launch(
                                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                         )
@@ -273,26 +288,28 @@ fun AddDocumentationScreen(
                                                 .fillMaxSize()
                                                 .clip(RoundedCornerShape(12.dp))
                                         )
-                                        // Change photo button
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .padding(8.dp)
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(Color.Black.copy(alpha = 0.6f))
-                                                .clickable {
-                                                    galleryLauncher.launch(
-                                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                                    )
-                                                }
-                                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                                        ) {
-                                            Text(
-                                                text = "Ganti Foto",
-                                                color = White,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
+                                        // Change photo button - hanya tampil jika bukan edit mode
+                                        if (!isEditMode) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .padding(8.dp)
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(Color.Black.copy(alpha = 0.6f))
+                                                    .clickable {
+                                                        galleryLauncher.launch(
+                                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                                        )
+                                                    }
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Ganti Foto",
+                                                    color = White,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -369,27 +386,33 @@ fun AddDocumentationScreen(
                     // Submit Button
                     Button(
                         onClick = {
-                            if (selectedPhotoUri != null && !isUploading) {
-                                isUploading = true
-                                uploadError = null
-                                
-                                val photoUriString = selectedPhotoUri.toString()
-                                if (photoUriString.startsWith("http://") || photoUriString.startsWith("https://")) {
-                                    submitDocumentationWithServerUrl(photoUriString)
-                                    isUploading = false
-                                } else {
-                                    viewModel.uploadImage(
-                                        context = context,
-                                        imageUri = selectedPhotoUri!!,
-                                        onSuccess = { serverUrl ->
-                                            isUploading = false
-                                            submitDocumentationWithServerUrl(serverUrl)
-                                        },
-                                        onError = { error ->
-                                            isUploading = false
-                                            uploadError = "Gagal upload foto: $error"
-                                        }
-                                    )
+                            if (isEditMode) {
+                                // Mode edit: hanya update description
+                                updateExistingDocumentation()
+                            } else {
+                                // Mode create: upload foto dulu lalu submit
+                                if (selectedPhotoUri != null && !isUploading) {
+                                    isUploading = true
+                                    uploadError = null
+                                    
+                                    val photoUriString = selectedPhotoUri.toString()
+                                    if (photoUriString.startsWith("http://") || photoUriString.startsWith("https://")) {
+                                        submitNewDocumentation(photoUriString)
+                                        isUploading = false
+                                    } else {
+                                        viewModel.uploadImage(
+                                            context = context,
+                                            imageUri = selectedPhotoUri!!,
+                                            onSuccess = { serverUrl ->
+                                                isUploading = false
+                                                submitNewDocumentation(serverUrl)
+                                            },
+                                            onError = { error ->
+                                                isUploading = false
+                                                uploadError = "Gagal upload foto: $error"
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -397,7 +420,7 @@ fun AddDocumentationScreen(
                             .fillMaxWidth()
                             .height(56.dp)
                             .shadow(8.dp, RoundedCornerShape(16.dp)),
-                        enabled = descriptionText.isNotEmpty() && selectedPhotoUri != null && !isUploading,
+                        enabled = descriptionText.isNotEmpty() && (isEditMode || selectedPhotoUri != null) && !isUploading,
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PrimaryGreen,

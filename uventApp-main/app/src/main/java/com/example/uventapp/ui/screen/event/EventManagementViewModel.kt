@@ -857,6 +857,56 @@ class EventManagementViewModel : ViewModel() {
         }
     }
     
+    // Update dokumentasi (hanya description)
+    fun updateDocumentation(eventId: Int, docId: Int, newDescription: String, userId: Int, context: Context) {
+        Log.d("UpdateDoc", "=== UPDATE DOCUMENTATION ===")
+        Log.d("UpdateDoc", "docId: $docId")
+        Log.d("UpdateDoc", "newDescription: $newDescription")
+        
+        // Update local state
+        val existingList = _documentations.value[eventId] ?: emptyList()
+        val updatedList = existingList.map { doc ->
+            if (doc.id == docId) {
+                doc.copy(description = newDescription)
+            } else {
+                doc
+            }
+        }
+        _documentations.value = _documentations.value.toMutableMap().apply {
+            put(eventId, updatedList)
+        }
+
+        // Kirim ke API
+        if (isNetworkAvailable(context)) {
+            val request = UpdateDocumentationRequest(description = newDescription)
+            
+            ApiClient.instance.updateDocumentation(docId, request).enqueue(object : Callback<UpdateDocumentationResponse> {
+                override fun onResponse(
+                    call: Call<UpdateDocumentationResponse>,
+                    response: Response<UpdateDocumentationResponse>
+                ) {
+                    val body = response.body()
+                    if (response.isSuccessful && body?.status == "success") {
+                        _notificationMessage.value = "Dokumentasi berhasil diperbarui"
+                        Log.d("UpdateDoc", "Documentation updated on server")
+                        // Reload from API to get fresh data
+                        loadDocumentationsFromApi(eventId, userId, context)
+                    } else {
+                        _notificationMessage.value = body?.message ?: "Gagal memperbarui dokumentasi"
+                        Log.e("UpdateDoc", "Failed: ${body?.message}")
+                    }
+                }
+
+                override fun onFailure(call: Call<UpdateDocumentationResponse>, t: Throwable) {
+                    Log.e("UpdateDoc", "API Failure: ${t.message}")
+                    _notificationMessage.value = "Dokumentasi diperbarui (offline)"
+                }
+            })
+        } else {
+            _notificationMessage.value = "Dokumentasi diperbarui (offline)"
+        }
+    }
+    
     fun deleteDocumentation(eventId: Int, docId: Int, userId: Int, context: Context) {
         // Update local state first
         val existingList = _documentations.value[eventId] ?: emptyList()
