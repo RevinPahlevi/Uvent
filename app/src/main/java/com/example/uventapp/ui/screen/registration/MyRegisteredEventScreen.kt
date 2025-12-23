@@ -468,77 +468,72 @@ private fun CreatedEventCard(
                     Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                     Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
                     EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
-                        
-                        // Tampilkan tombol berdasarkan status
-                        when {
-                            isFinished && event.status.lowercase() == "disetujui" -> {
-                                // Event selesai dan disetujui - tampilkan tombol Lihat Feedback
+                    EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail)
+                    
+                    // Tombol aksi di bawah lokasi
+                    Spacer(modifier = Modifier.height(4.dp))
+                    when {
+                        isFinished && event.status.lowercase() == "disetujui" -> {
+                            // Event selesai dan disetujui - tampilkan tombol Lihat Feedback
+                            Button(
+                                onClick = onLihatFeedbackClick,
+                                modifier = Modifier.height(32.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen, contentColor = Color.White),
+                                contentPadding = PaddingValues(horizontal = 10.dp)
+                            ) {
+                                Text("Lihat Feedback", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        event.status.lowercase() == "disetujui" && !isFinished -> {
+                            // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Button(
-                                    onClick = onLihatFeedbackClick,
+                                    onClick = {
+                                        navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
+                                    },
                                     modifier = Modifier.height(32.dp),
                                     shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen, contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) {
-                                    Text("Lihat Feedback", fontSize = 11.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                            event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Button(
-                                        onClick = {
-                                            navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
-                                        },
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Peserta", fontSize = 11.sp) }
-                                    Button(
-                                        onClick = onEditClick,
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Edit", fontSize = 11.sp) }
-                                    Button(
-                                        onClick = onDeleteClick,
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Hapus", fontSize = 11.sp) }
-                                }
-                            }
-                            event.status.lowercase() == "menunggu" -> {
-                                // Event masih menunggu verifikasi - hanya tombol Hapus
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) { Text("Peserta", fontSize = 11.sp) }
+                                Button(
+                                    onClick = onEditClick,
+                                    modifier = Modifier.height(32.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) { Text("Edit", fontSize = 11.sp) }
                                 Button(
                                     onClick = onDeleteClick,
                                     modifier = Modifier.height(32.dp),
                                     shape = RoundedCornerShape(8.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) { Text("Batalkan", fontSize = 11.sp) }
-                            }
-                            event.status.lowercase() == "ditolak" -> {
-                                // Event ditolak - hanya tombol Hapus
-                                Button(
-                                    onClick = onDeleteClick,
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) { Text("Hapus", fontSize = 11.sp) }
                             }
+                        }
+                        event.status.lowercase() == "menunggu" -> {
+                            // Event masih menunggu verifikasi - hanya tombol Hapus
+                            Button(
+                                onClick = onDeleteClick,
+                                modifier = Modifier.height(32.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                contentPadding = PaddingValues(horizontal = 10.dp)
+                            ) { Text("Batalkan", fontSize = 11.sp) }
+                        }
+                        event.status.lowercase() == "ditolak" -> {
+                            // Event ditolak - hanya tombol Hapus
+                            Button(
+                                onClick = onDeleteClick,
+                                modifier = Modifier.height(32.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                contentPadding = PaddingValues(horizontal = 10.dp)
+                            ) { Text("Hapus", fontSize = 11.sp) }
                         }
                     }
                 }
