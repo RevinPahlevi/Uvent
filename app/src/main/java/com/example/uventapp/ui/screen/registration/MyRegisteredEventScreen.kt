@@ -470,8 +470,10 @@ private fun CreatedEventCard(
                     EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
                     EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail)
                     
-                    // Tombol aksi di bawah lokasi
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Tombol aksi di bawah lokasi (bukan sejajar)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    // Tampilkan tombol berdasarkan status
                     when {
                         isFinished && event.status.lowercase() == "disetujui" -> {
                             // Event selesai dan disetujui - tampilkan tombol Lihat Feedback
