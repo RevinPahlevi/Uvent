@@ -156,9 +156,14 @@ fun ParticipantListScreen(
                         ParticipantCard(
                             participant = participant,
                             onViewKRS = { krsUrl ->
-                                // Buka KRS di browser atau PDF viewer
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(krsUrl))
-                                context.startActivity(intent)
+                                // Fix URL jika IP salah (sama seperti foto)
+                                val fixedUrl = com.example.uventapp.utils.ImageUrlHelper.fixImageUrl(krsUrl)
+                                if (fixedUrl != null) {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl))
+                                    context.startActivity(intent)
+                                } else {
+                                    android.util.Log.e("ParticipantList", "Invalid KRS URL: $krsUrl")
+                                }
                             }
                         )
                     }

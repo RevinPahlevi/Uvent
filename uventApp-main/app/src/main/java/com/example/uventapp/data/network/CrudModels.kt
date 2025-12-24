@@ -102,7 +102,7 @@ data class UpdateRegistrationRequest(
     val jurusan: String,
     val email: String,
     val phone: String,
-    val krsUri: String?
+    @SerializedName("krs_uri") val krsUri: String?
 )
 
 // Update Registration Response

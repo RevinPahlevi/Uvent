@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +62,9 @@ fun EditRegistrationScreen(
     viewModel: EventManagementViewModel, // Terima ViewModel
     eventId: Int? // Terima eventId
 ) {
+    // Context untuk upload KRS
+    val context = LocalContext.current
+    
     // --- PENGAMBILAN DATA ---
     val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
         // Cari event di allEvents, createdEvents, atau followedEvents
@@ -224,10 +228,10 @@ fun EditRegistrationScreen(
                     }
 
                     // Each input has its own white card (no big container)
-                    FormInputField(
+                    // Field TERKUNCI - data dari pendaftaran awal (sesuai akun)
+                    ReadOnlyFormField(
                         label = "Nama Lengkap",
-                        value = name,
-                        onValueChange = { name = it }
+                        value = name
                     )
                     FormInputField(
                         label = "NIM",
@@ -268,21 +272,14 @@ fun EditRegistrationScreen(
                         onOptionSelected = { selectedJurusan = it },
                         enabled = availableJurusan.isNotEmpty()
                     )
-                    FormInputField(
+                    // Field TERKUNCI - data dari pendaftaran awal (sesuai akun)
+                    ReadOnlyFormField(
                         label = "Email",
-                        value = email,
-                        onValueChange = { email = it }
+                        value = email
                     )
-                    FormInputField(
+                    ReadOnlyFormField(
                         label = "No Telepon",
-                        value = phone,
-                        onValueChange = { newValue ->
-                            // Filter: hanya terima digit
-                            if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
-                                phone = newValue
-                            }
-                        },
-                        keyboardType = KeyboardType.Number
+                        value = phone
                     )
                     UploadKRSInput(
                         label = "KRS (Klik untuk mengganti)",
@@ -335,13 +332,26 @@ fun EditRegistrationScreen(
                     onDismiss = { showConfirmSaveDialog = false },
                     onConfirm = {
                         showConfirmSaveDialog = false
-                        // Simpan data ke backend
-                        saveRegistrationData(eventId, name, nim, selectedFakultas, selectedJurusan, email, phone, selectedFileUri, viewModel) {
-                            // onSuccess callback - langsung navigate tanpa popup
-                            navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
-                                popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                        // Simpan data ke backend (dengan upload KRS jika file berubah)
+                        saveRegistrationData(
+                            context = context,
+                            eventId = eventId,
+                            name = name,
+                            nim = nim,
+                            fakultas = selectedFakultas,
+                            jurusan = selectedJurusan,
+                            email = email,
+                            phone = phone,
+                            krsUri = selectedFileUri,
+                            originalKrsUrl = existingData?.krsUri,
+                            viewModel = viewModel,
+                            onSuccess = {
+                                // onSuccess callback - langsung navigate tanpa popup
+                                navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
+                                    popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
+                                }
                             }
-                        }
+                        )
                     }
                 )
             }
@@ -351,6 +361,7 @@ fun EditRegistrationScreen(
 
 // Helper function untuk save registration data
 private fun saveRegistrationData(
+    context: android.content.Context,
     eventId: Int,
     name: String,
     nim: String,
@@ -359,8 +370,10 @@ private fun saveRegistrationData(
     email: String,
     phone: String,
     krsUri: Uri?,
+    originalKrsUrl: String?,
     viewModel: EventManagementViewModel,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit = {}
 ) {
     android.util.Log.d("EditRegistration", "=== SAVE REGISTRATION DATA ===")
     android.util.Log.d("EditRegistration", "EventId: $eventId")
@@ -372,11 +385,66 @@ private fun saveRegistrationData(
     val registrationId = registrationData?.registrationId
     if (registrationId == null) {
         android.util.Log.e("EditRegistration", "❌ REGISTRATION ID IS NULL! Cannot save.")
+        onError("Registration ID tidak ditemukan")
         return
     }
     
     android.util.Log.d("EditRegistration", "RegistrationId: $registrationId")
+    android.util.Log.d("EditRegistration", "Original KRS URL: $originalKrsUrl")
+    android.util.Log.d("EditRegistration", "Current KRS URI: $krsUri")
+    android.util.Log.d("EditRegistration", "KRS URI toString: ${krsUri?.toString()}")
     
+    // Check if KRS file changed (new file selected that's different from original)
+    val isNewFile = krsUri != null
+    val isDifferentFromOriginal = krsUri?.toString() != originalKrsUrl
+    val isContentUri = krsUri?.toString()?.startsWith("content://") == true
+    
+    android.util.Log.d("EditRegistration", "isNewFile: $isNewFile")
+    android.util.Log.d("EditRegistration", "isDifferentFromOriginal: $isDifferentFromOriginal")
+    android.util.Log.d("EditRegistration", "isContentUri: $isContentUri")
+    
+    val krsChanged = isNewFile && isDifferentFromOriginal && isContentUri
+    android.util.Log.d("EditRegistration", "krsChanged: $krsChanged")
+    
+    if (krsChanged) {
+        // Upload new KRS file first
+        android.util.Log.d("EditRegistration", ">>> UPLOADING NEW KRS FILE...")
+        viewModel.uploadKRS(
+            context = context,
+            krsUri = krsUri!!,
+            onSuccess = { uploadedKrsUrl ->
+                android.util.Log.d("EditRegistration", "<<< KRS UPLOADED: $uploadedKrsUrl")
+                // Now save registration with uploaded URL
+                doUpdateRegistration(registrationId, eventId, name, nim, fakultas, jurusan, email, phone, uploadedKrsUrl, viewModel, onSuccess, onError)
+            },
+            onError = { errorMessage ->
+                android.util.Log.e("EditRegistration", "<<< KRS UPLOAD FAILED: $errorMessage")
+                onError("Gagal upload KRS: $errorMessage")
+            }
+        )
+    } else {
+        // No KRS change, use existing URL
+        val krsUrlToSave = originalKrsUrl ?: krsUri?.toString()
+        android.util.Log.d("EditRegistration", ">>> NO KRS CHANGE, using: $krsUrlToSave")
+        doUpdateRegistration(registrationId, eventId, name, nim, fakultas, jurusan, email, phone, krsUrlToSave, viewModel, onSuccess, onError)
+    }
+}
+
+// Helper function to actually call the update API
+private fun doUpdateRegistration(
+    registrationId: Int,
+    eventId: Int,
+    name: String,
+    nim: String,
+    fakultas: String,
+    jurusan: String,
+    email: String,
+    phone: String,
+    krsUrl: String?,
+    viewModel: EventManagementViewModel,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
     // Create update request
     val updateRequest = UpdateRegistrationRequest(
         name = name,
@@ -385,7 +453,7 @@ private fun saveRegistrationData(
         jurusan = jurusan,
         email = email,
         phone = phone,
-        krsUri = krsUri?.toString()
+        krsUri = krsUrl
     )
     
     android.util.Log.d("EditRegistration", "Calling API updateRegistration with ID: $registrationId")
@@ -405,7 +473,7 @@ private fun saveRegistrationData(
                     jurusan = jurusan,
                     email = email,
                     phone = phone,
-                    krsUri = krsUri.toString(),
+                    krsUri = krsUrl,
                     registrationId = registrationId
                 )
                 viewModel.updateRegistrationData(eventId, updatedData)
@@ -413,10 +481,12 @@ private fun saveRegistrationData(
             } else {
                 android.util.Log.e("EditRegistration", "❌ API Error: ${response.code()} - ${response.message()}")
                 android.util.Log.e("EditRegistration", "Error body: ${response.errorBody()?.string()}")
+                onError("Gagal menyimpan: ${response.message()}")
             }
         }
         override fun onFailure(call: Call<UpdateRegistrationResponse>, t: Throwable) {
             android.util.Log.e("EditRegistration", "❌ API CALL FAILED: ${t.message}", t)
+            onError("Koneksi gagal: ${t.message}")
         }
     })
 }

@@ -111,6 +111,52 @@ fun FormInputField(
 }
 
 @Composable
+fun ReadOnlyFormField(
+    label: String,
+    value: String
+) {
+    // Individual white card for each input (read-only version)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            // Label with lock indicator
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            // Disabled/Read-only TextField with darker background
+            TextField(
+                value = value,
+                onValueChange = { },
+                enabled = false,
+                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = TextFieldDefaults.colors(
+                    disabledContainerColor = Color(0xFFD5D5D5),
+                    disabledTextColor = Color.DarkGray,
+                    disabledIndicatorColor = Color.Transparent
+                ),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
+            )
+        }
+    }
+}
+
+@Composable
 fun DropdownInput(
     label: String,
     selectedOption: String,
@@ -415,10 +461,10 @@ fun RegistrationFormScreen(
                 )
             }
 
-            FormInputField(
+            // Field yang TERKUNCI - data diambil dari akun user
+            ReadOnlyFormField(
                 label = "Nama Lengkap",
-                value = name,
-                onValueChange = { name = it }
+                value = name
             )
             FormInputField(
                 label = "NIM",
@@ -454,21 +500,14 @@ fun RegistrationFormScreen(
                 enabled = availableJurusan.isNotEmpty()
             )
 
-            FormInputField(
+            // Field yang TERKUNCI - data diambil dari akun user
+            ReadOnlyFormField(
                 label = "Email",
-                value = email,
-                onValueChange = { email = it }
+                value = email
             )
-            FormInputField(
+            ReadOnlyFormField(
                 label = "No Telepon",
-                value = phone,
-                onValueChange = { newValue ->
-                    // Hanya terima angka atau string kosong (untuk delete)
-                    if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
-                        phone = newValue
-                    }
-                },
-                keyboardType = KeyboardType.Phone
+                value = phone
             )
 
             UploadKRSInput(
