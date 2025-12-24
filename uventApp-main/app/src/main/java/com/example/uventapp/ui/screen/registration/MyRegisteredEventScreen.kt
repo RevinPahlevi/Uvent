@@ -67,18 +67,18 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
         val dateParts = date.split("/")
         if (dateParts.size != 3) return false
-        
+
         val day = dateParts[0].toIntOrNull() ?: return false
         val month = dateParts[1].toIntOrNull() ?: return false
         val year = dateParts[2].toIntOrNull() ?: return false
-        
+
         // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
         val timeParts = timeEnd.split(":")
         if (timeParts.size < 2) return false
-        
+
         val hour = timeParts[0].toIntOrNull() ?: return false
         val minute = timeParts[1].toIntOrNull() ?: return false
-        
+
         // Buat Calendar untuk waktu akhir event
         val eventEndCalendar = java.util.Calendar.getInstance()
         eventEndCalendar.set(java.util.Calendar.YEAR, year)
@@ -88,10 +88,10 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
         eventEndCalendar.set(java.util.Calendar.SECOND, 0)
         eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
-        
+
         // Waktu sekarang
         val now = java.util.Calendar.getInstance()
-        
+
         // Event selesai jika waktu sekarang SETELAH waktu akhir event
         return now.after(eventEndCalendar)
     } catch (e: Exception) {
@@ -324,9 +324,11 @@ fun MyRegisteredEventScreen(
                                 items = filteredFollowedEvents,
                                 key = { event -> "${event.id}_${event.thumbnailUri}" }
                             ) { event ->
+                                val isStarted = com.example.uventapp.utils.EventTimeHelper.isEventStarted(event.date, event.timeStart)
                                 val isFinished = isEventFinished(event.date, event.timeEnd)
                                 MyEventCard(
                                     event = event,
+                                    isStarted = isStarted,
                                     isFinished = isFinished,
                                     navController = navController,
                                     onCancelClick = { showCancelDialog = event },
@@ -429,11 +431,24 @@ private fun CreatedEventCard(
         else -> "Diproses" to Color(0xFFFF9800)
     }
     
+    // Tentukan apakah card bisa diklik (hanya untuk event disetujui dan belum selesai)
+    val isClickable = event.status.lowercase() == "disetujui" && !isFinished
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isClickable) {
+                    Modifier.clickable {
+                        navController.navigate(Screen.CreatedEventDetail.createRoute(event.id))
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Box {
             Row(
@@ -444,7 +459,7 @@ private fun CreatedEventCard(
                 val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                     ?: event.thumbnailResId
                     ?: R.drawable.placeholder_poster
-                
+
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
@@ -468,82 +483,104 @@ private fun CreatedEventCard(
                     Text(event.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
                     Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
                     EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
+                    
+                    // DEBUG: Log status untuk troubleshooting
+                    android.util.Log.d("CreatedEventCard", "Event: ${event.title}, status: '${event.status}', lowercase: '${event.status.lowercase()}', isFinished: $isFinished")
+
+                    // Lokasi dan tombol aksi dalam satu baris
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        EventInfoRow(icon = Icons.Filled.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
+                        // Lokasi di sebelah kiri
+                        EventInfoRow(
+                            icon = Icons.Filled.LocationOn, 
+                            text = event.locationDetail,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
                         
-                        // Tampilkan tombol berdasarkan status
+                        // Tombol aksi di sebelah kanan
                         when {
+                            event.status.lowercase() == "menunggu" || event.status.lowercase().contains("proses") -> {
+                                // Event masih menunggu verifikasi - tombol Edit dan Batalkan
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(
+                                        onClick = onEditClick,
+                                        modifier = Modifier.height(28.dp),
+                                        shape = RoundedCornerShape(6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { 
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(12.dp))
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text("Edit", fontSize = 10.sp) 
+                                    }
+                                    Button(
+                                        onClick = onDeleteClick,
+                                        modifier = Modifier.height(28.dp),
+                                        shape = RoundedCornerShape(6.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                        contentPadding = PaddingValues(horizontal = 8.dp)
+                                    ) { Text("Batal", fontSize = 10.sp) }
+                                }
+                            }
+                            event.status.lowercase() == "ditolak" -> {
+                                // Event ditolak - tombol Hapus
+                                Button(
+                                    onClick = onDeleteClick,
+                                    modifier = Modifier.height(28.dp),
+                                    shape = RoundedCornerShape(6.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
+                                ) { Text("Hapus", fontSize = 10.sp) }
+                            }
                             isFinished && event.status.lowercase() == "disetujui" -> {
-                                // Event selesai dan disetujui - tampilkan tombol Lihat Feedback
+                                // Event selesai dan disetujui - tombol Lihat Feedback
                                 Button(
                                     onClick = onLihatFeedbackClick,
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(28.dp),
+                                    shape = RoundedCornerShape(6.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen, contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
+                                    contentPadding = PaddingValues(horizontal = 8.dp)
                                 ) {
-                                    Text("Lihat Feedback", fontSize = 11.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Text("Lihat Feedback", fontSize = 10.sp)
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(12.dp))
                                 }
                             }
                             event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - tampilkan Edit, Hapus, & Lihat Peserta
+                                // Event disetujui tapi belum selesai - KOSONG, card bisa diklik
+                                // Tidak ada teks atau tombol
+                            }
+                            else -> {
+                                // Status lain - fallback ke Edit dan Batalkan
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(
-                                        onClick = {
-                                            navController.navigate(Screen.ParticipantList.createRoute(event.id, event.title))
-                                        },
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3), contentColor = Color.White),
-                                        contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Peserta", fontSize = 11.sp) }
-                                    Button(
                                         onClick = onEditClick,
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.height(28.dp),
+                                        shape = RoundedCornerShape(6.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5), contentColor = Color.White),
                                         contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Edit", fontSize = 11.sp) }
+                                    ) { 
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(12.dp))
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text("Edit", fontSize = 10.sp) 
+                                    }
                                     Button(
                                         onClick = onDeleteClick,
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.height(28.dp),
+                                        shape = RoundedCornerShape(6.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
                                         contentPadding = PaddingValues(horizontal = 8.dp)
-                                    ) { Text("Hapus", fontSize = 11.sp) }
+                                    ) { Text("Batal", fontSize = 10.sp) }
                                 }
-                            }
-                            event.status.lowercase() == "menunggu" -> {
-                                // Event masih menunggu verifikasi - hanya tombol Hapus
-                                Button(
-                                    onClick = onDeleteClick,
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) { Text("Batalkan", fontSize = 11.sp) }
-                            }
-                            event.status.lowercase() == "ditolak" -> {
-                                // Event ditolak - hanya tombol Hapus
-                                Button(
-                                    onClick = onDeleteClick,
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935), contentColor = Color.White),
-                                    contentPadding = PaddingValues(horizontal = 10.dp)
-                                ) { Text("Hapus", fontSize = 11.sp) }
                             }
                         }
                     }
                 }
             }
-            
+
             // Status Badge di pojok kanan atas
             Text(
                 text = verificationStatusText,
@@ -589,7 +626,14 @@ fun FeedbackBanner(eventName: String, onBannerClick: () -> Unit) {
 }
 
 @Composable
-fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController, onCancelClick: () -> Unit, onReviewClick: () -> Unit) {
+fun MyEventCard(
+    event: Event,
+    isStarted: Boolean,
+    isFinished: Boolean,
+    navController: NavController,
+    onCancelClick: () -> Unit,
+    onReviewClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -602,7 +646,7 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
                 val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                     ?: event.thumbnailResId
                     ?: R.drawable.placeholder_poster
-                
+
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
@@ -622,23 +666,37 @@ fun MyEventCard(event: Event, isFinished: Boolean, navController: NavController,
                     EventInfoRow(icon = Icons.Default.CalendarToday, text = "${event.date} - ${event.timeStart}")
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         EventInfoRow(icon = Icons.Default.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
-                        if (isFinished) {
-                            Text(text = "Lihat ulasan >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, modifier = Modifier.clickable { onReviewClick() }.padding(start = 8.dp))
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Button(onClick = { navController.navigate(Screen.EditRegistration.createRoute(event.id)) }, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen), modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = White, modifier = Modifier.size(16.dp))
-                                }
-                                Button(onClick = onCancelClick, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), contentPadding = PaddingValues(horizontal = 10.dp), modifier = Modifier.height(32.dp)) {
-                                    Text("Batal", fontSize = 11.sp)
+                        when {
+                            isFinished -> {
+                                // Event sudah selesai - tampilkan link lihat ulasan
+                                Text(text = "Lihat ulasan >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, modifier = Modifier.clickable { onReviewClick() }.padding(start = 8.dp))
+                            }
+                            isStarted -> {
+                                // Event sudah mulai tapi belum selesai - TIDAK ADA tombol edit/batal
+                                // Hanya tampilkan teks info
+                                Text(text = "Event berlangsung", color = Color(0xFFFF9800), fontWeight = FontWeight.Medium, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
+                            }
+                            else -> {
+                                // Event belum dimulai - tampilkan tombol Edit dan Batal
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(onClick = { navController.navigate(Screen.EditRegistration.createRoute(event.id)) }, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen), modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = White, modifier = Modifier.size(16.dp))
+                                    }
+                                    Button(onClick = onCancelClick, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), contentPadding = PaddingValues(horizontal = 10.dp), modifier = Modifier.height(32.dp)) {
+                                        Text("Batal", fontSize = 11.sp)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-            val statusText = if (isFinished) "Selesai" else "Terdaftar"
-            val statusColor = if (isFinished) Color(0xFFE53935) else Color(0xFF1E88E5)
+            // Status badge di pojok kanan atas
+            val (statusText, statusColor) = when {
+                isFinished -> "Selesai" to Color(0xFFE53935)
+                isStarted -> "Berlangsung" to Color(0xFFFF9800)
+                else -> "Terdaftar" to Color(0xFF1E88E5)
+            }
             Text(text = statusText, color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).background(color = statusColor, shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 12.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
         }
     }

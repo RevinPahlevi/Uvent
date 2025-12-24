@@ -58,14 +58,15 @@ fun EventListScreen(
     android.util.Log.d("EventListScreen", "Current user profile: $currentUserProfile")
     android.util.Log.d("EventListScreen", "Current userId: $currentUserId")
 
-    // Load all events on startup
-    LaunchedEffect(key1 = true) {
-        viewModel.loadAllEvents(context)
-    }
-
-    // Load data saat screen dibuka - dengan logging untuk debug
+    // Load data saat screen dibuka atau userId berubah
+    // Semua data diload bersamaan untuk menghindari delay badge status
     LaunchedEffect(key1 = currentUserId) {
         android.util.Log.d("EventListScreen", "LaunchedEffect triggered with userId: $currentUserId")
+        
+        // Load all events (tidak perlu userId)
+        viewModel.loadAllEvents(context)
+        
+        // Load created events dan followed events (perlu userId)
         if (currentUserId != -1) {
             android.util.Log.d("EventListScreen", "Loading createdEvents and followedEvents...")
             viewModel.loadFollowedEvents(currentUserId, context)

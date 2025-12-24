@@ -60,6 +60,11 @@ sealed class Screen(val route: String) {
     object ParticipantList : Screen("participant_list/{eventId}/{eventTitle}") {
         fun createRoute(eventId: Int, eventTitle: String) = "participant_list/$eventId/$eventTitle"
     }
+    
+    // ===== FITUR BARU: Created Event Detail (untuk event disetujui) =====
+    object CreatedEventDetail : Screen("created_event_detail/{eventId}") {
+        fun createRoute(eventId: Int) = "created_event_detail/$eventId"
+    }
     // ========================================
     // ---------------------------
 }

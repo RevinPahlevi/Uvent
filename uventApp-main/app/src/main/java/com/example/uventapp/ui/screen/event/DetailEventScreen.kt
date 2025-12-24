@@ -9,7 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,6 +100,10 @@ fun DetailEventScreen(
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
     
+    // State untuk jumlah pendaftar (untuk validasi kuota)
+    var registrationCount by remember { mutableIntStateOf(0) }
+    var isLoadingCount by remember { mutableStateOf(true) }
+    
     // Load events jika belum ada
     LaunchedEffect(Unit) {
         viewModel.loadAllEvents(context)
@@ -109,6 +116,23 @@ fun DetailEventScreen(
             viewModel.loadFollowedEvents(currentUserId, context)
         } else {
             android.util.Log.w("DetailEventScreen", "No valid userId, skipping loadFollowedEvents")
+        }
+    }
+    
+    // Load registration count untuk validasi kuota
+    LaunchedEffect(eventId) {
+        if (eventId != null) {
+            try {
+                val response = com.example.uventapp.data.network.ApiClient.instance.getRegistrationCount(eventId)
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    registrationCount = response.body()?.count ?: 0
+                    android.util.Log.d("DetailEventScreen", "Registration count for event $eventId: $registrationCount")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DetailEventScreen", "Error loading registration count: ${e.message}")
+            } finally {
+                isLoadingCount = false
+            }
         }
     }
     
@@ -271,13 +295,115 @@ fun DetailEventScreen(
                                         }
                                     }
                                     else -> {
-                                        // Event belum mulai, bisa daftar
-                                        PrimaryButton(
-                                            text = "Daftar Sekarang",
-                                            onClick = {
-                                                navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
-                                            },
-                                        )
+                                        // Event belum mulai, cek kuota
+                                        val quotaInt = event.quota.toIntOrNull() ?: 0
+                                        val isQuotaFull = quotaInt > 0 && registrationCount >= quotaInt
+                                        
+                                        if (isQuotaFull) {
+                                            // Kuota penuh - tampilkan banner menarik + button disabled
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                // Banner Kuota Penuh
+                                                Card(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = Color(0xFFFFEBEE) // Light red background
+                                                    )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(16.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Text(
+                                                            text = "😔",
+                                                            fontSize = 28.sp
+                                                        )
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                        Column {
+                                                            Text(
+                                                                text = "Kuota Sudah Penuh!",
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 16.sp,
+                                                                color = Color(0xFFD32F2F)
+                                                            )
+                                                            Text(
+                                                                text = "Pendaftaran: $registrationCount/$quotaInt peserta",
+                                                                fontSize = 13.sp,
+                                                                color = Color(0xFF757575)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                
+                                                // Button disabled
+                                                Button(
+                                                    onClick = { /* Disabled */ },
+                                                    enabled = false,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color.Gray,
+                                                        disabledContainerColor = Color.Gray
+                                                    )
+                                                ) {
+                                                    Text("Tidak Dapat Mendaftar", color = Color.White)
+                                                }
+                                            }
+                                        } else {
+                                            // Kuota masih tersedia - tampilkan info kuota + button daftar
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                // Info sisa kuota
+                                                if (quotaInt > 0 && !isLoadingCount) {
+                                                    val sisaKuota = quotaInt - registrationCount
+                                                    Card(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        colors = CardDefaults.cardColors(
+                                                            containerColor = Color(0xFFE8F5E9) // Light green
+                                                        )
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "✅",
+                                                                fontSize = 18.sp
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(
+                                                                text = "Sisa kuota: $sisaKuota dari $quotaInt",
+                                                                fontSize = 13.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = PrimaryGreen
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(12.dp))
+                                                }
+                                                
+                                                PrimaryButton(
+                                                    text = "Daftar Sekarang",
+                                                    onClick = {
+                                                        navController.navigate(Screen.RegistrationFormScreen.createRoute(event.id))
+                                                    },
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

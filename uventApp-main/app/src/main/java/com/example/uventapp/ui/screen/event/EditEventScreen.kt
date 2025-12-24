@@ -63,6 +63,8 @@ fun EditEventScreen(
     val platformOptions = listOf("Offline", "Online")
     var locationDetail by remember { mutableStateOf(event?.locationDetail ?: "") }
     var kuota by remember { mutableStateOf(event?.quota ?: "") }
+    var quotaError by remember { mutableStateOf<String?>(null) }
+    var timeError by remember { mutableStateOf<String?>(null) }
     var imageUri by remember { mutableStateOf<Uri?>(event?.thumbnailUri?.let { Uri.parse(it) }) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -223,30 +225,102 @@ fun EditEventScreen(
                     enabled = platformType != "Pilih Tipe Lokasi"
                 )
 
-                EditFormInputTextField(
-                    label = "Kuota",
-                    value = kuota,
-                    onValueChange = { kuota = it },
-                    keyboardType = KeyboardType.Number
-                )
+                Column {
+                    EditFormInputTextField(
+                        label = "Kuota",
+                        value = kuota,
+                        onValueChange = { newValue ->
+                            // Only allow digits (0-9)
+                            if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                                kuota = newValue
+                                // Validate quota value
+                                quotaError = when {
+                                    newValue.isEmpty() -> null
+                                    newValue.toIntOrNull() == null -> "Kuota harus berupa angka"
+                                    newValue.toInt() <= 0 -> "Kuota harus lebih dari 0"
+                                    else -> null
+                                }
+                            }
+                        },
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    // Show error if quota invalid
+                    if (quotaError != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = quotaError!!,
+                            color = Color.Red,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                PrimaryButton(text = "Simpan Perubahan", onClick = {
-                    val updatedEvent = event.copy(
-                        title = judul,
-                        type = jenis,
-                        date = tanggal,
-                        timeStart = waktuMulai,
-                        timeEnd = waktuSelesai,
-                        platformType = platformType,
-                        locationDetail = locationDetail,
-                        quota = kuota,
-                        thumbnailUri = imageUri?.toString() ?: event.thumbnailUri
+                // Validate times before saving
+                LaunchedEffect(waktuMulai, waktuSelesai) {
+                    timeError = if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank()) {
+                        try {
+                            val startParts = waktuMulai.split(":")
+                            val endParts = waktuSelesai.split(":")
+
+                            if (startParts.size == 2 && endParts.size == 2) {
+                                val startMinutes = startParts[0].toInt() * 60 + startParts[1].toInt()
+                                val endMinutes = endParts[0].toInt() * 60 + endParts[1].toInt()
+
+                                if (endMinutes <= startMinutes) {
+                                    "Waktu selesai harus lebih lama dari waktu mulai"
+                                } else null
+                            } else null
+                        } catch (e: Exception) {
+                            "Format waktu tidak valid"
+                        }
+                    } else null
+                }
+
+                // Show time error if exists
+                if (timeError != null) {
+                    Text(
+                        text = timeError!!,
+                        color = Color.Red,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    viewModel.updateEvent(updatedEvent, context)
-                    navController.popBackStack()
-                })
+                }
+
+                val isFormValid = judul.isNotBlank() &&
+                        jenis != "Pilih Jenis Event" &&
+                        tanggal.isNotBlank() &&
+                        waktuMulai.isNotBlank() &&
+                        waktuSelesai.isNotBlank() &&
+                        platformType != "Pilih Tipe Lokasi" &&
+                        locationDetail.isNotBlank() &&
+                        kuota.isNotBlank() &&
+                        kuota.toIntOrNull() != null &&
+                        kuota.toInt() > 0 &&
+                        quotaError == null &&
+                        timeError == null
+
+                PrimaryButton(
+                    text = "Simpan Perubahan",
+                    onClick = {
+                        val updatedEvent = event.copy(
+                            title = judul,
+                            type = jenis,
+                            date = tanggal,
+                            timeStart = waktuMulai,
+                            timeEnd = waktuSelesai,
+                            platformType = platformType,
+                            locationDetail = locationDetail,
+                            quota = kuota,
+                            thumbnailUri = imageUri?.toString() ?: event.thumbnailUri
+                        )
+                        viewModel.updateEvent(updatedEvent, context)
+                        navController.popBackStack()
+                    },
+                    enabled = isFormValid
+                )
             }
         }
     }

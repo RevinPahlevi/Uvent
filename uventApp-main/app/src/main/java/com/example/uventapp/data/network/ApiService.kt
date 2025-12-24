@@ -158,6 +158,12 @@ interface ApiService {
         @Path("nim") nim: String
     ): Call<CheckNimResponse>
     
+    // Get registration count for an event (for quota validation)
+    @GET("registrations/event/{eventId}/count")
+    suspend fun getRegistrationCount(
+        @Path("eventId") eventId: Int
+    ): retrofit2.Response<RegistrationCountResponse>
+    
     // ===== NOTIFICATION API =====
     
     // Get user notifications
@@ -195,6 +201,12 @@ data class CheckNimResponse(
 
 data class CheckNimData(
     val exists: Boolean
+)
+
+// Response untuk registration count (validasi kuota)
+data class RegistrationCountResponse(
+    val status: String,
+    val count: Int
 )
 
 // Response untuk upload KRS

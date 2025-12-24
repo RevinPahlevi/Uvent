@@ -1,5 +1,7 @@
 package com.example.uventapp.ui.screen.documentation
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.navigation.NavController
@@ -107,6 +110,10 @@ fun AddDocumentationScreen(
         )
     }
     
+    // State untuk permission dialog
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var permissionDeniedPermanently by remember { mutableStateOf(false) }
+    
     // Camera launcher
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -119,14 +126,90 @@ fun AddDocumentationScreen(
         }
     }
     
-    // Fungsi untuk membuka kamera
-    fun openCamera() {
-        if (!isEditMode) {
+    // Permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, open camera
             tempPhotoUri = createTempPhotoUri()
             tempPhotoUri?.let { uri ->
                 cameraLauncher.launch(uri)
             }
+        } else {
+            // Permission denied
+            permissionDeniedPermanently = true
+            showPermissionDialog = true
         }
+    }
+    
+    // Fungsi untuk membuka kamera dengan pengecekan permission
+    fun openCamera() {
+        if (!isEditMode) {
+            // Check if permission is already granted
+            val permissionStatus = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            )
+            
+            if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
+                // Permission sudah ada, langsung buka kamera
+                tempPhotoUri = createTempPhotoUri()
+                tempPhotoUri?.let { uri ->
+                    cameraLauncher.launch(uri)
+                }
+            } else {
+                // Request permission
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+    
+    // Permission Dialog
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = {
+                Text(
+                    text = "Izin Kamera Diperlukan",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = if (permissionDeniedPermanently) {
+                        "Anda telah menolak izin kamera. Untuk menggunakan fitur ini, silakan aktifkan izin kamera di Pengaturan aplikasi."
+                    } else {
+                        "Aplikasi membutuhkan akses kamera untuk mengambil foto dokumentasi. Izinkan akses kamera?"
+                    }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDialog = false
+                        if (permissionDeniedPermanently) {
+                            // Buka settings aplikasi
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", context.packageName, null)
+                            )
+                            context.startActivity(intent)
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                ) {
+                    Text(if (permissionDeniedPermanently) "Buka Pengaturan" else "Izinkan")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Batal", color = Color.Gray)
+                }
+            }
+        )
     }
 
     // Fungsi untuk submit dokumentasi baru

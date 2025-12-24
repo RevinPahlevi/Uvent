@@ -26,6 +26,7 @@ import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.screen.participants.ParticipantListScreen // IMPORT BARU
+import com.example.uventapp.ui.screen.event.CreatedEventDetailScreen // IMPORT BARU
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -166,5 +167,15 @@ fun NavGraph(navController: NavHostController) {
             ParticipantListScreen(navController, eventId, eventTitle)
         }
         // ===============================================
+        
+        // ===== FITUR BARU: Created Event Detail Screen =====
+        composable(
+            route = Screen.CreatedEventDetail.route,
+            arguments = listOf(navArgument("eventId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getInt("eventId") ?: 0
+            CreatedEventDetailScreen(navController, eventId, eventViewModel)
+        }
+        // ===================================================
     }
 }

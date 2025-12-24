@@ -375,7 +375,10 @@ fun AddEventScreen(
                 FormInputTextField(
                     label = "Kuota", 
                     value = kuota, 
-                    onValueChange = { kuota = it }, 
+                    onValueChange = { newValue ->
+                        // Filter hanya angka, tidak boleh ada titik atau karakter lain
+                        kuota = newValue.filter { it.isDigit() }
+                    }, 
                     keyboardType = KeyboardType.Number,
                     placeholder = "Masukkan kuota event"
                 )

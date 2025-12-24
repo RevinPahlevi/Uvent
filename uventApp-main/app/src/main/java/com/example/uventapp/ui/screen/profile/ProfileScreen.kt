@@ -1,17 +1,26 @@
 package com.example.uventapp.ui.screen.profile
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -21,11 +30,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.uventapp.ui.components.BottomNavBar
-import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.navigation.Screen
-import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
-import com.example.uventapp.ui.theme.White
+
+// Warna tema modern
+private val GradientStart = Color(0xFF1B5E20)
+private val GradientEnd = Color(0xFF4CAF50)
+private val CardBackground = Color(0xFFFAFAFA)
+private val AccentOrange = Color(0xFFFF9800)
+private val AccentBlue = Color(0xFF2196F3)
+private val AccentPurple = Color(0xFF9C27B0)
+private val DangerRed = Color(0xFFE53935)
 
 @Composable
 fun ProfileScreen(
@@ -34,144 +49,306 @@ fun ProfileScreen(
 ) {
     val profile by profileViewModel.profile
     var showLogoutDialog by remember { mutableStateOf(false) }
+    
+    // Animation state
+    var isLoaded by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isLoaded = true }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isLoaded) 1f else 0.8f,
+        animationSpec = tween(500),
+        label = "scale"
+    )
 
     Scaffold(
-        topBar = {
-            CustomAppBar(title = "Profil", onBack = { navController.popBackStack() })
-        },
         bottomBar = { BottomNavBar(navController = navController) },
-        containerColor = LightBackground
+        containerColor = Color(0xFFF5F5F5)
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
         ) {
-
-            // Kartu Profil Hijau (Nama)
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = PrimaryGreen),
+            // Header dengan Gradient
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(280.dp)
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                // Background Gradient
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(GradientStart, GradientEnd)
+                            )
+                        )
+                )
+                
+                // Header Title
+                Text(
+                    text = "Profil Saya",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 24.dp)
+                )
+                
+                // Avatar Card
+                Card(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .scale(scale)
+                        .padding(horizontal = 24.dp)
+                        .fillMaxWidth()
+                        .shadow(12.dp, RoundedCornerShape(24.dp)),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Avatar Circle
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(GradientStart, GradientEnd)
+                                    )
+                                )
+                                .border(4.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Inisial nama
+                            val initials = profile?.name?.split(" ")
+                                ?.take(2)
+                                ?.mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                                ?.joinToString("") ?: "?"
+                            
+                            Text(
+                                text = initials,
+                                color = Color.White,
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Nama User
+                        Text(
+                            text = profile?.name ?: "Memuat...",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1A1A),
+                            textAlign = TextAlign.Center
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        // Badge Member
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = PrimaryGreen.copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                text = "✨ Member Aktif",
+                                color = PrimaryGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Info Section
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Section Title
+                Text(
+                    text = "Informasi Akun",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                )
+                
+                // Info Cards
+                ProfileInfoCard(
+                    icon = Icons.Outlined.Email,
+                    iconColor = AccentBlue,
+                    label = "Email",
+                    value = profile?.email ?: "...",
+                    backgroundColor = AccentBlue.copy(alpha = 0.1f)
+                )
+                
+                ProfileInfoCard(
+                    icon = Icons.Outlined.Phone,
+                    iconColor = AccentOrange,
+                    label = "No. Telepon",
+                    value = profile?.phone ?: "...",
+                    backgroundColor = AccentOrange.copy(alpha = 0.1f)
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Menu Section
+                Text(
+                    text = "Pengaturan",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF333333)
+                )
+                
+                // Menu Items Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column {
+                        ProfileMenuItem(
+                            icon = Icons.Outlined.EventNote,
+                            iconColor = PrimaryGreen,
+                            title = "Event Saya",
+                            subtitle = "Kelola event yang sudah dibuat",
+                            onClick = { navController.navigate(Screen.MyRegisteredEvent.createRoute("")) }
+                        )
+                        
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = Color(0xFFEEEEEE)
+                        )
+                        
+                        ProfileMenuItem(
+                            icon = Icons.Outlined.Notifications,
+                            iconColor = AccentPurple,
+                            title = "Notifikasi",
+                            subtitle = "Lihat semua notifikasi",
+                            onClick = { navController.navigate(Screen.Notification.route) }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Logout Button
+                Button(
+                    onClick = { showLogoutDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DangerRed.copy(alpha = 0.1f),
+                        contentColor = DangerRed
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile Icon",
-                        tint = White,
-                        modifier = Modifier.size(80.dp)
+                        imageVector = Icons.Default.Logout,
+                        contentDescription = "Logout",
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = profile?.name ?: "Memuat...",
-                        color = White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        text = "Keluar dari Akun",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
+                
+                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Kartu Info Putih (Email & Telepon)
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = White),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = (-30).dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 40.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    ProfileInfoRow(
-                        icon = Icons.Default.Email,
-                        label = "Email",
-                        value = profile?.email ?: "..."
-                    )
-                    HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
-                    ProfileInfoRow(
-                        icon = Icons.Default.Phone,
-                        label = "No Telepon",
-                        value = profile?.phone ?: "..."
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            // Tombol Logout
-            Button(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE53935), // Warna merah
-                    contentColor = Color.White
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = "Logout",
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Keluar",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
         }
         
         // Dialog Konfirmasi Logout
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = Color.White,
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(DangerRed.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = null,
+                            tint = DangerRed,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                },
                 title = {
                     Text(
-                        text = "Konfirmasi Keluar",
-                        fontWeight = FontWeight.Bold
+                        text = "Keluar dari Akun?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 },
                 text = {
-                    Text("Apakah Anda yakin ingin keluar dari akun ini?")
+                    Text(
+                        text = "Anda perlu login kembali untuk mengakses akun ini.",
+                        textAlign = TextAlign.Center,
+                        color = Color.Gray,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 },
                 confirmButton = {
                     Button(
                         onClick = {
                             showLogoutDialog = false
-                            // Hapus data profil
                             profileViewModel.logout()
-                            // Navigasi ke halaman login dan hapus backstack
                             navController.navigate(Screen.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE53935)
-                        )
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
                     ) {
-                        Text("Ya, Keluar")
+                        Text(
+                            text = "Ya, Keluar",
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
                     }
                 },
                 dismissButton = {
-                    OutlinedButton(onClick = { showLogoutDialog = false }) {
-                        Text("Batal")
+                    OutlinedButton(
+                        onClick = { showLogoutDialog = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Gray)
+                    ) {
+                        Text(
+                            text = "Batal",
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
                     }
                 }
             )
@@ -180,34 +357,112 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileInfoRow(
+private fun ProfileInfoCard(
     icon: ImageVector,
+    iconColor: Color,
     label: String,
-    value: String
+    value: String,
+    backgroundColor: Color
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Box
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(backgroundColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    color = Color.Gray,
+                    fontSize = 13.sp
+                )
+                Text(
+                    text = value,
+                    color = Color(0xFF1A1A1A),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileMenuItem(
+    icon: ImageVector,
+    iconColor: Color,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
 ) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = Color.Gray,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(
-                text = label,
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
-            Text(
-                text = value,
-                color = Color.Black,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
+        // Icon Box
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(iconColor.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = iconColor,
+                modifier = Modifier.size(22.dp)
             )
         }
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1A1A1A)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+        
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = "Arrow",
+            tint = Color.LightGray,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
