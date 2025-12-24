@@ -8,7 +8,7 @@ object ImageUrlHelper {
     
     // Base URL for the server - UPDATE THIS IF YOUR SERVER IP CHANGES
     // This should match the IP in ApiClient.kt (without /api/)
-    private const val SERVER_BASE_URL = "http://192.168.1.19:3000"
+    private const val SERVER_BASE_URL = "http://10.44.9.122:3000"
     
     /**
      * Fixes image URLs by extracting filename and rebuilding with correct server IP
