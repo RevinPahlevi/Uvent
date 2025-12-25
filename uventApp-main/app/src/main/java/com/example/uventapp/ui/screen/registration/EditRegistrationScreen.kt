@@ -31,11 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.example.uventapp.data.model.fakultasList
-// --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
-// Removed dummy events import
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
-// -----------------------------
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.CheckNimResponse
 import androidx.compose.foundation.text.KeyboardOptions
@@ -59,37 +56,30 @@ import kotlinx.coroutines.withContext
 @Composable
 fun EditRegistrationScreen(
     navController: NavController,
-    viewModel: EventManagementViewModel, // Terima ViewModel
-    eventId: Int? // Terima eventId
+    viewModel: EventManagementViewModel,
+    eventId: Int?
 ) {
-    // Context untuk upload KRS
     val context = LocalContext.current
     
-    // --- PENGAMBILAN DATA ---
     val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
-        // Cari event di allEvents, createdEvents, atau followedEvents
         (viewModel.allEvents.value + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
     }
     val existingData = remember(eventId) {
-        viewModel.getRegistrationData(eventId ?: -1) // <-- Perbaikan tipe
+        viewModel.getRegistrationData(eventId ?: -1)
     }
-    // ------------------------
 
-    // --- ISI STATE DARI VIEWMODEL, BUKAN DUMMY ---
     var name by remember { mutableStateOf(existingData?.name ?: "") }
     var nim by remember { mutableStateOf(existingData?.nim ?: "") }
     var selectedFakultas by remember { mutableStateOf(existingData?.fakultas ?: "Pilih Fakultas") }
     var selectedJurusan by remember { mutableStateOf(existingData?.jurusan ?: "Pilih Jurusan") }
 
-    // Logika untuk mengisi daftar jurusan berdasarkan fakultas yang ada
-    var availableJurusan by remember(selectedFakultas) { // <- Tambah key 'selectedFakultas'
+    var availableJurusan by remember(selectedFakultas) {
         mutableStateOf(fakultasList.find { it.nama == selectedFakultas }?.jurusan ?: emptyList())
     }
 
     var email by remember { mutableStateOf(existingData?.email ?: "") }
     var phone by remember { mutableStateOf(existingData?.phone ?: "") }
 
-    // Logika untuk file KRS
     var selectedFileUri by remember { mutableStateOf(existingData?.krsUri?.toUri()) }
     var selectedFileName by remember(selectedFileUri) {
         mutableStateOf(
@@ -98,11 +88,10 @@ fun EditRegistrationScreen(
             } else if (existingData?.krsUri != null) {
                 existingData.krsUri?.substringAfterLast("/") ?: "KRS.pdf"
             } else {
-                "KRS.pdf" // Placeholder instead of "File KRS Sebelumnya" to ensure consistent UI
+                "KRS.pdf"
             }
         )
     }
-    // ----------------------------------------------
 
     val fakultasOptions = listOf("Pilih Fakultas") + fakultasList.map { it.nama }
 
@@ -113,17 +102,14 @@ fun EditRegistrationScreen(
                 phone.isNotEmpty() &&
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan"
-        // (Kita anggap KRS tidak wajib di-upload ulang)
     }
     
     var nimErrorMessage by remember { mutableStateOf<String?>(null) }
     var showSuccessBanner by remember { mutableStateOf(false) }
     
-    // States untuk popup dialogs
     var showNoChangeDialog by remember { mutableStateOf(false) }
     var showConfirmSaveDialog by remember { mutableStateOf(false) }
     
-    // Fungsi untuk detect apakah ada perubahan
     val hasChanges by remember(name, nim, selectedFakultas, selectedJurusan, email, phone, selectedFileUri) {
         derivedStateOf {
             name != (existingData?.name ?: "") ||
@@ -143,12 +129,10 @@ fun EditRegistrationScreen(
         selectedFileName = uri?.lastPathSegment ?: "No file chosen"
     }
     
-    // Real-time NIM validation
     LaunchedEffect(nim, existingData) {
         if (eventId != null && nim.isNotEmpty()) {
             val originalNim = existingData?.nim ?: ""
             if (nim != originalNim) {
-                // NIM berubah, check duplikat via API
                 try {
                     withContext(Dispatchers.IO) {
                         val response = ApiClient.instance.checkNimExists(eventId, nim).execute()
@@ -161,11 +145,9 @@ fun EditRegistrationScreen(
                         }
                     }
                 } catch (e: Exception) {
-                    // Ignore error, don't block user
                     nimErrorMessage = null
                 }
             } else {
-                // NIM sama dengan original, clear error
                 nimErrorMessage = null
             }
         } else if (nim.isEmpty()) {
@@ -191,7 +173,6 @@ fun EditRegistrationScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Tampilkan error jika data tidak ditemukan
             if (existingData == null || event == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Data pendaftaran tidak ditemukan.", color = Color.Red)
@@ -205,7 +186,6 @@ fun EditRegistrationScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Tampilkan nama event dan tipe di atas form (di area cream)
                     Text(
                         text = event.title,
                         style = MaterialTheme.typography.titleLarge,
@@ -221,14 +201,11 @@ fun EditRegistrationScreen(
 
                     if (showSuccessBanner) {
                         RegistrationSuccessBanner(
-                            // Tampilkan nama event yang benar
                             eventName = event.title,
                             successText = "Pendaftaran Event Diperbarui"
                         )
                     }
 
-                    // Each input has its own white card (no big container)
-                    // Field TERKUNCI - data dari pendaftaran awal (sesuai akun)
                     ReadOnlyFormField(
                         label = "Nama Lengkap",
                         value = name
@@ -237,15 +214,13 @@ fun EditRegistrationScreen(
                         label = "NIM",
                         value = nim,
                         onValueChange = { newValue ->
-                            // Filter: hanya terima digit
                             if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
                                 nim = newValue
-                                nimErrorMessage = null // Clear error saat user edit
+                                nimErrorMessage = null
                             }
                         },
                         keyboardType = KeyboardType.Number
                     )
-                    // Tampilkan error message jika ada
                     nimErrorMessage?.let { error ->
                         Text(
                             text = error,
@@ -272,7 +247,6 @@ fun EditRegistrationScreen(
                         onOptionSelected = { selectedJurusan = it },
                         enabled = availableJurusan.isNotEmpty()
                     )
-                    // Field TERKUNCI - data dari pendaftaran awal (sesuai akun)
                     ReadOnlyFormField(
                         label = "Email",
                         value = email
@@ -293,11 +267,9 @@ fun EditRegistrationScreen(
                         text = "Simpan Perubahan",
                         onClick = {
                             if (isFormValid && eventId != null && nimErrorMessage == null) {
-                                // Check jika tidak ada perubahan
                                 if (!hasChanges) {
                                     showNoChangeDialog = true
                                 } else {
-                                    // Ada perubahan, tampilkan konfirmasi
                                     showConfirmSaveDialog = true
                                 }
                             }
@@ -310,9 +282,6 @@ fun EditRegistrationScreen(
                 }
             }
             
-            // === POPUP DIALOGS ===
-            
-            // Popup: Tidak ada perubahan
             if (showNoChangeDialog) {
                 NoChangeInfoDialog(
                     onDismiss = { showNoChangeDialog = false },
@@ -326,13 +295,11 @@ fun EditRegistrationScreen(
                 )
             }
             
-            // Popup: Konfirmasi simpan perubahan
             if (showConfirmSaveDialog && eventId != null) {
                 ConfirmSaveDialog(
                     onDismiss = { showConfirmSaveDialog = false },
                     onConfirm = {
                         showConfirmSaveDialog = false
-                        // Simpan data ke backend (dengan upload KRS jika file berubah)
                         saveRegistrationData(
                             context = context,
                             eventId = eventId,
@@ -346,7 +313,6 @@ fun EditRegistrationScreen(
                             originalKrsUrl = existingData?.krsUri,
                             viewModel = viewModel,
                             onSuccess = {
-                                // onSuccess callback - langsung navigate tanpa popup
                                 navController.navigate(Screen.MyRegisteredEvent.createRoute("_edit_success")) {
                                     popUpTo(Screen.MyRegisteredEvent.route) { inclusive = true }
                                 }
@@ -359,7 +325,6 @@ fun EditRegistrationScreen(
     }
 }
 
-// Helper function untuk save registration data
 private fun saveRegistrationData(
     context: android.content.Context,
     eventId: Int,
@@ -378,7 +343,6 @@ private fun saveRegistrationData(
     android.util.Log.d("EditRegistration", "=== SAVE REGISTRATION DATA ===")
     android.util.Log.d("EditRegistration", "EventId: $eventId")
     
-    // Get registrationId from ViewModel
     val registrationData = viewModel.getRegistrationData(eventId)
     android.util.Log.d("EditRegistration", "Registration data: $registrationData")
     
@@ -394,7 +358,6 @@ private fun saveRegistrationData(
     android.util.Log.d("EditRegistration", "Current KRS URI: $krsUri")
     android.util.Log.d("EditRegistration", "KRS URI toString: ${krsUri?.toString()}")
     
-    // Check if KRS file changed (new file selected that's different from original)
     val isNewFile = krsUri != null
     val isDifferentFromOriginal = krsUri?.toString() != originalKrsUrl
     val isContentUri = krsUri?.toString()?.startsWith("content://") == true
@@ -407,14 +370,12 @@ private fun saveRegistrationData(
     android.util.Log.d("EditRegistration", "krsChanged: $krsChanged")
     
     if (krsChanged) {
-        // Upload new KRS file first
         android.util.Log.d("EditRegistration", ">>> UPLOADING NEW KRS FILE...")
         viewModel.uploadKRS(
             context = context,
             krsUri = krsUri!!,
             onSuccess = { uploadedKrsUrl ->
                 android.util.Log.d("EditRegistration", "<<< KRS UPLOADED: $uploadedKrsUrl")
-                // Now save registration with uploaded URL
                 doUpdateRegistration(registrationId, eventId, name, nim, fakultas, jurusan, email, phone, uploadedKrsUrl, viewModel, onSuccess, onError)
             },
             onError = { errorMessage ->
@@ -423,14 +384,12 @@ private fun saveRegistrationData(
             }
         )
     } else {
-        // No KRS change, use existing URL
         val krsUrlToSave = originalKrsUrl ?: krsUri?.toString()
         android.util.Log.d("EditRegistration", ">>> NO KRS CHANGE, using: $krsUrlToSave")
         doUpdateRegistration(registrationId, eventId, name, nim, fakultas, jurusan, email, phone, krsUrlToSave, viewModel, onSuccess, onError)
     }
 }
 
-// Helper function to actually call the update API
 private fun doUpdateRegistration(
     registrationId: Int,
     eventId: Int,
@@ -445,7 +404,6 @@ private fun doUpdateRegistration(
     onSuccess: () -> Unit,
     onError: (String) -> Unit
 ) {
-    // Create update request
     val updateRequest = UpdateRegistrationRequest(
         name = name,
         nim = nim,
@@ -458,13 +416,11 @@ private fun doUpdateRegistration(
     
     android.util.Log.d("EditRegistration", "Calling API updateRegistration with ID: $registrationId")
     
-    // Call API to update registration
     ApiClient.instance.updateRegistration(registrationId, updateRequest).enqueue(object : Callback<UpdateRegistrationResponse> {
         override fun onResponse(call: Call<UpdateRegistrationResponse>, response: Response<UpdateRegistrationResponse>) {
             android.util.Log.d("EditRegistration", "API Response code: ${response.code()}")
             if (response.isSuccessful) {
                 android.util.Log.d("EditRegistration", "✅ UPDATE SUCCESS!")
-                // Update local state
                 val updatedData = Registration(
                     eventId = eventId,
                     name = name,
@@ -490,8 +446,6 @@ private fun doUpdateRegistration(
         }
     })
 }
-
-// === POPUP DIALOGS ===
 
 @Composable
 private fun NoChangeInfoDialog(
@@ -641,8 +595,6 @@ private fun ConfirmSaveDialog(
         }
     }
 }
-
-// SuccessSaveDialog removed - langsung navigate dengan Snackbar message untuk cleaner UX
 
 @Composable
 fun RegistrationSuccessBanner(eventName: String, successText: String) {

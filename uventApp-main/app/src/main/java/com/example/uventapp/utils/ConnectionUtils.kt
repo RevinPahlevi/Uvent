@@ -4,14 +4,10 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
-/**
- * Fungsi helper untuk mengecek koneksi internet.
- */
 fun isNetworkAvailable(context: Context): Boolean {
     val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    // Untuk Android M (API 23) ke atas
     val network = connectivityManager.activeNetwork ?: return false
     val capabilities =
         connectivityManager.getNetworkCapabilities(network) ?: return false

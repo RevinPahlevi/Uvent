@@ -42,8 +42,6 @@ fun ParticipantListScreen(
     var participants by remember { mutableStateOf<List<ParticipantData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Load participants saat screen dibuka
     LaunchedEffect(eventId) {
         ApiClient.instance.getParticipantsByEvent(eventId).enqueue(object : Callback<GetParticipantsResponse> {
             override fun onResponse(
@@ -84,7 +82,6 @@ fun ParticipantListScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Header jumlah peserta
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = PrimaryGreen),
@@ -114,7 +111,6 @@ fun ParticipantListScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Loading state
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -123,7 +119,6 @@ fun ParticipantListScreen(
                     CircularProgressIndicator(color = PrimaryGreen)
                 }
             }
-            // Error state
             else if (errorMessage != null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -136,7 +131,6 @@ fun ParticipantListScreen(
                     )
                 }
             }
-            // Success - tampilkan list peserta
             else if (participants.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -156,7 +150,7 @@ fun ParticipantListScreen(
                         ParticipantCard(
                             participant = participant,
                             onViewKRS = { krsUrl ->
-                                // Fix URL jika IP salah (sama seperti foto)
+
                                 val fixedUrl = com.example.uventapp.utils.ImageUrlHelper.fixImageUrl(krsUrl)
                                 if (fixedUrl != null) {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fixedUrl))
@@ -189,7 +183,6 @@ fun ParticipantCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Nama dan NIM
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -218,7 +211,6 @@ fun ParticipantCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Fakultas & Jurusan
             Text(
                 text = "${participant.fakultas} - ${participant.jurusan}",
                 fontSize = 13.sp,
@@ -227,7 +219,6 @@ fun ParticipantCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Email
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Email,
@@ -243,7 +234,6 @@ fun ParticipantCard(
                 )
             }
 
-            // Phone
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Phone,
@@ -261,7 +251,6 @@ fun ParticipantCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Tombol Lihat KRS
             if (participant.krs_uri != null) {
                 Button(
                     onClick = { onViewKRS(participant.krs_uri) },

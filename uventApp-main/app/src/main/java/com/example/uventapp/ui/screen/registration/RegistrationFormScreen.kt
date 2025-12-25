@@ -33,9 +33,6 @@ import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.LightBackground
-// Import ViewModel dan data
-// Removed dummy events import
-// --- PERBAIKAN: IMPORT Registration, BUKAN RegistrationData ---
 import com.example.uventapp.data.model.Registration
 import com.example.uventapp.ui.screen.event.EventManagementViewModel
 import com.example.uventapp.ui.theme.PrimaryGreen
@@ -45,19 +42,14 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-// ---------------------------
-// Helper Composables (JANGAN HAPUS)
-// ---------------------------
-
 @Composable
 fun FormInputField(
     label: String, 
     value: String, 
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
-    errorMessage: String? = null  // Add error message parameter
+    errorMessage: String? = null
 ) {
-    // Individual white card for each input
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -69,14 +61,12 @@ fun FormInputField(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Label INSIDE the card
             Text(
                 text = label,
                 fontSize = 12.sp,
                 color = Color.DarkGray,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
-            // Gray TextField with LARGER radius than card
             TextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -93,11 +83,10 @@ fun FormInputField(
                 ),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
+                shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("") },
                 singleLine = true
             )
-            // Show error message if exists
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
@@ -115,7 +104,6 @@ fun ReadOnlyFormField(
     label: String,
     value: String
 ) {
-    // Individual white card for each input (read-only version)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -127,14 +115,12 @@ fun ReadOnlyFormField(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Label with lock indicator
             Text(
                 text = label,
                 fontSize = 12.sp,
                 color = Color.DarkGray,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
-            // Disabled/Read-only TextField with darker background
             TextField(
                 value = value,
                 onValueChange = { },
@@ -166,7 +152,6 @@ fun DropdownInput(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    // Individual white card for each dropdown
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -178,14 +163,12 @@ fun DropdownInput(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Label INSIDE the card
             Text(
                 text = label,
                 fontSize = 12.sp,
                 color = Color.DarkGray,
                 modifier = Modifier.padding(bottom = 6.dp)
             )
-            // Gray TextField with LARGER radius than card
             TextField(
                 value = selectedOption,
                 onValueChange = {},
@@ -211,7 +194,7 @@ fun DropdownInput(
                     disabledIndicatorColor = Color.Transparent
                 ),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                shape = RoundedCornerShape(12.dp),  // Larger than card (12dp > 8dp)
+                shape = RoundedCornerShape(12.dp),
                 singleLine = true
             )
         }
@@ -237,7 +220,6 @@ fun DropdownInput(
 fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
     val hasFile = fileName.isNotEmpty() && fileName != "Tidak ada file dipilih"
 
-    // Individual white card for upload button
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -249,7 +231,6 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Label INSIDE the card
             Text(
                 text = label,
                 fontSize = 12.sp,
@@ -257,7 +238,6 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
-            // Gray background box with LARGER radius
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -266,7 +246,6 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
                     .padding(12.dp)
             ) {
                 if (hasFile) {
-                    // Tampilkan nama file dengan icon
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -298,7 +277,6 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
                         )
                     }
                 } else {
-                    // Tampilkan button upload
                     PrimaryButton(
                         text = "Upload File",
                         onClick = onUploadClick,
@@ -310,10 +288,6 @@ fun UploadKRSInput(label: String, fileName: String, onUploadClick: () -> Unit) {
     }
 }
 
-// ---------------------------
-// Main Registration Form
-// ---------------------------
-
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun RegistrationFormScreen(
@@ -322,19 +296,15 @@ fun RegistrationFormScreen(
     profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel,
     eventId: Int?
 ) {
-    // Context untuk API call
     val context = LocalContext.current
 
-    // Ambil userId dari profile
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
 
-    // Cari event berdasarkan ID dari semua event yang ada
     val eventToRegister = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value) {
         (viewModel.allEvents.value + viewModel.createdEvents.value).find { it.id == eventId }
     }
 
-    // AUTO-FILL: Inisialisasi field dengan data dari profile user yang login
     var name by remember(currentUserProfile) { 
         mutableStateOf(currentUserProfile?.name ?: "") 
     }
@@ -343,7 +313,6 @@ fun RegistrationFormScreen(
     var selectedFakultas by remember { mutableStateOf("Pilih Fakultas") }
     var selectedJurusan by remember { mutableStateOf("Pilih Jurusan") }
     var availableJurusan by remember { mutableStateOf(listOf<String>()) }
-    // AUTO-FILL: Email dan Phone dari profile user
     var email by remember(currentUserProfile) { 
         mutableStateOf(currentUserProfile?.email ?: "") 
     }
@@ -353,16 +322,13 @@ fun RegistrationFormScreen(
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf("Tidak ada file dipilih") }
 
-    // State untuk tracking pendaftaran
     var isRegistering by remember { mutableStateOf(false) }
 
-    // Observe notification message untuk handle error
     val notificationMessage by viewModel.notificationMessage
     LaunchedEffect(notificationMessage) {
         if (isRegistering && notificationMessage != null) {
             when {
                 notificationMessage!!.contains("Berhasil", ignoreCase = true) -> {
-                    // Sukses - navigasi ke Event Saya
                     eventToRegister?.let { event ->
                         navController.navigate(Screen.MyRegisteredEvent.createRoute(event.title)) {
                             popUpTo(Screen.Home.route)
@@ -372,12 +338,10 @@ fun RegistrationFormScreen(
                     isRegistering = false
                 }
                 notificationMessage!!.contains("NIM", ignoreCase = true) -> {
-                    // Error NIM
                     nimError = "Masukkan NIM anda dengan benar"
                     isRegistering = false
                 }
                 else -> {
-                    // Error lain (kuota penuh, sudah terdaftar, dll)
                     isRegistering = false
                 }
             }
@@ -385,10 +349,8 @@ fun RegistrationFormScreen(
         }
     }
     
-    // Real-time NIM validation - check via API
     LaunchedEffect(nim, eventId) {
         if (eventId != null && nim.isNotEmpty()) {
-            // Check NIM duplicate setelah user ketik
             try {
                 withContext(Dispatchers.IO) {
                     val response = ApiClient.instance.checkNimExists(eventId, nim).execute()
@@ -401,7 +363,6 @@ fun RegistrationFormScreen(
                     }
                 }
             } catch (e: Exception) {
-                // Ignore error, don't block user
                 nimError = null
             }
         } else if (nim.isEmpty()) {
@@ -419,8 +380,8 @@ fun RegistrationFormScreen(
                 selectedFakultas != "Pilih Fakultas" &&
                 selectedJurusan != "Pilih Jurusan" &&
                 selectedFileUri != null &&
-                eventToRegister != null && // Pastikan event ada
-                nimError == null  // Form valid hanya jika tidak ada error NIM
+                eventToRegister != null &&
+                nimError == null
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -445,7 +406,6 @@ fun RegistrationFormScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Tampilkan nama event di atas form (di area cream)
             if (eventToRegister != null) {
                 Text(
                     text = eventToRegister.title,
@@ -461,7 +421,6 @@ fun RegistrationFormScreen(
                 )
             }
 
-            // Field yang TERKUNCI - data diambil dari akun user
             ReadOnlyFormField(
                 label = "Nama Lengkap",
                 value = name
@@ -470,16 +429,14 @@ fun RegistrationFormScreen(
                 label = "NIM",
                 value = nim,
                 onValueChange = { newValue ->
-                    // Hanya terima angka atau string kosong (untuk delete)
                     if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
                         nim = newValue
-                        nimError = null // Clear error saat user mengetik
+                        nimError = null
                     }
                 },
                 keyboardType = KeyboardType.Number,
-                errorMessage = nimError  // Show error message untuk NIM
+                errorMessage = nimError
             )
-            // Removed duplicate NIM error display - error sudah ditampilkan inline di FormInputField
 
             DropdownInput(
                 label = "Fakultas",
@@ -500,7 +457,6 @@ fun RegistrationFormScreen(
                 enabled = availableJurusan.isNotEmpty()
             )
 
-            // Field yang TERKUNCI - data diambil dari akun user
             ReadOnlyFormField(
                 label = "Email",
                 value = email
@@ -516,17 +472,13 @@ fun RegistrationFormScreen(
                 onUploadClick = { filePickerLauncher.launch("application/pdf") }
             )
 
-            // Removed technical debug message - cleaner UX
-
             PrimaryButton(
                 text = if (viewModel.isUploading.value) "Mengupload..." else "Daftar",
                 onClick = {
                     android.util.Log.d("RegistrationForm", "Button clicked! isFormValid=$isFormValid")
                     if (isFormValid && selectedFileUri != null) {
-                        // COMBINED FLOW: 1. Check NIM, 2. Upload KRS, 3. Register
                         isRegistering = true
                         
-                        // Step 1: Cek NIM terlebih dahulu dari main branch
                         ApiClient.instance.checkNimExists(eventToRegister!!.id, nim)
                             .enqueue(object : Callback<CheckNimResponse> {
                                 override fun onResponse(
@@ -536,26 +488,21 @@ fun RegistrationFormScreen(
                                     val body = response.body()
                                     if (response.isSuccessful && body?.status == "success") {
                                         if (body.data?.exists == true) {
-                                            // NIM sudah terdaftar - tampilkan pesan error
                                             nimError = "Masukkan NIM anda dengan benar"
                                             isRegistering = false
                                         } else {
-                                            // NIM belum terdaftar - lanjut upload KRS
                                             proceedWithRegistration()
                                         }
                                     } else {
-                                        // Error dari API - lanjut saja
                                         proceedWithRegistration()
                                     }
                                 }
 
                                 override fun onFailure(call: Call<CheckNimResponse>, t: Throwable) {
-                                    // Jika check gagal, lanjut saja
                                     proceedWithRegistration()
                                 }
                                 
                                 fun proceedWithRegistration() {
-                                    // Step 2: Upload file KRS ke server (dari loly branch)
                                     android.util.Log.d("RegistrationForm", "Starting KRS upload...")
                                     viewModel.uploadKRS(
                                         context = context,
@@ -563,7 +510,6 @@ fun RegistrationFormScreen(
                                         onSuccess = { krsUrl ->
                                             android.util.Log.d("RegistrationForm", "KRS uploaded! URL: $krsUrl")
                                             
-                                            // Step 3: Submit registrasi dengan KRS URL
                                             val registrationData = Registration(
                                                 eventId = eventToRegister.id,
                                                 name = name,

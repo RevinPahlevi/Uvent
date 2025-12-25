@@ -14,33 +14,31 @@ data class Event(
     val type: String,
     
     @SerializedName("date")
-    val date: String, // Format: "d/M/yyyy" (contoh: "16/10/2025")
+    val date: String,
     
     @SerializedName("time_start")
-    val timeStart: String, // Format: "HH:mm" (contoh: "09:00")
+    val timeStart: String,
     
     @SerializedName("time_end")
-    val timeEnd: String,   // Format: "HH:mm" (contoh: "12:00")
+    val timeEnd: String,
     
     @SerializedName("platform_type")
-    val platformType: String, // "Online" atau "Offline"
+    val platformType: String,
     
     @SerializedName("location_detail")
-    val locationDetail: String, // Link Zoom or "Auditorium"
+    val locationDetail: String,
     
     @SerializedName("quota")
     val quota: String,
     
     @SerializedName("status")
-    val status: String, // Ini akan jadi status default (misal "Aktif")
+    val status: String,
     
-    val thumbnailResId: Int? = null, // Ini hanya untuk gambar lokal (drawable resource)
+    val thumbnailResId: Int? = null,
     
     @SerializedName("thumbnail_uri")
-    val thumbnailUri: String? = null, // Ini untuk gambar dari server
+    val thumbnailUri: String? = null,
     
     @SerializedName("creator_id")
     val creatorId: Int? = null
 )
-
-

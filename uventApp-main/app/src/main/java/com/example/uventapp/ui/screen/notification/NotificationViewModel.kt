@@ -27,9 +27,6 @@ class NotificationViewModel : ViewModel() {
     private val _errorMessage = mutableStateOf<String?>(null)
     val errorMessage: State<String?> = _errorMessage
     
-    /**
-     * Fetch notifications untuk user tertentu
-     */
     fun fetchNotifications(userId: Int) {
         Log.d("NotifViewModel", "Fetching notifications for userId: $userId")
         _isLoading.value = true
@@ -64,9 +61,6 @@ class NotificationViewModel : ViewModel() {
         }
     }
     
-    /**
-     * Mark notification as read
-     */
     fun markAsRead(notificationId: Int, userId: Int) {
         viewModelScope.launch {
             ApiClient.instance.markNotificationAsRead(notificationId).enqueue(object : Callback<com.example.uventapp.data.model.MarkAsReadResponse> {
@@ -75,16 +69,14 @@ class NotificationViewModel : ViewModel() {
                     response: Response<com.example.uventapp.data.model.MarkAsReadResponse>
                 ) {
                     if (response.isSuccessful) {
-                        // Update local state
                         _notifications.value = _notifications.value.map { notif ->
                             if (notif.id == notificationId) {
-                                notif.copy(_isRead = 1)  // MySQL: 1 = true
+                                notif.copy(_isRead = 1)
                             } else {
                                 notif
                             }
                         }
                         
-                        // Update unread count
                         _unreadCount.value = _notifications.value.count { !it.isRead }
                         
                         Log.d("NotifViewModel", "Marked notification $notificationId as read")
@@ -98,9 +90,6 @@ class NotificationViewModel : ViewModel() {
         }
     }
     
-    /**
-     * Mark all notifications as read
-     */
     fun markAllAsRead(userId: Int) {
         viewModelScope.launch {
             ApiClient.instance.markAllNotificationsAsRead(userId).enqueue(object : Callback<com.example.uventapp.data.model.MarkAsReadResponse> {
@@ -109,8 +98,7 @@ class NotificationViewModel : ViewModel() {
                     response: Response<com.example.uventapp.data.model.MarkAsReadResponse>
                 ) {
                     if (response.isSuccessful) {
-                        // Update all to read
-                        _notifications.value = _notifications.value.map { it.copy(_isRead = 1) }  // MySQL: 1 = true
+                        _notifications.value = _notifications.value.map { it.copy(_isRead = 1) }
                         _unreadCount.value = 0
                         
                         Log.d("NotifViewModel", "Marked all notifications as read")
@@ -124,9 +112,6 @@ class NotificationViewModel : ViewModel() {
         }
     }
     
-    /**
-     * Refresh notifications (untuk pull-to-refresh)
-     */
     fun refresh(userId: Int) {
         fetchNotifications(userId)
     }

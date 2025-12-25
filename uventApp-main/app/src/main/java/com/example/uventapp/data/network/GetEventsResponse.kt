@@ -29,13 +29,13 @@ data class EventResponse(
     val timeEnd: String?,
 
     @SerializedName("platform_type")
-    val platformType: String?, // Kunci ini harus sama dengan output JSON dari backend
+    val platformType: String?,
 
     @SerializedName("location_detail")
-    val locationDetail: String?, // Kunci ini harus sama dengan output JSON dari backend
+    val locationDetail: String?,
 
     @SerializedName("quota")
-    val quota: Int?, // Backend mungkin mengirim angka (Int)
+    val quota: Int?,
 
     @SerializedName("status")
     val status: String?,

@@ -25,13 +25,12 @@ import com.example.uventapp.ui.screen.documentation.AddDocumentationScreen
 import com.example.uventapp.ui.screen.documentation.AllDocumentationScreen
 import com.example.uventapp.ui.screen.profile.ProfileScreen
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
-import com.example.uventapp.ui.screen.participants.ParticipantListScreen // IMPORT BARU
-import com.example.uventapp.ui.screen.event.CreatedEventDetailScreen // IMPORT BARU
+import com.example.uventapp.ui.screen.participants.ParticipantListScreen
+import com.example.uventapp.ui.screen.event.CreatedEventDetailScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
 
-    // Inisialisasi kedua ViewModel di sini
     val eventViewModel: EventManagementViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
 
@@ -76,18 +75,15 @@ fun NavGraph(navController: NavHostController) {
             })
         ) { backStackEntry ->
             val eventName = backStackEntry.arguments?.getString("eventName") ?: ""
-            // --- PERBAIKAN DI SINI ---
-            // Tambahkan 'profileViewModel = profileViewModel'
             MyRegisteredEventScreen(
                 navController = navController,
                 viewModel = eventViewModel,
-                profileViewModel = profileViewModel, // <-- INI YANG HILANG
+                profileViewModel = profileViewModel,
                 eventName = eventName
             )
         }
 
         composable(Screen.AddEvent.route) {
-            // (Panggilan ini sudah benar dari sebelumnya)
             AddEventScreen(
                 navController = navController,
                 viewModel = eventViewModel,
@@ -103,7 +99,6 @@ fun NavGraph(navController: NavHostController) {
             EditEventScreen(navController, eventViewModel, eventId)
         }
 
-        // (Rute AddFeedback, AllFeedback, AllDocumentation, AddDocumentation tetap sama)
         composable(
             route = Screen.AddFeedback.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
@@ -154,7 +149,6 @@ fun NavGraph(navController: NavHostController) {
             )
         }
 
-        // ===== FITUR BARU: Participant List Screen =====
         composable(
             route = Screen.ParticipantList.route,
             arguments = listOf(
@@ -166,9 +160,7 @@ fun NavGraph(navController: NavHostController) {
             val eventTitle = backStackEntry.arguments?.getString("eventTitle") ?: ""
             ParticipantListScreen(navController, eventId, eventTitle)
         }
-        // ===============================================
         
-        // ===== FITUR BARU: Created Event Detail Screen =====
         composable(
             route = Screen.CreatedEventDetail.route,
             arguments = listOf(navArgument("eventId") { type = NavType.IntType })
@@ -176,6 +168,5 @@ fun NavGraph(navController: NavHostController) {
             val eventId = backStackEntry.arguments?.getInt("eventId") ?: 0
             CreatedEventDetailScreen(navController, eventId, eventViewModel)
         }
-        // ===================================================
     }
 }

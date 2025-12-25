@@ -4,7 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Push notification permission (Android 13+) -->
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -37,8 +37,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
-        <!-- BootReceiver to restart WorkManager after device reboot -->
+
         <receiver
             android:name=".receiver.BootReceiver"
             android:enabled="true"
@@ -48,8 +47,7 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
-        
-        <!-- FileProvider for camera capture -->
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -59,8 +57,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-        
-        <!-- Firebase Cloud Messaging Service -->
+
         <service
             android:name=".fcm.MyFirebaseMessagingService"
             android:exported="false">
@@ -68,8 +65,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        
-        <!-- Default notification channel for FCM -->
+
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="uvent_notifications" />

@@ -61,10 +61,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// --- HELPER FUNCTION ---
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
     try {
-        // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
         val dateParts = date.split("/")
         if (dateParts.size != 3) return false
 
@@ -72,30 +70,25 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         val month = dateParts[1].toIntOrNull() ?: return false
         val year = dateParts[2].toIntOrNull() ?: return false
 
-        // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
         val timeParts = timeEnd.split(":")
         if (timeParts.size < 2) return false
 
         val hour = timeParts[0].toIntOrNull() ?: return false
         val minute = timeParts[1].toIntOrNull() ?: return false
 
-        // Buat Calendar untuk waktu akhir event
         val eventEndCalendar = java.util.Calendar.getInstance()
         eventEndCalendar.set(java.util.Calendar.YEAR, year)
-        eventEndCalendar.set(java.util.Calendar.MONTH, month - 1) // Calendar month is 0-indexed
+        eventEndCalendar.set(java.util.Calendar.MONTH, month - 1)
         eventEndCalendar.set(java.util.Calendar.DAY_OF_MONTH, day)
         eventEndCalendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
         eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
         eventEndCalendar.set(java.util.Calendar.SECOND, 0)
         eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
 
-        // Waktu sekarang
         val now = java.util.Calendar.getInstance()
 
-        // Event selesai jika waktu sekarang SETELAH waktu akhir event
         return now.after(eventEndCalendar)
     } catch (e: Exception) {
-        // Jika ada error parsing, anggap event BELUM selesai (safe default)
         android.util.Log.e("isEventFinished", "Error parsing date=$date, timeEnd=$timeEnd: ${e.message}")
         return false
     }
@@ -113,22 +106,17 @@ fun MyRegisteredEventScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // 1. Ambil Profil User
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
 
-    // 2. State Data Event
-    // PERBAIKAN: Gunakan langsung state dari ViewModel, jangan difilter manual dari allEvents
     val createdEvents by viewModel.createdEvents
-    val followedEvents = viewModel.followedEvents // List event yang diikuti
-    val isLoadingCreatedEvents by viewModel.isLoadingCreatedEvents // Loading state
+    val followedEvents = viewModel.followedEvents
+    val isLoadingCreatedEvents by viewModel.isLoadingCreatedEvents
 
-    // 3. Load Data saat Screen Dibuka
-    // Ini PENTING agar event yang baru dibuat/diikuti langsung muncul
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             viewModel.loadCreatedEvents(currentUserId, context)
-            viewModel.loadFollowedEvents(currentUserId, context) // Load event yang diikuti
+            viewModel.loadFollowedEvents(currentUserId, context)
         }
     }
 
@@ -137,7 +125,6 @@ fun MyRegisteredEventScreen(
     var showCancelDialog by remember { mutableStateOf<Event?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
 
-    // Efek Notifikasi Snackbar
     LaunchedEffect(notificationMessage) {
         if (notificationMessage != null) {
             scope.launch {
@@ -149,24 +136,20 @@ fun MyRegisteredEventScreen(
             }
         }
     }
-    // Handle navigation from registration success and edit success
+
     LaunchedEffect(eventName) {
         if (eventName.isNotEmpty()) {
             if (eventName == "_return_to_followed") {
-                // Just switch to Diikuti tab without message
                 selectedTab = 1
             } else if (eventName == "_no_change") {
-                // No changes made - just switch to Diikuti tab without message
                 selectedTab = 1
             } else if (eventName == "_edit_success") {
-                // Show edit success message and switch to Diikuti tab
                 selectedTab = 1
                 snackbarHostState.showSnackbar(
                     message = "Perubahan berhasil disimpan",
                     duration = SnackbarDuration.Short
                 )
             } else {
-                // Registration success - show message and switch to Diikuti tab
                 selectedTab = 1
                 snackbarHostState.showSnackbar(
                     message = "Berhasil mendaftar event \"$eventName\"!",
@@ -206,7 +189,6 @@ fun MyRegisteredEventScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // --- TAB BUTTONS ---
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -219,7 +201,6 @@ fun MyRegisteredEventScreen(
                     TabButton(text = "Diikuti", isSelected = selectedTab == 1, onClick = { selectedTab = 1 }, modifier = Modifier.weight(1f))
                 }
 
-                // --- KATEGORI FILTER ---
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -234,9 +215,7 @@ fun MyRegisteredEventScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- LIST EVENT ---
                 when (selectedTab) {
-                    // TAB "DIBUAT"
                     0 -> LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -244,16 +223,14 @@ fun MyRegisteredEventScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        // Filter list berdasarkan kategori yang dipilih
                         val filteredCreatedEvents = if (selectedCategory == "Semua") {
                             createdEvents
                         } else {
                             createdEvents.filter { it.type.equals(selectedCategory, ignoreCase = true) }
                         }
 
-                        // TAMPILKAN LOADING SKELETON saat data sedang dimuat
                         if (isLoadingCreatedEvents) {
-                            items(3) { // Show 3 skeleton items
+                            items(3) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -292,7 +269,6 @@ fun MyRegisteredEventScreen(
                         }
                     }
 
-                    // TAB "DIIKUTI"
                     1 -> LazyColumn(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -350,7 +326,6 @@ fun MyRegisteredEventScreen(
                 }
             }
 
-            // --- DIALOGS ---
             showCancelDialog?.let { eventToCancel ->
                 CancelConfirmationDialog(
                     eventName = eventToCancel.title,
@@ -380,7 +355,6 @@ fun MyRegisteredEventScreen(
                     onConfirm = {
                         viewModel.deleteEvent(eventIdToCancel, context)
                         showDeleteDialog = null
-                        // Refresh data setelah delete
                         if (currentUserId != null) {
                             viewModel.loadCreatedEvents(currentUserId, context)
                         }
@@ -391,7 +365,6 @@ fun MyRegisteredEventScreen(
     }
 }
 
-// --- COMPOSABLE COMPONENTS (Tidak Berubah) ---
 @Composable
 fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val backgroundColor = if (isSelected) PrimaryGreen else Color.Transparent
@@ -423,15 +396,13 @@ private fun CreatedEventCard(
     onDeleteClick: () -> Unit,
     onLihatFeedbackClick: () -> Unit
 ) {
-    // Tentukan warna dan teks status verifikasi
     val (verificationStatusText, verificationStatusColor) = when (event.status.lowercase()) {
-        "menunggu" -> "Diproses" to Color(0xFFFF9800) // Orange
-        "disetujui" -> "Disetujui" to Color(0xFF4CAF50) // Green
-        "ditolak" -> "Ditolak" to Color(0xFFE53935) // Red
+        "menunggu" -> "Diproses" to Color(0xFFFF9800)
+        "disetujui" -> "Disetujui" to Color(0xFF4CAF50)
+        "ditolak" -> "Ditolak" to Color(0xFFE53935)
         else -> "Diproses" to Color(0xFFFF9800)
     }
     
-    // Tentukan apakah card bisa diklik (hanya untuk event disetujui dan belum selesai)
     val isClickable = event.status.lowercase() == "disetujui" && !isFinished
 
     Card(
@@ -455,7 +426,6 @@ private fun CreatedEventCard(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // Fix image URL for Android
                 val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                     ?: event.thumbnailResId
                     ?: R.drawable.placeholder_poster
@@ -463,9 +433,9 @@ private fun CreatedEventCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(false) // Disable crossfade to prevent flash
-                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
-                        .diskCachePolicy(CachePolicy.DISABLED)  // Disable disk cache
+                        .crossfade(false)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .diskCachePolicy(CachePolicy.DISABLED)
                         .build(),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
@@ -484,26 +454,21 @@ private fun CreatedEventCard(
                     Text(event.type, fontSize = 13.sp, color = PrimaryGreen)
                     EventInfoRow(icon = Icons.Filled.CalendarToday, text = "${event.date} - ${event.timeStart}")
                     
-                    // DEBUG: Log status untuk troubleshooting
                     android.util.Log.d("CreatedEventCard", "Event: ${event.title}, status: '${event.status}', lowercase: '${event.status.lowercase()}', isFinished: $isFinished")
 
-                    // Lokasi dan tombol aksi dalam satu baris
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Lokasi di sebelah kiri
                         EventInfoRow(
                             icon = Icons.Filled.LocationOn, 
                             text = event.locationDetail,
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         
-                        // Tombol aksi di sebelah kanan
                         when {
                             event.status.lowercase() == "menunggu" || event.status.lowercase().contains("proses") -> {
-                                // Event masih menunggu verifikasi - tombol Edit dan Batalkan
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(
                                         onClick = onEditClick,
@@ -526,7 +491,6 @@ private fun CreatedEventCard(
                                 }
                             }
                             event.status.lowercase() == "ditolak" -> {
-                                // Event ditolak - tombol Hapus
                                 Button(
                                     onClick = onDeleteClick,
                                     modifier = Modifier.height(28.dp),
@@ -536,7 +500,6 @@ private fun CreatedEventCard(
                                 ) { Text("Hapus", fontSize = 10.sp) }
                             }
                             isFinished && event.status.lowercase() == "disetujui" -> {
-                                // Event selesai dan disetujui - tombol Lihat Feedback
                                 Button(
                                     onClick = onLihatFeedbackClick,
                                     modifier = Modifier.height(28.dp),
@@ -550,11 +513,8 @@ private fun CreatedEventCard(
                                 }
                             }
                             event.status.lowercase() == "disetujui" && !isFinished -> {
-                                // Event disetujui tapi belum selesai - KOSONG, card bisa diklik
-                                // Tidak ada teks atau tombol
                             }
                             else -> {
-                                // Status lain - fallback ke Edit dan Batalkan
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(
                                         onClick = onEditClick,
@@ -581,7 +541,6 @@ private fun CreatedEventCard(
                 }
             }
 
-            // Status Badge di pojok kanan atas
             Text(
                 text = verificationStatusText,
                 color = White,
@@ -642,7 +601,6 @@ fun MyEventCard(
     ) {
         Box {
             Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-                // Fix image URL for Android
                 val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                     ?: event.thumbnailResId
                     ?: R.drawable.placeholder_poster
@@ -650,9 +608,9 @@ fun MyEventCard(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
-                        .crossfade(false) // Disable crossfade
-                        .memoryCachePolicy(CachePolicy.DISABLED) // Disable memory cache
-                        .diskCachePolicy(CachePolicy.DISABLED)   // Disable disk cache
+                        .crossfade(false)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .diskCachePolicy(CachePolicy.DISABLED)
                         .build(),
                     error = painterResource(R.drawable.placeholder_poster),
                     contentDescription = "Event Poster",
@@ -668,16 +626,12 @@ fun MyEventCard(
                         EventInfoRow(icon = Icons.Default.LocationOn, text = event.locationDetail, modifier = Modifier.weight(1f, fill = false))
                         when {
                             isFinished -> {
-                                // Event sudah selesai - tampilkan link lihat ulasan
                                 Text(text = "Lihat ulasan >", color = PrimaryGreen, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, modifier = Modifier.clickable { onReviewClick() }.padding(start = 8.dp))
                             }
                             isStarted -> {
-                                // Event sudah mulai tapi belum selesai - TIDAK ADA tombol edit/batal
-                                // Hanya tampilkan teks info
                                 Text(text = "Event berlangsung", color = Color(0xFFFF9800), fontWeight = FontWeight.Medium, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
                             }
                             else -> {
-                                // Event belum dimulai - tampilkan tombol Edit dan Batal
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Button(onClick = { navController.navigate(Screen.EditRegistration.createRoute(event.id)) }, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen), modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 8.dp)) {
                                         Icon(Icons.Default.Edit, contentDescription = "Edit", tint = White, modifier = Modifier.size(16.dp))
@@ -691,7 +645,6 @@ fun MyEventCard(
                     }
                 }
             }
-            // Status badge di pojok kanan atas
             val (statusText, statusColor) = when {
                 isFinished -> "Selesai" to Color(0xFFE53935)
                 isStarted -> "Berlangsung" to Color(0xFFFF9800)

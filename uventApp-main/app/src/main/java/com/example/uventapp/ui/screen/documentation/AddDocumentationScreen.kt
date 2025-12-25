@@ -91,10 +91,8 @@ fun AddDocumentationScreen(
     val appBarTitle = if (isEditMode) "Edit Dokumentasi" else "Tambah Dokumentasi"
     val buttonText = if (isEditMode) "Simpan Perubahan" else "Bagikan"
 
-    // Buat file untuk menyimpan foto dari kamera
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
-    
-    // Fungsi untuk membuat URI file sementara
+
     fun createTempPhotoUri(): Uri {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val imageFileName = "DOC_${timeStamp}.jpg"
@@ -109,12 +107,10 @@ fun AddDocumentationScreen(
             imageFile
         )
     }
-    
-    // State untuk permission dialog
+
     var showPermissionDialog by remember { mutableStateOf(false) }
     var permissionDeniedPermanently by remember { mutableStateOf(false) }
-    
-    // Camera launcher
+
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
@@ -125,47 +121,39 @@ fun AddDocumentationScreen(
             uploadError = "Gagal mengambil foto"
         }
     }
-    
-    // Permission launcher
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission granted, open camera
             tempPhotoUri = createTempPhotoUri()
             tempPhotoUri?.let { uri ->
                 cameraLauncher.launch(uri)
             }
         } else {
-            // Permission denied
             permissionDeniedPermanently = true
             showPermissionDialog = true
         }
     }
-    
-    // Fungsi untuk membuka kamera dengan pengecekan permission
+
     fun openCamera() {
         if (!isEditMode) {
-            // Check if permission is already granted
             val permissionStatus = ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.CAMERA
             )
             
             if (permissionStatus == PackageManager.PERMISSION_GRANTED) {
-                // Permission sudah ada, langsung buka kamera
                 tempPhotoUri = createTempPhotoUri()
                 tempPhotoUri?.let { uri ->
                     cameraLauncher.launch(uri)
                 }
             } else {
-                // Request permission
                 permissionLauncher.launch(Manifest.permission.CAMERA)
             }
         }
     }
-    
-    // Permission Dialog
+
     if (showPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionDialog = false },
@@ -212,7 +200,6 @@ fun AddDocumentationScreen(
         )
     }
 
-    // Fungsi untuk submit dokumentasi baru
     fun submitNewDocumentation(serverPhotoUrl: String) {
         val registrationData = viewModel.getRegistrationData(event!!.id)
         val userName = registrationData?.name ?: "Mahasiswa (Anda)"
@@ -235,8 +222,7 @@ fun AddDocumentationScreen(
         viewModel.submitDocumentation(event.id, newDoc, userId, context)
         navController.popBackStack()
     }
-    
-    // Fungsi untuk update dokumentasi yang sudah ada (hanya description)
+
     fun updateExistingDocumentation() {
         val userId = if (currentUserId != null && currentUserId > 0) currentUserId else 1
         viewModel.updateDocumentation(
@@ -271,7 +257,6 @@ fun AddDocumentationScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // Header dengan gradient
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -302,7 +287,7 @@ fun AddDocumentationScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Upload Photo Card
+
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = White),
@@ -326,8 +311,7 @@ fun AddDocumentationScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // Upload Box
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -400,7 +384,6 @@ fun AddDocumentationScreen(
                                                 .fillMaxSize()
                                                 .clip(RoundedCornerShape(12.dp))
                                         )
-                                        // Change photo button - hanya tampil jika bukan edit mode
                                         if (!isEditMode) {
                                             Box(
                                                 modifier = Modifier
@@ -427,7 +410,6 @@ fun AddDocumentationScreen(
                         }
                     }
 
-                    // Description Card
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = White),
@@ -470,7 +452,6 @@ fun AddDocumentationScreen(
                         }
                     }
 
-                    // Error message
                     uploadError?.let { error ->
                         Card(
                             shape = RoundedCornerShape(12.dp),
@@ -493,14 +474,11 @@ fun AddDocumentationScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Submit Button
                     Button(
                         onClick = {
                             if (isEditMode) {
-                                // Mode edit: hanya update description
                                 updateExistingDocumentation()
                             } else {
-                                // Mode create: upload foto dulu lalu submit
                                 if (selectedPhotoUri != null && !isUploading) {
                                     isUploading = true
                                     uploadError = null
@@ -565,7 +543,6 @@ fun AddDocumentationScreen(
             }
         }
 
-        // Loading overlay
         if (isUploading) {
             Box(
                 modifier = Modifier

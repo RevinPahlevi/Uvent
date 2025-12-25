@@ -18,7 +18,6 @@ data class FeedbackData(
     val feedbackId: Int
 )
 
-// Response untuk mengambil list feedback
 data class GetFeedbacksResponse(
     @SerializedName("status")
     val status: String,

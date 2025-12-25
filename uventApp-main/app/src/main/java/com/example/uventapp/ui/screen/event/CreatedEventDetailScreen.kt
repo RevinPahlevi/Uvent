@@ -39,10 +39,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-/**
- * Screen untuk menampilkan detail event yang dibuat + daftar pendaftar
- * Digunakan ketika event sudah disetujui dan belum selesai
- */
+
 @Composable
 fun CreatedEventDetailScreen(
     navController: NavController,
@@ -50,8 +47,7 @@ fun CreatedEventDetailScreen(
     viewModel: EventManagementViewModel
 ) {
     val context = LocalContext.current
-    
-    // Get event from viewModel
+
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     
@@ -59,13 +55,11 @@ fun CreatedEventDetailScreen(
         allEvents.find { it.id == eventId }
             ?: createdEvents.find { it.id == eventId }
     }
-    
-    // Participants state
+
     var participants by remember { mutableStateOf<List<ParticipantData>>(emptyList()) }
     var isLoadingParticipants by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    // Load participants
+
     LaunchedEffect(eventId) {
         ApiClient.instance.getParticipantsByEvent(eventId).enqueue(object : Callback<GetParticipantsResponse> {
             override fun onResponse(
@@ -112,12 +106,9 @@ fun CreatedEventDetailScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Event Detail Section
                 item {
                     EventDetailCard(event = event)
                 }
-                
-                // Participants Header
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -155,8 +146,7 @@ fun CreatedEventDetailScreen(
                         }
                     }
                 }
-                
-                // Loading / Error / Participants List
+
                 when {
                     isLoadingParticipants -> {
                         item {
@@ -217,7 +207,6 @@ private fun EventDetailCard(event: Event) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Poster
             val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                 ?: event.thumbnailResId
                 ?: R.drawable.placeholder_poster
@@ -239,16 +228,13 @@ private fun EventDetailCard(event: Event) {
             )
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Title
             Text(
                 text = event.title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black
             )
-            
-            // Type badge
+
             Text(
                 text = event.type,
                 fontSize = 14.sp,
@@ -257,8 +243,7 @@ private fun EventDetailCard(event: Event) {
             )
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Date & Time
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.CalendarToday,
@@ -275,8 +260,7 @@ private fun EventDetailCard(event: Event) {
             }
             
             Spacer(modifier = Modifier.height(8.dp))
-            
-            // Location
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.LocationOn,
@@ -293,8 +277,7 @@ private fun EventDetailCard(event: Event) {
             }
             
             Spacer(modifier = Modifier.height(8.dp))
-            
-            // Quota
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.People,
@@ -329,7 +312,6 @@ private fun ParticipantItemCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Name & NIM
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -357,8 +339,6 @@ private fun ParticipantItemCard(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Fakultas & Jurusan
             Text(
                 text = "${participant.fakultas} - ${participant.jurusan}",
                 fontSize = 13.sp,
@@ -366,8 +346,6 @@ private fun ParticipantItemCard(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Email & Phone in row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -383,8 +361,6 @@ private fun ParticipantItemCard(
                     Text(text = participant.phone, fontSize = 11.sp, color = Color.Gray)
                 }
             }
-
-            // KRS Button
             if (participant.krs_uri != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(

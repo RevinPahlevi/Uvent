@@ -33,7 +33,6 @@ import com.example.uventapp.ui.components.BottomNavBar
 import com.example.uventapp.ui.navigation.Screen
 import com.example.uventapp.ui.theme.PrimaryGreen
 
-// Warna tema modern
 private val GradientStart = Color(0xFF1B5E20)
 private val GradientEnd = Color(0xFF4CAF50)
 private val CardBackground = Color(0xFFFAFAFA)
@@ -50,7 +49,6 @@ fun ProfileScreen(
     val profile by profileViewModel.profile
     var showLogoutDialog by remember { mutableStateOf(false) }
     
-    // Animation state
     var isLoaded by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isLoaded = true }
     
@@ -70,13 +68,11 @@ fun ProfileScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Header dengan Gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(280.dp)
             ) {
-                // Background Gradient
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,7 +84,6 @@ fun ProfileScreen(
                         )
                 )
                 
-                // Header Title
                 Text(
                     text = "Profil Saya",
                     color = Color.White,
@@ -99,7 +94,6 @@ fun ProfileScreen(
                         .padding(top = 24.dp)
                 )
                 
-                // Avatar Card
                 Card(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -116,7 +110,6 @@ fun ProfileScreen(
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Avatar Circle
                         Box(
                             modifier = Modifier
                                 .size(100.dp)
@@ -129,7 +122,6 @@ fun ProfileScreen(
                                 .border(4.dp, Color.White, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Inisial nama
                             val initials = profile?.name?.split(" ")
                                 ?.take(2)
                                 ?.mapNotNull { it.firstOrNull()?.uppercaseChar() }
@@ -145,7 +137,6 @@ fun ProfileScreen(
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
-                        // Nama User
                         Text(
                             text = profile?.name ?: "Memuat...",
                             fontSize = 22.sp,
@@ -156,7 +147,6 @@ fun ProfileScreen(
                         
                         Spacer(modifier = Modifier.height(4.dp))
                         
-                        // Badge Member
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = PrimaryGreen.copy(alpha = 0.1f)
@@ -175,12 +165,10 @@ fun ProfileScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Info Section
             Column(
                 modifier = Modifier.padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section Title
                 Text(
                     text = "Informasi Akun",
                     fontSize = 18.sp,
@@ -188,7 +176,6 @@ fun ProfileScreen(
                     color = Color(0xFF333333)
                 )
                 
-                // Info Cards
                 ProfileInfoCard(
                     icon = Icons.Outlined.Email,
                     iconColor = AccentBlue,
@@ -207,7 +194,6 @@ fun ProfileScreen(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Menu Section
                 Text(
                     text = "Pengaturan",
                     fontSize = 18.sp,
@@ -215,7 +201,6 @@ fun ProfileScreen(
                     color = Color(0xFF333333)
                 )
                 
-                // Menu Items Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -248,7 +233,6 @@ fun ProfileScreen(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Logout Button
                 Button(
                     onClick = { showLogoutDialog = true },
                     modifier = Modifier
@@ -278,7 +262,6 @@ fun ProfileScreen(
             }
         }
         
-        // Dialog Konfirmasi Logout
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
@@ -376,7 +359,6 @@ private fun ProfileInfoCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Box
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -426,7 +408,6 @@ private fun ProfileMenuItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon Box
         Box(
             modifier = Modifier
                 .size(44.dp)

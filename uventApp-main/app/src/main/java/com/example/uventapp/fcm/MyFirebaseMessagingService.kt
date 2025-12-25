@@ -17,9 +17,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New FCM token: $token")
-        
-        // TODO: Save token to backend after user logs in
-        // This will be handled in MainActivity after login
     }
     
     override fun onMessageReceived(message: RemoteMessage) {
@@ -28,7 +25,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Message received from: ${message.from}")
         Log.d(TAG, "Message data: ${message.data}")
         
-        // Get notification type and related data
         val type = message.data["type"]
         val relatedId = message.data["related_id"]?.toIntOrNull() ?: 0
         val eventTitle = message.data["event_title"] ?: ""
@@ -42,25 +38,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 showFeedbackNotification(title, body, relatedId)
             }
             "new_feedback" -> {
-                // Notification for event creator when someone gives feedback
                 showEventNotification(title, body, relatedId)
             }
             else -> {
-                // Generic notification
                 showNotification(title, body)
             }
         }
     }
     
-    /**
-     * Show notification for feedback reminder - navigates to AddFeedbackScreen
-     */
     private fun showFeedbackNotification(title: String, body: String, eventId: Int) {
         val channelId = "uvent_notifications"
         
         createNotificationChannel(channelId)
         
-        // Intent to open app with deep link to feedback screen
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", "feedback")
@@ -69,7 +59,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         
         val pendingIntent = PendingIntent.getActivity(
             this,
-            eventId, // Use eventId as request code for uniqueness
+            eventId,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -92,9 +82,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Feedback notification shown for event: $eventId")
     }
     
-    /**
-     * Show notification with deep link to event detail
-     */
     private fun showEventNotification(title: String, body: String, eventId: Int) {
         val channelId = "uvent_notifications"
         
@@ -108,7 +95,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         
         val pendingIntent = PendingIntent.getActivity(
             this,
-            eventId + 10000, // Offset to avoid collision with feedback notifications
+            eventId + 10000,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -130,9 +117,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Event notification shown for event: $eventId")
     }
     
-    /**
-     * Show generic notification (no deep link)
-     */
     private fun showNotification(title: String, body: String) {
         val channelId = "uvent_notifications"
         
@@ -167,9 +151,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Generic notification shown: $title")
     }
     
-    /**
-     * Create notification channel (Android 8.0+)
-     */
     private fun createNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -191,4 +172,3 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val TAG = "FCM_Service"
     }
 }
-

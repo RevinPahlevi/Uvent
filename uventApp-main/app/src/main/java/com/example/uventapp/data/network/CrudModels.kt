@@ -2,13 +2,11 @@ package com.example.uventapp.data.network
 
 import com.google.gson.annotations.SerializedName
 
-// Generic delete response
 data class DeleteResponse(
     val status: String,
     val message: String
 )
 
-// Update Feedback Request
 data class UpdateFeedbackRequest(
     @SerializedName("user_id") val userId: Int,
     val rating: Int,
@@ -16,24 +14,20 @@ data class UpdateFeedbackRequest(
     @SerializedName("photo_uri") val photoUri: String?
 )
 
-// Update Feedback Response
 data class UpdateFeedbackResponse(
     val status: String,
     val message: String
 )
 
-// Update Documentation Request (hanya description, foto tidak boleh diubah)
 data class UpdateDocumentationRequest(
     val description: String
 )
 
-// Update Documentation Response
 data class UpdateDocumentationResponse(
     val status: String,
     val message: String
 )
 
-// Get Registrations Response
 data class GetRegistrationsResponse(
     val status: String,
     val data: List<RegistrationDataFull>?
@@ -50,7 +44,6 @@ data class RegistrationDataFull(
     val phone: String,
     @SerializedName("krs_uri") val krsUri: String?,
     @SerializedName("created_at") val createdAt: String,
-    // Event data from JOIN
     val title: String?,
     val type: String?,
     val date: String?,
@@ -64,7 +57,6 @@ data class RegistrationDataFull(
     @SerializedName("creator_id") val creatorId: Int?
 )
 
-// Upload Image Response
 data class UploadImageResponse(
     val status: String,
     val message: String,
@@ -77,7 +69,6 @@ data class UploadImageData(
     val size: Long
 )
 
-// Registration ID Response
 data class RegistrationIdResponse(
     val status: String,
     val data: RegistrationIdData?
@@ -88,13 +79,11 @@ data class RegistrationIdData(
     val registrationId: Int
 )
 
-// Registration Data Response for Edit
 data class RegistrationDataResponse(
     val status: String,
     val data: RegistrationDataFull?
 )
 
-// Update Registration Request
 data class UpdateRegistrationRequest(
     val name: String,
     val nim: String,
@@ -105,13 +94,11 @@ data class UpdateRegistrationRequest(
     @SerializedName("krs_uri") val krsUri: String?
 )
 
-// Update Registration Response
 data class UpdateRegistrationResponse(
     val status: String,
     val message: String
 )
 
-// NIM Check for Edit
 data class NimCheckResponse(
     val status: String,
     val available: Boolean,

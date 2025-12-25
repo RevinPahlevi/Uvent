@@ -42,30 +42,19 @@ sealed class Screen(val route: String) {
         fun createRoute(eventId: Int) = "all_documentation/$eventId"
     }
 
-    // --- PERBAIKAN DI SINI ---
     object AddDocumentation : Screen("add_documentation/{eventId}?docId={docId}") {
-        // Rute untuk Tambah Baru
         fun createRoute(eventId: Int) = "add_documentation/$eventId"
-
-        // Rute untuk Edit
         fun createEditRoute(eventId: Int, docId: Int) = "add_documentation/$eventId?docId=$docId"
     }
-    // -------------------------
 
-    // --- RUTE BARU DITAMBAHKAN ---
     object Profile : Screen("profile")
     object Notifications : Screen("notifications")
     
-    // ===== FITUR BARU: Participant List =====
     object ParticipantList : Screen("participant_list/{eventId}/{eventTitle}") {
         fun createRoute(eventId: Int, eventTitle: String) = "participant_list/$eventId/$eventTitle"
     }
     
-    // ===== FITUR BARU: Created Event Detail (untuk event disetujui) =====
     object CreatedEventDetail : Screen("created_event_detail/{eventId}") {
         fun createRoute(eventId: Int) = "created_event_detail/$eventId"
     }
-    // ========================================
-    // ---------------------------
 }
-

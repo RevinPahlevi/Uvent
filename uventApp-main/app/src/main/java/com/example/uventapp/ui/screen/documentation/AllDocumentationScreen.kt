@@ -48,36 +48,27 @@ fun AllDocumentationScreen(
     eventId: Int?
 ) {
     val context = LocalContext.current
-    
-    // Get current user
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id ?: 0
-    
-    // Get event data untuk cek waktu
     val event = remember(eventId, viewModel.allEvents.value, viewModel.createdEvents.value, viewModel.followedEvents) {
         (viewModel.allEvents.value + viewModel.createdEvents.value + viewModel.followedEvents).find { it.id == eventId }
     }
-    
-    // Cek apakah waktu sekarang dalam rentang yang diizinkan untuk menambah dokumentasi
-    // Rentang: waktu mulai event sampai waktu selesai event + 3 jam
+
     val canAddDocumentation = remember(event) {
         if (event == null) return@remember false
         
         try {
             val dateFormat = java.text.SimpleDateFormat("d/M/yyyy HH:mm", java.util.Locale.getDefault())
             val now = java.util.Calendar.getInstance()
-            
-            // Parse waktu mulai event
+
             val eventStartDateTime = dateFormat.parse("${event.date} ${event.timeStart}")
-            
-            // Parse waktu selesai event dan tambah 3 jam
+
             val eventEndDateTime = dateFormat.parse("${event.date} ${event.timeEnd}")
             val eventEndPlus3Hours = java.util.Calendar.getInstance().apply {
                 time = eventEndDateTime!!
                 add(java.util.Calendar.HOUR_OF_DAY, 3)
             }
-            
-            // Cek apakah waktu sekarang dalam rentang
+
             val isAfterStart = now.time.after(eventStartDateTime) || now.time == eventStartDateTime
             val isBeforeEndPlus3 = now.time.before(eventEndPlus3Hours.time)
             
@@ -87,18 +78,14 @@ fun AllDocumentationScreen(
             false
         }
     }
-    
-    // Ambil data dari ViewModel
+
     val documentationsState by viewModel.documentations
     val documentationList = documentationsState[eventId ?: -1] ?: emptyList()
-    
-    // State untuk loading - false jika sudah ada data lokal
+
     var isLoading by remember { mutableStateOf(documentationList.isEmpty()) }
-    
-    // Load documentations dari API saat screen dibuka
+
     LaunchedEffect(eventId) {
         if (eventId != null && eventId > 0) {
-            // Load in background, don't block UI
             try {
                 viewModel.loadDocumentationsFromApi(eventId, currentUserId, context)
             } catch (e: Exception) {
@@ -109,7 +96,6 @@ fun AllDocumentationScreen(
         isLoading = false
     }
 
-    // State untuk dialog hapus
     var showDeleteDialog by remember { mutableStateOf<Documentation?>(null) }
 
     Scaffold(
@@ -117,7 +103,6 @@ fun AllDocumentationScreen(
             CustomAppBar(title = "Dokumentasi", onBack = { navController.popBackStack() })
         },
         floatingActionButton = {
-            // FAB hanya tampil jika dalam rentang waktu yang diizinkan
             if (canAddDocumentation) {
                 FloatingActionButton(
                     onClick = {
@@ -181,7 +166,6 @@ fun AllDocumentationScreen(
             }
         }
 
-        // Dialog konfirmasi hapus
         showDeleteDialog?.let { docToDelete ->
             DeleteConfirmDialog(
                 onDismiss = { showDeleteDialog = null },
@@ -202,8 +186,7 @@ private fun DocumentationCard(
     onDeleteClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    
-    // Tentukan warna dan alignment berdasarkan kepemilikan
+
     val cardColor = if (isOwn) Color(0xFF00897B) else White
     val textColor = if (isOwn) White else Color.Black
     val alignment = if (isOwn) Arrangement.End else Arrangement.Start
@@ -224,7 +207,6 @@ private fun DocumentationCard(
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             Column {
-                // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -298,7 +280,6 @@ private fun DocumentationCard(
                     }
                 }
 
-                // Gambar
                 if (!doc.photoUri.isNullOrEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -316,7 +297,6 @@ private fun DocumentationCard(
                     )
                 }
 
-                // Deskripsi
                 if (doc.description.isNotEmpty()) {
                     Text(
                         text = doc.description,

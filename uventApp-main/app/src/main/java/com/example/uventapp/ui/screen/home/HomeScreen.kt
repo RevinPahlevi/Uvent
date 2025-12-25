@@ -68,13 +68,11 @@ fun HomeScreen(navController: NavController) {
                     .clip(CircleShape)
                     .background(White)
             ) {
-                // --- PERUBAHAN: Ganti Teks dengan Gambar 'u.png' ---
                 Image(
                     painter = painterResource(id = R.drawable.u),
                     contentDescription = "U Logo",
-                    modifier = Modifier.size(60.dp) // Sesuaikan ukuran agar pas di lingkaran
+                    modifier = Modifier.size(60.dp)
                 )
-                // -----------------------------------------------
             }
 
             Box(

@@ -2,24 +2,6 @@ package com.example.uventapp.data.network
 
 import com.google.gson.annotations.SerializedName
 
-/*
- File ini diubah total untuk mencocokkan respons JSON dari server Node.js:
- {
-    "status": "success",
-    "message": "Login berhasil",
-    "data": {
-        "token": "...",
-        "user": {
-            "id": 1,
-            "name": "...",
-            "email": "...",
-            "phone": "..."
-        }
-    }
- }
-*/
-
-// 1. Data class utama (Top-level JSON)
 data class LoginResponse(
     @SerializedName("status")
     val status: String,
@@ -28,10 +10,9 @@ data class LoginResponse(
     val message: String,
 
     @SerializedName("data")
-    val data: UserData? // Objek 'data' yang bisa jadi null jika login gagal
+    val data: UserData?
 )
 
-// 2. Data class untuk objek "data"
 data class UserData(
     @SerializedName("token")
     val token: String,
@@ -40,7 +21,6 @@ data class UserData(
     val user: User
 )
 
-// 3. Data class untuk objek "user"
 data class User(
     @SerializedName("id")
     val id: Int,

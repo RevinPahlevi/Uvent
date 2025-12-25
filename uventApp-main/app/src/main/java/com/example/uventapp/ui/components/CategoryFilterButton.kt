@@ -16,13 +16,6 @@ import androidx.compose.ui.unit.sp
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.White
 
-/**
- * Shared component untuk filter kategori event
- * Digunakan di EventListScreen dan MyRegisteredEventScreen
- * 
- * Ukuran dan spacing sudah dioptimalkan agar semua kategori
- * (Semua, Seminar, Workshop, Talkshow, Skill Lab) terlihat penuh
- */
 @Composable
 fun CategoryFilterButton(
     text: String,

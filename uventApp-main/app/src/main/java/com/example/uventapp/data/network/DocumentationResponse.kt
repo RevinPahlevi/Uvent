@@ -18,13 +18,12 @@ data class DocumentationData(
     val documentationId: Int
 )
 
-// Response untuk mengambil list dokumentasi
 data class GetDocumentationsResponse(
     @SerializedName("status")
     val status: String?,
 
     @SerializedName("data")
-    val data: List<DocumentationItem>?  // Made nullable to prevent crash
+    val data: List<DocumentationItem>?
 )
 
 data class DocumentationItem(

@@ -1,6 +1,5 @@
 package com.example.uventapp.data.model
 
-// Model untuk data peserta event (untuk admin/organizer)
 data class Participant(
     val registrationId: Int,
     val eventId: Int,

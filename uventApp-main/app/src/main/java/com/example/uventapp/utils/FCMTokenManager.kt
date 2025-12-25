@@ -11,19 +11,12 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-/**
- * Helper untuk save FCM token ke backend
- */
 object FCMTokenManager {
     
     private const val TAG = "FCMTokenManager"
     private const val PREFS_NAME = "fcm_prefs"
     private const val KEY_TOKEN_SENT = "token_sent_to_backend"
     
-    /**
-     * Get FCM token dan save ke backend
-     * Call this after user login
-     */
     fun saveFCMTokenToBackend(context: Context, userId: Int) {
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
@@ -34,7 +27,6 @@ object FCMTokenManager {
             val token = task.result
             Log.d(TAG, "FCM Token: $token")
             
-            // Send token to backend
             sendTokenToBackend(context, userId, token)
         }
     }

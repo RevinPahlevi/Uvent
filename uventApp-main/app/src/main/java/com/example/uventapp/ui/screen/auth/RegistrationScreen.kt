@@ -22,14 +22,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-// --- Import yang Diperlukan ---
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.RegisterRequest
 import com.example.uventapp.data.network.RegisterResponse
 import com.example.uventapp.ui.components.AuthInputField
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
-// --- Import ViewModel ---
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
@@ -42,23 +40,20 @@ import retrofit2.Response
 @Composable
 fun RegistrationScreen(
     navController: NavController,
-    profileViewModel: ProfileViewModel // <-- Terima ViewModel
+    profileViewModel: ProfileViewModel
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // --- State untuk loading dan pesan error ---
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // --- Fungsi untuk memanggil API Registrasi ---
     fun startRegistration() {
         isLoading = true
         errorMessage = null
 
-        // 1. Buat request body
         val request = RegisterRequest(
             name = name,
             email = email,
@@ -66,34 +61,29 @@ fun RegistrationScreen(
             phone = phone
         )
 
-        // 2. Panggil API
         ApiClient.instance.register(request).enqueue(object : Callback<RegisterResponse> {
             override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
                 isLoading = false
                 val body = response.body()
 
                 if (response.isSuccessful && body?.status == "success") {
-                    // Jika sukses, kembali ke Login
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
                         launchSingleTop = true
                     }
                 } else {
-                    // Jika gagal (misal: email duplikat)
                     errorMessage = body?.message ?: "Registrasi gagal. Coba lagi."
                     Log.e("RegisterScreen", "API Error: ${response.code()} - ${response.message()}")
                 }
             }
 
             override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                // Jika server tidak terjangkau
                 isLoading = false
                 errorMessage = "Gagal terhubung ke server."
                 Log.e("RegisterScreen", "API Failure: ${t.message}")
             }
         })
     }
-    // ------------------------------------------
 
     Box(
         modifier = Modifier
@@ -144,7 +134,6 @@ fun RegistrationScreen(
                     AuthInputField(
                         value = phone,
                         onValueChange = { newValue ->
-                            // Hanya terima angka atau string kosong (untuk delete)
                             if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
                                 phone = newValue
                             }
@@ -162,7 +151,6 @@ fun RegistrationScreen(
                         isPassword = true
                     )
 
-                    // --- Tampilkan pesan error jika ada ---
                     errorMessage?.let {
                         Text(
                             text = it,
@@ -178,10 +166,10 @@ fun RegistrationScreen(
                         text = if (isLoading) "MENDAFTAR..." else "DAFTAR",
                         onClick = {
                             if (!isLoading) {
-                                startRegistration() // Panggil fungsi API
+                                startRegistration()
                             }
                         },
-                        enabled = !isLoading // Nonaktifkan tombol saat loading
+                        enabled = !isLoading
                     )
                 }
             }
@@ -201,7 +189,6 @@ fun RegistrationScreen(
                     color = TextLink,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable {
-                        // Jika pengguna klik "Masuk", navigasi ke Login
                         navController.navigate(Screen.Login.route) {
                             popUpTo(Screen.Register.route) { inclusive = true }
                             launchSingleTop = true

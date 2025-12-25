@@ -37,10 +37,9 @@ import java.util.*
 @Composable
 fun NotificationScreen(
     navController: NavController,
-    userId: Int, // Pass dari ProfileViewModel atau login state
+    userId: Int,
     viewModel: NotificationViewModel = viewModel()
 ) {
-    // Fetch notifications saat screen pertama kali dimuat
     LaunchedEffect(userId) {
         viewModel.fetchNotifications(userId)
     }
@@ -70,7 +69,6 @@ fun NotificationScreen(
                 .padding(paddingValues)
         ) {
             when {
-                // Loading state
                 isLoading && notifications.isEmpty() -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -80,7 +78,6 @@ fun NotificationScreen(
                     }
                 }
                 
-                // Error state
                 errorMessage != null && notifications.isEmpty() -> {
                     Column(
                         modifier = Modifier
@@ -110,7 +107,6 @@ fun NotificationScreen(
                     }
                 }
                 
-                // Empty state
                 notifications.isEmpty() -> {
                     Column(
                         modifier = Modifier
@@ -148,7 +144,6 @@ fun NotificationScreen(
                     }
                 }
                 
-                // List notifications
                 else -> {
                     LazyColumn(
                         modifier = Modifier
@@ -161,35 +156,28 @@ fun NotificationScreen(
                             NotificationItem(
                                 notification = notification,
                                 onClick = {
-                                    // Mark as read when clicked
                                     if (!notification.isRead) {
                                         viewModel.markAsRead(notification.id, userId)
                                     }
                                     
-                                    // Navigate based on notification type
                                     val relatedId = notification.relatedId
                                     if (relatedId != null && relatedId > 0) {
                                         when (notification.type) {
                                             "feedback_reminder" -> {
-                                                // Navigate to add feedback screen
                                                 navController.navigate("add_feedback/$relatedId")
                                             }
                                             "documentation_reminder" -> {
-                                                // Navigate to all documentation screen
                                                 navController.navigate("all_documentation/$relatedId")
                                             }
                                             "new_feedback", "registration" -> {
-                                                // Navigate to event detail
                                                 navController.navigate("detail_event/$relatedId")
                                             }
-                                            // Add more types as needed
                                         }
                                     }
                                 }
                             )
                         }
                         
-                        // Footer spacing
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
                         }
@@ -221,7 +209,6 @@ fun NotificationItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Unread indicator
             if (!notification.isRead) {
                 Box(
                     modifier = Modifier
@@ -236,7 +223,6 @@ fun NotificationItem(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                // Title with emoji
                 Text(
                     text = notification.title,
                     fontSize = 16.sp,
@@ -246,7 +232,6 @@ fun NotificationItem(
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                //Body message
                 Text(
                     text = notification.body,
                     fontSize = 14.sp,
@@ -257,7 +242,6 @@ fun NotificationItem(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                // Timestamp
                 Text(
                     text = formatTimestamp(notification.createdAt),
                     fontSize = 12.sp,
@@ -268,9 +252,6 @@ fun NotificationItem(
     }
 }
 
-/**
- * Format timestamp ke format relatif (e.g., "2 jam yang lalu")
- */
 private fun formatTimestamp(timestamp: String): String {
     return try {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())

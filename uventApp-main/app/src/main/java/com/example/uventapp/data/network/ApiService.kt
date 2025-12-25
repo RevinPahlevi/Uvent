@@ -37,20 +37,17 @@ interface ApiService {
         @Path("userId") userId: Int
     ): Call<GetEventsResponse>
 
-    // --- API UPDATE EVENT ---
     @PUT("events/{id}")
     fun updateEvent(
         @Path("id") eventId: Int,
         @Body request: UpdateEventRequest
     ): Call<UpdateEventResponse>
 
-    // --- API DELETE EVENT ---
     @DELETE("events/{id}")
     fun deleteEvent(
         @Path("id") eventId: Int
     ): Call<DeleteResponse>
 
-    // --- API PENDAFTARAN EVENT ---
     @POST("registrations")
     fun registerForEvent(
         @Body request: EventRegistrationRequest
@@ -72,19 +69,16 @@ interface ApiService {
         @Path("id") registrationId: Int
     ): Call<DeleteResponse>
 
-    // Get events yang diikuti user (by userId)
     @GET("registrations/user/{userId}")
     fun getMyRegistrationsByUserId(
         @Path("userId") userId: Int
     ): Call<GetEventsResponse>
 
-    // Get registered events with full data (for notification worker)
     @GET("registrations/user/{userId}")
     fun getRegisteredEvents(
         @Path("userId") userId: Int
     ): Call<GetRegistrationsResponse>
 
-    // --- API FEEDBACK ---
     @POST("feedback")
     fun createFeedback(
         @Body request: FeedbackRequest
@@ -107,7 +101,6 @@ interface ApiService {
         @Path("userId") userId: Int
     ): Call<DeleteResponse>
 
-    // --- API DOKUMENTASI ---
     @POST("documentations")
     fun createDocumentation(
         @Body request: DocumentationRequest
@@ -129,71 +122,55 @@ interface ApiService {
         @Path("id") documentationId: Int
     ): Call<DeleteResponse>
 
-    // --- API UPLOAD GAMBAR ---
     @retrofit2.http.Multipart
     @POST("upload")
     fun uploadImage(
         @retrofit2.http.Part image: okhttp3.MultipartBody.Part
     ): Call<UploadImageResponse>
-
-    // ===== FITUR BARU: Upload KRS & Lihat Peserta =====
     
-    // Upload file KRS (PDF)
     @retrofit2.http.Multipart
     @POST("registrations/upload-krs")
     fun uploadKRS(
         @retrofit2.http.Part krs: okhttp3.MultipartBody.Part
     ): Call<UploadKRSResponse>
     
-    // Get daftar peserta per event (untuk admin/creator)
     @GET("registrations/event/{eventId}/participants")
     fun getParticipantsByEvent(
         @Path("eventId") eventId: Int
     ): Call<GetParticipantsResponse>
 
-    // Cek apakah NIM sudah terdaftar di event
     @GET("registrations/check-nim/{eventId}/{nim}")
     fun checkNimExists(
         @Path("eventId") eventId: Int,
         @Path("nim") nim: String
     ): Call<CheckNimResponse>
     
-    // Get registration count for an event (for quota validation)
     @GET("registrations/event/{eventId}/count")
     suspend fun getRegistrationCount(
         @Path("eventId") eventId: Int
     ): retrofit2.Response<RegistrationCountResponse>
     
-    // ===== NOTIFICATION API =====
-    
-    // Get user notifications
     @GET("notifications/user/{userId}")
     fun getUserNotifications(
         @Path("userId") userId: Int
     ): Call<GetNotificationsResponse>
     
-    // Mark notification as read
     @PUT("notifications/{id}/read")
     fun markNotificationAsRead(
         @Path("id") notificationId: Int
     ): Call<MarkAsReadResponse>
     
-    // Mark all notifications as read
     @PUT("notifications/user/{userId}/read-all")
     fun markAllNotificationsAsRead(
         @Path("userId") userId: Int
     ): Call<MarkAsReadResponse>
     
-    // Save FCM token for push notifications
     @POST("notifications/fcm-token")
     fun saveFCMToken(
         @Body request: SaveFCMTokenRequest
     ): Call<SaveFCMTokenResponse>
-    
-    // ==================================================
 }
 
-// Response untuk cek NIM
 data class CheckNimResponse(
     val status: String,
     val data: CheckNimData?
@@ -203,13 +180,11 @@ data class CheckNimData(
     val exists: Boolean
 )
 
-// Response untuk registration count (validasi kuota)
 data class RegistrationCountResponse(
     val status: String,
     val count: Int
 )
 
-// Response untuk upload KRS
 data class UploadKRSResponse(
     val status: String,
     val message: String,
@@ -222,7 +197,6 @@ data class UploadKRSData(
     val size: Long
 )
 
-// Response untuk get participants
 data class GetParticipantsResponse(
     val status: String,
     val data: List<ParticipantData>
@@ -242,4 +216,3 @@ data class ParticipantData(
     val created_at: String,
     val user_name: String?
 )
-

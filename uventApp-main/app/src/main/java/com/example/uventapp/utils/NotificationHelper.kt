@@ -17,9 +17,6 @@ object NotificationHelper {
     const val CHANNEL_NAME = "Event Feedback Reminders"
     const val CHANNEL_DESCRIPTION = "Notifikasi pengingat untuk memberikan feedback setelah event selesai"
     
-    /**
-     * Create notification channel (required for Android 8.0+)
-     */
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val importance = NotificationManager.IMPORTANCE_DEFAULT
@@ -34,20 +31,12 @@ object NotificationHelper {
         }
     }
     
-    /**
-     * Show notification for event feedback
-     * @param context Application context
-     * @param eventId Event ID to navigate to
-     * @param eventTitle Title of the event
-     * @param notificationId Unique ID for this notification
-     */
     fun showFeedbackNotification(
         context: Context,
         eventId: Int,
         eventTitle: String,
         notificationId: Int
     ) {
-        // Create intent to open app with event ID
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("navigate_to", "feedback")
@@ -56,14 +45,13 @@ object NotificationHelper {
         
         val pendingIntent = PendingIntent.getActivity(
             context,
-            eventId, // Use eventId as request code for uniqueness
+            eventId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        // Build notification
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.u) // Using app icon
+            .setSmallIcon(R.drawable.u)
             .setContentTitle("Event Selesai! 🎉")
             .setContentText("Bagaimana pengalamanmu di \"$eventTitle\"? Yuk beri feedback!")
             .setStyle(NotificationCompat.BigTextStyle()
@@ -74,25 +62,17 @@ object NotificationHelper {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .build()
         
-        // Show notification
         try {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
         } catch (e: SecurityException) {
-            // Permission not granted
             android.util.Log.e("NotificationHelper", "Notification permission not granted: ${e.message}")
         }
     }
     
-    /**
-     * Cancel a specific notification
-     */
     fun cancelNotification(context: Context, notificationId: Int) {
         NotificationManagerCompat.from(context).cancel(notificationId)
     }
     
-    /**
-     * Cancel all notifications
-     */
     fun cancelAllNotifications(context: Context) {
         NotificationManagerCompat.from(context).cancelAll()
     }

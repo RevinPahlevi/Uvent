@@ -25,11 +25,9 @@ class MainActivity : ComponentActivity() {
         private const val TAG = "MainActivity"
     }
     
-    // Deep link data from notification
     private var navigateTo: String? = null
     private var eventId: Int = 0
     
-    // Permission request launcher for notifications
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -43,10 +41,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Request notification permission for Android 13+
         requestNotificationPermission()
         
-        // Handle deep link from notification
         handleNotificationIntent()
         
         setContent {
@@ -59,31 +55,25 @@ class MainActivity : ComponentActivity() {
                 ) {
                     NavGraph(navController = navController)
                     
-                    // Handle deep link navigation after NavGraph is set up
                     LaunchedEffect(navigateTo, eventId) {
                         if (navigateTo != null && eventId > 0) {
                             Log.d(TAG, "Deep link navigation: $navigateTo, eventId: $eventId")
                             
-                            // Delay briefly to ensure nav graph is initialized
                             kotlinx.coroutines.delay(500)
                             
                             when (navigateTo) {
                                 "feedback" -> {
-                                    // Navigate to AddFeedbackScreen
                                     navController.navigate(Screen.AddFeedback.createRoute(eventId)) {
-                                        // Pop up to home to avoid weird back stack
                                         popUpTo(Screen.Home.route) { inclusive = false }
                                     }
                                 }
                                 "event_detail" -> {
-                                    // Navigate to DetailEventScreen
                                     navController.navigate(Screen.DetailEvent.createRoute(eventId)) {
                                         popUpTo(Screen.Home.route) { inclusive = false }
                                     }
                                 }
                             }
                             
-                            // Reset to prevent re-navigation
                             navigateTo = null
                             eventId = 0
                         }
@@ -115,15 +105,12 @@ class MainActivity : ComponentActivity() {
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    // Permission already granted
                     Log.d(TAG, "Notification permission already granted")
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // Show explanation (optional)
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
                 else -> {
-                    // Request permission
                     requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }

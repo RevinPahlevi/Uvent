@@ -59,13 +59,11 @@ import java.util.Calendar
 fun AddEventScreen(
     navController: NavController,
     viewModel: EventManagementViewModel,
-    profileViewModel: ProfileViewModel // <-- 1. Terima ViewModel
+    profileViewModel: ProfileViewModel
 ) {
-    // (State judul, jenis, tanggal, dll. tetap sama)
     var judul by remember { mutableStateOf("") }
     var jenis by remember { mutableStateOf("Pilih Jenis Event") }
     val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
-    // Tanggal kosong, user harus pilih dari DatePicker
     var tanggal by remember { mutableStateOf("") }
     var waktuMulai by remember { mutableStateOf("") }
     var waktuSelesai by remember { mutableStateOf("") }
@@ -75,10 +73,8 @@ fun AddEventScreen(
     var kuota by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // --- Ambil ID user yang sedang login ---
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
-    // ------------------------------------
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -89,12 +85,10 @@ fun AddEventScreen(
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     
-    
-    // --- VALIDASI WAKTU: State ---
+
     var selectedDateCalendar by remember { mutableStateOf<Calendar?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    // Helper: Cek apakah tanggal sama dengan hari ini
+
     fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
@@ -102,7 +96,6 @@ fun AddEventScreen(
     
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // DatePicker dengan batasan minimum tanggal hari ini
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year: Int, month: Int, dayOfMonth: Int ->
@@ -112,7 +105,6 @@ fun AddEventScreen(
                 set(Calendar.MONTH, month)
                 set(Calendar.DAY_OF_MONTH, dayOfMonth)
             }
-            // Reset waktu ketika tanggal berubah
             waktuMulai = ""
             waktuSelesai = ""
             showDatePicker = false
@@ -121,7 +113,7 @@ fun AddEventScreen(
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     ).apply {
-        // Set minimum date ke hari ini (tidak bisa pilih tanggal lampau)
+
         datePicker.minDate = System.currentTimeMillis() - 1000
     }
     if (showDatePicker) {
@@ -130,13 +122,11 @@ fun AddEventScreen(
     }
     var showTimePicker by remember { mutableStateOf(false) }
     var isPickingStartTime by remember { mutableStateOf(true) }
-    
-    // Show time picker with validation
+
     if (showTimePicker && selectedDateCalendar != null) {
         val now = Calendar.getInstance()
         val isToday = isSameDay(selectedDateCalendar!!, now)
-        
-        // Initial time
+
         val initHour = if (isPickingStartTime && isToday) now.get(Calendar.HOUR_OF_DAY) else 8
         val initMinute = if (isPickingStartTime && isToday) now.get(Calendar.MINUTE) else 0
         
@@ -150,7 +140,6 @@ fun AddEventScreen(
                         val selectedM = hour * 60 + min
                         val currentM = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
                         if (selectedM < currentM) {
-                            // Set error, jangan set waktu
                             errorMessage = "Waktu mulai tidak boleh lebih awal dari sekarang"
                         } else {
                             waktuMulai = time
@@ -166,7 +155,6 @@ fun AddEventScreen(
                         val startM = parts[0].toInt() * 60 + parts[1].toInt()
                         val endM = hour * 60 + min
                         if (endM <= startM) {
-                            // Set error, jangan set waktu
                             errorMessage = "Waktu selesai harus lebih lama dari waktu mulai"
                         } else {
                             waktuSelesai = time
@@ -199,7 +187,6 @@ fun AddEventScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Poster Event Section
             FormCard {
                 Text(
                     text = "Poster Event",
@@ -213,8 +200,7 @@ fun AddEventScreen(
                     onClick = { galleryLauncher.launch("image/*") }
                 )
             }
-            
-            // Judul Event
+
             FormCard {
                 FormInputTextField(
                     label = "Judul Event", 
@@ -223,8 +209,7 @@ fun AddEventScreen(
                     placeholder = "Masukkan judul event"
                 )
             }
-            
-            // Jenis Event
+
             FormCard {
                 FormDropdownField(
                     label = "Jenis Event",
@@ -234,8 +219,7 @@ fun AddEventScreen(
                     placeholder = "Masukkan jenis event"
                 )
             }
-            
-            // Tanggal Event
+
             FormCard {
                 FormInputTextField(
                     label = "Tanggal Event",
@@ -250,8 +234,7 @@ fun AddEventScreen(
                     readOnly = true
                 )
             }
-            
-            // Waktu
+
             FormCard {
                 Text(
                     text = "Waktu",
@@ -307,8 +290,7 @@ fun AddEventScreen(
                         )
                     )
                 }
-                
-                // Error message
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -318,8 +300,7 @@ fun AddEventScreen(
                     )
                 }
             }
-            
-            // Lokasi/Platform
+
             FormCard {
                 FormDropdownField(
                     label = "Lokasi/Platform",
@@ -369,14 +350,12 @@ fun AddEventScreen(
                     )
                 }
             }
-            
-            // Kuota
+
             FormCard {
                 FormInputTextField(
                     label = "Kuota", 
                     value = kuota, 
                     onValueChange = { newValue ->
-                        // Filter hanya angka, tidak boleh ada titik atau karakter lain
                         kuota = newValue.filter { it.isDigit() }
                     }, 
                     keyboardType = KeyboardType.Number,
@@ -386,7 +365,6 @@ fun AddEventScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Validasi: Semua field harus diisi DAN tidak ada error
             val isFormValid = judul.isNotBlank() &&
                     jenis != "Pilih Jenis Event" &&
                     tanggal.isNotBlank() &&
@@ -395,12 +373,10 @@ fun AddEventScreen(
                     platformType != "Pilih Tipe Lokasi" &&
                     locationDetail.isNotBlank() &&
                     kuota.isNotBlank() &&
-                    errorMessage == null // PENTING: Form tidak valid jika ada error
+                    errorMessage == null
 
-            // State untuk loading saat upload
             val isUploading by viewModel.isUploading
 
-            // Simpan Button - Centered
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -408,16 +384,13 @@ fun AddEventScreen(
                 PrimaryButton(
                     text = if (isUploading) "Mengupload..." else "Simpan Event", 
                     onClick = {
-                        // DEBUG: Log tanggal sebelum disimpan
                         android.util.Log.d("AddEventScreen", "=== SIMPAN EVENT ===")
                         android.util.Log.d("AddEventScreen", "Tanggal yang dipilih: $tanggal")
                         android.util.Log.d("AddEventScreen", "Waktu Mulai: $waktuMulai")
                         android.util.Log.d("AddEventScreen", "Waktu Selesai: $waktuSelesai")
-                        
-                        // Buat ID lokal baru sementara
+
                         val newId = (viewModel.allEvents.value.maxOfOrNull { it.id } ?: 0) + 1
 
-                        // Fungsi untuk membuat dan mengirim event
                         fun createAndSendEvent(thumbnailUrl: String?) {
                             val newEvent = Event(
                                 id = newId,
@@ -439,7 +412,6 @@ fun AddEventScreen(
                             navController.popBackStack()
                         }
 
-                        // Jika ada gambar, upload dulu ke server
                         if (imageUri != null) {
                             viewModel.uploadImage(
                                 context = context,
@@ -450,12 +422,10 @@ fun AddEventScreen(
                                 },
                                 onError = { error ->
                                     android.util.Log.e("AddEventScreen", "Upload gagal: $error")
-                                    // Tetap buat event tanpa gambar jika upload gagal
                                     createAndSendEvent(null)
                                 }
                             )
                         } else {
-                            // Tidak ada gambar, langsung buat event
                             createAndSendEvent(null)
                         }
                     },
@@ -469,7 +439,6 @@ fun AddEventScreen(
     }
 }
 
-// Form Card wrapper
 @Composable
 private fun FormCard(
     content: @Composable ColumnScope.() -> Unit
@@ -488,7 +457,6 @@ private fun FormCard(
     }
 }
 
-// Poster Upload Box with dashed green border
 @Composable
 private fun PosterUploadBox(imageUri: Uri?, onClick: () -> Unit) {
     val dashColor = PrimaryGreen

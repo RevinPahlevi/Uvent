@@ -111,11 +111,9 @@ fun AddFeedbackScreen(
     var showConfirmationDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showSourceDialog by remember { mutableStateOf(false) }
-    
-    // Camera URI state
+
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Gallery launcher
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -125,7 +123,6 @@ fun AddFeedbackScreen(
         showSourceDialog = false
     }
 
-    // Camera launcher - takes picture and saves to URI
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
@@ -135,12 +132,10 @@ fun AddFeedbackScreen(
         showSourceDialog = false
     }
 
-    // Camera permission launcher
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            // Create temp file for camera
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val imageFileName = "JPEG_${timeStamp}_"
             val storageDir = File(context.cacheDir, "images")
@@ -157,12 +152,10 @@ fun AddFeedbackScreen(
         }
     }
 
-    // Function to launch camera
     fun launchCamera() {
         val permission = Manifest.permission.CAMERA
         when {
             ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED -> {
-                // Permission granted, create file and launch camera
                 val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val imageFileName = "JPEG_${timeStamp}_"
                 val storageDir = File(context.cacheDir, "images")
@@ -176,7 +169,6 @@ fun AddFeedbackScreen(
                 tempCameraUri?.let { cameraLauncher.launch(it) }
             }
             else -> {
-                // Request permission
                 cameraPermissionLauncher.launch(permission)
             }
         }
@@ -245,7 +237,6 @@ fun AddFeedbackScreen(
                         unfocusedIndicatorColor = Color.Transparent,
                     )
                 )
-                // Character counter
                 Text(
                     text = "${reviewText.length}/500",
                     fontSize = 12.sp,
@@ -259,8 +250,6 @@ fun AddFeedbackScreen(
                     onClick = { showSourceDialog = true }
                 )
             }
-            
-            // Modern Submit Button
             GradientSubmitButton(
                 text = if (existingFeedback != null) "Update Ulasan" else "Kirim Ulasan",
                 enabled = rating > 0 && reviewText.isNotEmpty(),
@@ -269,8 +258,6 @@ fun AddFeedbackScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
         }
-
-        // Confirmation Dialog
         if (showConfirmationDialog) {
             ModernConfirmationDialog(
                 onDismiss = { showConfirmationDialog = false },
@@ -305,8 +292,6 @@ fun AddFeedbackScreen(
                 }
             )
         }
-
-        // Success Dialog
         if (showSuccessDialog) {
             SuccessDialog(
                 isEdit = existingFeedback != null,
@@ -319,7 +304,6 @@ fun AddFeedbackScreen(
     }
 }
 
-// --- Modern Rating Bar with Animation ---
 @Composable
 private fun ModernRatingBar(
     rating: Int,
@@ -357,8 +341,7 @@ private fun ModernRatingBar(
             )
         }
     }
-    
-    // Rating text
+
     val ratingText = when (rating) {
         1 -> "Buruk 😞"
         2 -> "Kurang 😕"
@@ -380,7 +363,6 @@ private fun ModernRatingBar(
     )
 }
 
-// --- Gradient Submit Button ---
 @Suppress("DEPRECATION")
 @Composable
 private fun GradientSubmitButton(
@@ -420,7 +402,6 @@ private fun GradientSubmitButton(
     }
 }
 
-// --- Source Option Dialog ---
 @Composable
 private fun SourceOptionDialog(
     onDismiss: () -> Unit,
@@ -447,7 +428,6 @@ private fun SourceOptionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Camera option
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -471,8 +451,6 @@ private fun SourceOptionDialog(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Kamera", fontSize = 14.sp)
                     }
-                    
-                    // Gallery option
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -502,7 +480,6 @@ private fun SourceOptionDialog(
     }
 }
 
-// --- Feedback Card with Icon ---
 @Composable
 private fun FeedbackCard(
     title: String,
@@ -543,8 +520,6 @@ private fun FeedbackCard(
         }
     }
 }
-
-// --- Event Info Card ---
 @Composable
 private fun EventInfoCard(event: Event) {
     Card(
@@ -596,8 +571,6 @@ private fun EventInfoCard(event: Event) {
         }
     }
 }
-
-// --- Upload Foto Box ---
 @Composable
 private fun UploadFotoBox(
     photoUri: Uri?,
@@ -649,7 +622,6 @@ private fun UploadFotoBox(
     }
 }
 
-// --- Modern Confirmation Dialog ---
 @Composable
 private fun ModernConfirmationDialog(
     onDismiss: () -> Unit,
@@ -666,7 +638,6 @@ private fun ModernConfirmationDialog(
                 modifier = Modifier.padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon
                 Box(
                     modifier = Modifier
                         .size(72.dp)
@@ -738,13 +709,11 @@ private fun ModernConfirmationDialog(
     }
 }
 
-// --- Beautiful Success Dialog with Animation ---
 @Composable
 private fun SuccessDialog(
     isEdit: Boolean,
     onDismiss: () -> Unit
 ) {
-    // Animation states
     val scale by animateFloatAsState(
         targetValue = 1f,
         animationSpec = spring(
@@ -765,7 +734,6 @@ private fun SuccessDialog(
         label = "rotation"
     )
 
-    // Auto dismiss after 2 seconds
     LaunchedEffect(Unit) {
         delay(2500)
         onDismiss()
@@ -787,9 +755,9 @@ private fun SuccessDialog(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Success icon with gradient background
+
                 Box(contentAlignment = Alignment.Center) {
-                    // Sparkle effect
+
                     Box(
                         modifier = Modifier
                             .size(100.dp)
@@ -806,7 +774,6 @@ private fun SuccessDialog(
                                 shape = CircleShape
                             )
                     )
-                    // Icon circle
                     Box(
                         modifier = Modifier
                             .size(88.dp)
@@ -829,7 +796,6 @@ private fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Title
                 Text(
                     text = if (isEdit) "Ulasan Diperbarui!" else "Ulasan Terkirim!",
                     fontSize = 24.sp,
@@ -839,7 +805,6 @@ private fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Subtitle
                 Text(
                     text = if (isEdit) 
                         "Ulasan kamu berhasil diperbarui.\nTerima kasih atas feedback-nya! 🎉" 
@@ -853,7 +818,6 @@ private fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // Close button
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier

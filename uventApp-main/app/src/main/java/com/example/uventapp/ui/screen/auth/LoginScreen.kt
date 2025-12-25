@@ -22,20 +22,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-// --- Import yang Diperlukan ---
 import com.example.uventapp.data.network.ApiClient
 import com.example.uventapp.data.network.LoginRequest
 import com.example.uventapp.data.network.LoginResponse
 import com.example.uventapp.ui.components.AuthInputField
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
-// --- Import ViewModel ---
 import com.example.uventapp.ui.screen.profile.ProfileViewModel
 import com.example.uventapp.ui.theme.LightBackground
 import com.example.uventapp.ui.theme.PrimaryGreen
 import com.example.uventapp.ui.theme.TextLink
 import com.example.uventapp.ui.theme.White
-// --- Import Pengecek Jaringan ---
 import com.example.uventapp.utils.isNetworkAvailable
 import com.example.uventapp.utils.FCMTokenManager
 import retrofit2.Call
@@ -45,20 +42,17 @@ import retrofit2.Response
 @Composable
 fun LoginScreen(
     navController: NavController,
-    profileViewModel: ProfileViewModel // <-- Terima ViewModel
+    profileViewModel: ProfileViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // State untuk loading dan pesan error
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
 
-    // --- Fungsi untuk memanggil API Login ---
     fun startLogin() {
-        // 1. Cek koneksi internet
         if (!isNetworkAvailable(context)) {
             errorMessage = "Tidak ada koneksi internet."
             return
@@ -67,32 +61,24 @@ fun LoginScreen(
         isLoading = true
         errorMessage = null
 
-        // 2. Buat request body
         val request = LoginRequest(email = email, password = password)
 
-        // 3. Panggil API (Logika bypass dihapus)
         ApiClient.instance.login(request).enqueue(object : Callback<LoginResponse> {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                 isLoading = false
                 val body = response.body()
 
-                // 4. Cek jika API sukses DAN status-nya "success"
                 if (response.isSuccessful && body?.status == "success" && body.data != null) {
 
-                    // --- PENTING: Simpan data user ke ViewModel dan SharedPreferences ---
                     profileViewModel.saveUserProfile(body.data.user, context)
-                    // ----------------------------------------------
                     
-                    // Save FCM token to backend for push notifications
                     FCMTokenManager.saveFCMTokenToBackend(context, body.data.user.id)
 
                     Log.d("LoginScreen", "Login API berhasil. User: ${body.data.user.name}")
-                    // 5. Navigasi ke Home
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 } else {
-                    // Jika gagal (data salah / server error)
                     val errorMsg = response.body()?.message ?: "Email atau password salah."
                     Log.e("LoginScreen", "API Error: ${response.code()} - $errorMsg")
                     errorMessage = errorMsg
@@ -100,14 +86,12 @@ fun LoginScreen(
             }
 
             override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                // Jika server tidak terjangkau
                 isLoading = false
                 errorMessage = "Gagal terhubung ke server. Coba lagi nanti."
                 Log.e("LoginScreen", "API Failure: ${t.message}")
             }
         })
     }
-    // ------------------------------------------
 
     Box(
         modifier = Modifier
@@ -116,7 +100,7 @@ fun LoginScreen(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         LightBackground,
-                        Color(0xFFE8F5E9) // Subtle green tint at bottom
+                        Color(0xFFE8F5E9)
                     )
                 )
             ),
@@ -165,7 +149,6 @@ fun LoginScreen(
                         isPassword = true
                     )
 
-                    // Tampilkan pesan error jika ada
                     errorMessage?.let {
                         Text(
                             text = it,
@@ -181,10 +164,10 @@ fun LoginScreen(
                         text = if (isLoading) "LOADING..." else "MASUK",
                         onClick = {
                             if (!isLoading) {
-                                startLogin() // Panggil fungsi API
+                                startLogin()
                             }
                         },
-                        enabled = !isLoading // Nonaktifkan tombol saat loading
+                        enabled = !isLoading
                     )
                 }
             }

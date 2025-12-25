@@ -51,22 +51,17 @@ fun EventListScreen(
 
     val context = LocalContext.current
 
-    // Get current user ID dari ProfileViewModel (RELIABLE!)
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id ?: -1
     
     android.util.Log.d("EventListScreen", "Current user profile: $currentUserProfile")
     android.util.Log.d("EventListScreen", "Current userId: $currentUserId")
 
-    // Load data saat screen dibuka atau userId berubah
-    // Semua data diload bersamaan untuk menghindari delay badge status
     LaunchedEffect(key1 = currentUserId) {
         android.util.Log.d("EventListScreen", "LaunchedEffect triggered with userId: $currentUserId")
-        
-        // Load all events (tidak perlu userId)
+
         viewModel.loadAllEvents(context)
-        
-        // Load created events dan followed events (perlu userId)
+
         if (currentUserId != -1) {
             android.util.Log.d("EventListScreen", "Loading createdEvents and followedEvents...")
             viewModel.loadFollowedEvents(currentUserId, context)
@@ -80,8 +75,7 @@ fun EventListScreen(
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
     val isLoading by viewModel.isLoadingAllEvents
-    
-    // Debug: Log changes in createdEvents
+
     LaunchedEffect(createdEvents.size) {
         android.util.Log.d("EventListScreen", "createdEvents size changed: ${createdEvents.size}")
         createdEvents.forEach { 
@@ -94,8 +88,7 @@ fun EventListScreen(
             android.util.Log.d("EventListScreen", "  - Followed event: ${it.id} - ${it.title}")
         }
     }
-    
-    // CRITICAL: Pre-compute badge status OUTSIDE items loop untuk reliable recomposition
+
     val eventBadgeStatus = remember(createdEvents, followedEvents) {
         val createdIds = createdEvents.map { it.id }.toSet()
         val followedIds = followedEvents.map { it.id }.toSet()
@@ -107,25 +100,16 @@ fun EventListScreen(
         )
     }
 
-    // PERBAIKAN BESAR: TIDAK ADA FILTER! Semua event ditampilkan.
-    // Hanya filter berdasarkan kategori dan search, TIDAK filter by user
     val filteredEvents by remember(allEvents, selectedCategory, searchText) {
         derivedStateOf {
             allEvents.filter { event ->
-                // Filter HANYA berdasarkan kategori dan search text
                 val categoryMatch = (selectedCategory == "Semua" || event.type.equals(selectedCategory, ignoreCase = true))
                 val searchMatch = (searchText.isEmpty() || event.title.contains(searchText, ignoreCase = true))
-                // Filter event yang sudah selesai
                 val notFinished = !EventTimeHelper.isEventFinished(event.date, event.timeEnd)
                 categoryMatch && searchMatch && notFinished
             }
         }
     }
-    // --- HAPUS BLOK KODE LAMA DI BAWAH INI ---
-    // var filteredEvents by remember { mutableStateOf(allAvailableEvents) }
-    // fun applyFilter() { ... }
-    // LaunchedEffect(allAvailableEvents, selectedCategory, searchText) { ... }
-    // ------------------------------------
 
     Scaffold(
         topBar = {
@@ -181,10 +165,8 @@ fun EventListScreen(
                 }
             }
 
-            // ✅ PERBAIKAN: 3-state logic dengan loading indicator
             when {
                 isLoading -> {
-                    // State 1: Loading - show CircularProgressIndicator
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -193,13 +175,11 @@ fun EventListScreen(
                     }
                 }
                 filteredEvents.isNotEmpty() -> {
-                    // State 2: Has data - show event list
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredEvents, key = { it.id }) { event ->
-                            // Get badge status from pre-computed map
                             val isMyEvent = eventBadgeStatus["created"]?.contains(event.id) == true
                             val isRegistered = eventBadgeStatus["followed"]?.contains(event.id) == true
                             
@@ -215,7 +195,6 @@ fun EventListScreen(
                     }
                 }
                 else -> {
-                    // State 3: Empty - show empty message (ONLY when NOT loading)
                     Box(
                         modifier = Modifier.fillMaxSize().padding(16.dp),
                         contentAlignment = Alignment.Center
@@ -228,7 +207,6 @@ fun EventListScreen(
     }
 }
 
-// (CategoryButton dan EventCard tidak berubah)
 @Composable
 fun CategoryButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Card(
@@ -270,12 +248,10 @@ fun EventCard(
                 modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Fix image URL for Android
                 val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri)
                     ?: event.thumbnailResId
                     ?: R.drawable.placeholder_poster
-                
-                // PERBAIKAN: Disable cache untuk fix flash gambar lama
+
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageSource)
@@ -310,11 +286,9 @@ fun EventCard(
                     }
                 }
             }
-            
-            // Badge status di POJOK KANAN ATAS (EXACT sama dengan MyRegisteredEventScreen)
+
             when {
                 isMyEvent -> {
-                    // Badge hijau untuk event yang user buat
                     Text(
                         text = "Event Anda",
                         color = White,
@@ -330,7 +304,6 @@ fun EventCard(
                     )
                 }
                 isRegistered -> {
-                    // Badge biru untuk event yang sudah didaftar
                     Text(
                         text = "Terdaftar",
                         color = White,

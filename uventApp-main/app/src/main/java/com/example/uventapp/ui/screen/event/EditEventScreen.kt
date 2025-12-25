@@ -49,10 +49,9 @@ fun EditEventScreen(
     viewModel: EventManagementViewModel,
     eventId: Int?
 ) {
-    // Ambil data event yang akan diedit
+
     val event = eventId?.let { viewModel.getEventById(it) }
 
-    // State untuk form (diisi dengan data event yang ada)
     var judul by remember { mutableStateOf(event?.title ?: "") }
     var jenis by remember { mutableStateOf(event?.type ?: "Pilih Jenis Event") }
     val jenisEventOptions = listOf("Seminar", "Talkshow", "Workshop", "Skill Lab")
@@ -87,7 +86,7 @@ fun EditEventScreen(
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     ).apply {
-        // Set minimum date ke hari ini (tidak bisa pilih tanggal lampau)
+
         datePicker.minDate = System.currentTimeMillis() - 1000
     }
     if (showDatePicker) {
@@ -124,7 +123,6 @@ fun EditEventScreen(
         containerColor = LightBackground
     ) { paddingValues ->
         if (event == null) {
-            // Jika event tidak ditemukan
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -230,10 +228,8 @@ fun EditEventScreen(
                         label = "Kuota",
                         value = kuota,
                         onValueChange = { newValue ->
-                            // Only allow digits (0-9)
                             if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
                                 kuota = newValue
-                                // Validate quota value
                                 quotaError = when {
                                     newValue.isEmpty() -> null
                                     newValue.toIntOrNull() == null -> "Kuota harus berupa angka"
@@ -244,8 +240,6 @@ fun EditEventScreen(
                         },
                         keyboardType = KeyboardType.Number
                     )
-
-                    // Show error if quota invalid
                     if (quotaError != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -258,7 +252,6 @@ fun EditEventScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Validate times before saving
                 LaunchedEffect(waktuMulai, waktuSelesai) {
                     timeError = if (waktuMulai.isNotBlank() && waktuSelesai.isNotBlank()) {
                         try {
@@ -279,7 +272,6 @@ fun EditEventScreen(
                     } else null
                 }
 
-                // Show time error if exists
                 if (timeError != null) {
                     Text(
                         text = timeError!!,

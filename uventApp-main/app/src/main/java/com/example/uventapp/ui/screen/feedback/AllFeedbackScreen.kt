@@ -74,19 +74,15 @@ fun AllFeedbackScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Get current user profile
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
 
-    // State untuk loading
     var isLoading by remember { mutableStateOf(true) }
 
-    // State untuk custom notification
     var showNotification by remember { mutableStateOf(false) }
     var notificationMessage by remember { mutableStateOf("") }
     var notificationIsSuccess by remember { mutableStateOf(true) }
 
-    // Cari event dari ID
     val allEvents by viewModel.allEvents
     val event = remember(eventId, allEvents, viewModel.createdEvents.value, viewModel.followedEvents) {
         allEvents.find { it.id == eventId }
@@ -94,12 +90,10 @@ fun AllFeedbackScreen(
             ?: viewModel.followedEvents.find { it.id == eventId }
     }
 
-    // Check if current user is the event creator
     val isEventCreator = remember(event, currentUserId) {
         event?.creatorId != null && event.creatorId == currentUserId
     }
 
-    // Load feedbacks from API saat screen dibuka
     LaunchedEffect(eventId, currentUserId) {
         if (eventId != null && currentUserId != null) {
             viewModel.loadFeedbacksFromApi(eventId, currentUserId, context)
@@ -110,12 +104,10 @@ fun AllFeedbackScreen(
         }
     }
 
-    // Ambil daftar feedback dari ViewModel
     val feedbackList by remember(viewModel.feedbacks.value, eventId) {
         derivedStateOf { viewModel.getFeedbacksForEvent(eventId ?: -1) }
     }
 
-    // Hitung rata-rata rating
     val averageRating = remember(feedbackList) {
         if (feedbackList.isNotEmpty()) {
             feedbackList.map { it.rating }.average()
@@ -124,11 +116,9 @@ fun AllFeedbackScreen(
         }
     }
 
-    // State untuk dialog hapus dan detail
     var showDeleteDialog by remember { mutableStateOf<Feedback?>(null) }
     var showDetailDialog by remember { mutableStateOf<Feedback?>(null) }
 
-    // Observe notification message from ViewModel
     val vmNotificationMessage by viewModel.notificationMessage
     LaunchedEffect(vmNotificationMessage) {
         vmNotificationMessage?.let { message ->
@@ -136,7 +126,7 @@ fun AllFeedbackScreen(
             notificationIsSuccess = message.contains("berhasil", ignoreCase = true)
             showNotification = true
             viewModel.clearNotification()
-            // Auto dismiss after 3 seconds
+
             delay(3000)
             showNotification = false
         }
@@ -173,7 +163,7 @@ fun AllFeedbackScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                // 1. Header Event dan Rating
+
                 item {
                     EventRatingHeader(
                         event = event,
@@ -182,14 +172,12 @@ fun AllFeedbackScreen(
                     )
                 }
 
-                // 2. Info untuk creator bahwa mereka tidak bisa memberi feedback
                 if (isEventCreator) {
                     item {
                         CreatorInfoCard()
                     }
                 }
 
-                // 3. Tombol Tulis Feedback (HANYA muncul jika BUKAN creator DAN belum review)
                 val hasUserReviewed = feedbackList.any { it.isAnda }
                 if (!isEventCreator && !hasUserReviewed) {
                     item {
@@ -200,14 +188,12 @@ fun AllFeedbackScreen(
                     }
                 }
 
-                // 4. Empty state jika tidak ada feedback
                 if (feedbackList.isEmpty()) {
                     item {
                         EmptyFeedbackState()
                     }
                 }
 
-                // 5. Daftar Feedback
                 items(feedbackList, key = { it.id }) { feedback ->
                     FeedbackItemCard(
                         feedback = feedback,
@@ -227,7 +213,6 @@ fun AllFeedbackScreen(
                 }
             }
 
-            // 6. Dialog Hapus
             showDeleteDialog?.let { feedbackToDelete ->
                 DeleteFeedbackDialog(
                     onDismiss = { showDeleteDialog = null },
@@ -238,7 +223,6 @@ fun AllFeedbackScreen(
                 )
             }
 
-            // 7. Dialog Detail Feedback
             showDetailDialog?.let { feedbackDetail ->
                 FeedbackDetailDialog(
                     feedback = feedbackDetail,
@@ -247,7 +231,6 @@ fun AllFeedbackScreen(
             }
         }
 
-        // Custom Notification Overlay
         if (showNotification) {
             CustomNotification(
                 message = notificationMessage,
@@ -258,7 +241,6 @@ fun AllFeedbackScreen(
     }
 }
 
-// --- Custom Notification Component ---
 @Composable
 private fun CustomNotification(
     message: String,
@@ -322,7 +304,6 @@ private fun CustomNotification(
     }
 }
 
-// --- Gradient Button ---
 @Composable
 private fun GradientButton(
     text: String,
@@ -360,7 +341,6 @@ private fun GradientButton(
     }
 }
 
-// --- Creator Info Card ---
 @Composable
 private fun CreatorInfoCard() {
     Card(
@@ -396,7 +376,6 @@ private fun CreatorInfoCard() {
     }
 }
 
-// --- Empty State ---
 @Composable
 private fun EmptyFeedbackState() {
     Card(
@@ -443,7 +422,6 @@ private fun EmptyFeedbackState() {
     }
 }
 
-// --- Event Rating Header ---
 @Composable
 private fun EventRatingHeader(
     event: Event,
@@ -460,7 +438,6 @@ private fun EventRatingHeader(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Poster with border
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(event.thumbnailUri ?: event.thumbnailResId ?: R.drawable.placeholder_poster)
@@ -476,7 +453,6 @@ private fun EventRatingHeader(
             )
             Spacer(modifier = Modifier.width(20.dp))
 
-            // Rating section
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -488,7 +464,6 @@ private fun EventRatingHeader(
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E1E1E)
                 )
-                // Animated stars
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     (1..5).forEach { index ->
                         val starColor by animateColorAsState(
@@ -515,8 +490,6 @@ private fun EventRatingHeader(
         }
     }
 }
-
-// --- Feedback Item Card ---
 @Composable
 private fun FeedbackItemCard(
     feedback: Feedback,
@@ -585,8 +558,7 @@ private fun FeedbackItemCard(
                         color = Color(0xFF9E9E9E)
                     )
                 }
-                
-                // Rating Badge
+
                 Box(
                     modifier = Modifier
                         .background(
@@ -617,7 +589,6 @@ private fun FeedbackItemCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Review text
             Text(
                 text = feedback.review,
                 fontSize = 15.sp,
@@ -629,13 +600,11 @@ private fun FeedbackItemCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bottom Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // View Feedback
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -661,10 +630,9 @@ private fun FeedbackItemCard(
                     )
                 }
 
-                // Edit/Delete buttons (only for user's own feedback and not creator)
                 if (feedback.isAnda && !isEventCreator) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Edit Button
+
                         Button(
                             onClick = onEditClick,
                             shape = RoundedCornerShape(10.dp),
@@ -677,7 +645,6 @@ private fun FeedbackItemCard(
                         ) {
                             Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
-                        // Delete Button
                         Button(
                             onClick = onDeleteClick,
                             shape = RoundedCornerShape(10.dp),
@@ -697,7 +664,6 @@ private fun FeedbackItemCard(
     }
 }
 
-// --- Feedback Detail Dialog ---
 @Composable
 private fun FeedbackDetailDialog(
     feedback: Feedback,
@@ -723,7 +689,6 @@ private fun FeedbackDetailDialog(
                     .padding(24.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -746,7 +711,6 @@ private fun FeedbackDetailDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // User info
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -784,7 +748,6 @@ private fun FeedbackDetailDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Rating
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -812,7 +775,6 @@ private fun FeedbackDetailDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Review text
                 Text(
                     text = "Ulasan",
                     fontSize = 14.sp,
@@ -827,7 +789,6 @@ private fun FeedbackDetailDialog(
                     lineHeight = 26.sp
                 )
 
-                // Photo section (if photo exists)
                 if (!feedback.photoUri.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(20.dp))
                     
@@ -862,8 +823,7 @@ private fun FeedbackDetailDialog(
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(16.dp))
                             )
-                            
-                            // Overlay hint to click for full view
+
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
@@ -892,7 +852,6 @@ private fun FeedbackDetailDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Close button
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
@@ -904,8 +863,7 @@ private fun FeedbackDetailDialog(
             }
         }
     }
-    
-    // Full screen image viewer
+
     if (showFullImage && !feedback.photoUri.isNullOrEmpty()) {
         Dialog(
             onDismissRequest = { showFullImage = false },
@@ -929,8 +887,7 @@ private fun FeedbackDetailDialog(
                         .fillMaxWidth()
                         .padding(16.dp)
                 )
-                
-                // Close button at top right
+
                 IconButton(
                     onClick = { showFullImage = false },
                     modifier = Modifier
@@ -950,7 +907,6 @@ private fun FeedbackDetailDialog(
     }
 }
 
-// --- Delete Dialog ---
 @Composable
 private fun DeleteFeedbackDialog(
     onDismiss: () -> Unit,
@@ -967,7 +923,6 @@ private fun DeleteFeedbackDialog(
                 modifier = Modifier.padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon
                 Box(
                     modifier = Modifier
                         .size(72.dp)

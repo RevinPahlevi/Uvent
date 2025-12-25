@@ -3,7 +3,7 @@ package com.example.uventapp.data.model
 data class Documentation(
     val id: Int,
     val eventId: Int,
-    val userId: Int = 0,  // User who created this documentation
+    val userId: Int = 0,
     val description: String,
     val photoUri: String?,
     val userName: String,

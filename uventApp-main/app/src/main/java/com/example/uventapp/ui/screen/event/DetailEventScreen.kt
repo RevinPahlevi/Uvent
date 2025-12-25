@@ -30,7 +30,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uventapp.R
 import com.example.uventapp.data.model.Event
-// Removed dummy events import
+
 import com.example.uventapp.ui.components.CustomAppBar
 import com.example.uventapp.ui.components.PrimaryButton
 import com.example.uventapp.ui.navigation.Screen
@@ -46,22 +46,19 @@ import java.util.Locale
 
 private fun isEventFinished(date: String, timeEnd: String): Boolean {
     try {
-        // Parse tanggal (format: "d/M/yyyy" atau "dd/MM/yyyy")
         val dateParts = date.split("/")
         if (dateParts.size != 3) return false
         
         val day = dateParts[0].toIntOrNull() ?: return false
         val month = dateParts[1].toIntOrNull() ?: return false
         val year = dateParts[2].toIntOrNull() ?: return false
-        
-        // Parse waktu selesai (format: "HH:mm" atau "HH:mm:ss")
+
         val timeParts = timeEnd.split(":")
         if (timeParts.size < 2) return false
         
         val hour = timeParts[0].toIntOrNull() ?: return false
         val minute = timeParts[1].toIntOrNull() ?: return false
-        
-        // Buat Calendar untuk waktu akhir event
+
         val eventEndCalendar = java.util.Calendar.getInstance()
         eventEndCalendar.set(java.util.Calendar.YEAR, year)
         eventEndCalendar.set(java.util.Calendar.MONTH, month - 1) // Calendar month is 0-indexed
@@ -70,14 +67,11 @@ private fun isEventFinished(date: String, timeEnd: String): Boolean {
         eventEndCalendar.set(java.util.Calendar.MINUTE, minute)
         eventEndCalendar.set(java.util.Calendar.SECOND, 0)
         eventEndCalendar.set(java.util.Calendar.MILLISECOND, 0)
-        
-        // Waktu sekarang
+
         val now = java.util.Calendar.getInstance()
-        
-        // Event selesai jika waktu sekarang SETELAH waktu akhir event
+
         return now.after(eventEndCalendar)
     } catch (e: Exception) {
-        // Jika ada error parsing, anggap event BELUM selesai (safe default)
         return false
     }
 }
@@ -90,26 +84,21 @@ fun DetailEventScreen(
     profileViewModel: com.example.uventapp.ui.screen.profile.ProfileViewModel
 ) {
     val context = LocalContext.current
-    
-    // Get current user profile for creator check
+
     val currentUserProfile by profileViewModel.profile
     val currentUserId = currentUserProfile?.id
-    
-    // Subscribe ke state agar UI update saat data berubah
+
     val allEvents by viewModel.allEvents
     val createdEvents by viewModel.createdEvents
     val followedEvents = viewModel.followedEvents
-    
-    // State untuk jumlah pendaftar (untuk validasi kuota)
+
     var registrationCount by remember { mutableIntStateOf(0) }
     var isLoadingCount by remember { mutableStateOf(true) }
-    
-    // Load events jika belum ada
+
     LaunchedEffect(Unit) {
         viewModel.loadAllEvents(context)
     }
-    
-    // Load followed events untuk check registration status
+
     LaunchedEffect(currentUserId) {
         if (currentUserId != null && currentUserId > 0) {
             android.util.Log.d("DetailEventScreen", "Loading followed events for user: $currentUserId")
@@ -118,8 +107,7 @@ fun DetailEventScreen(
             android.util.Log.w("DetailEventScreen", "No valid userId, skipping loadFollowedEvents")
         }
     }
-    
-    // Load registration count untuk validasi kuota
+
     LaunchedEffect(eventId) {
         if (eventId != null) {
             try {
@@ -135,8 +123,7 @@ fun DetailEventScreen(
             }
         }
     }
-    
-    // Event dicari dari semua sumber - use remember dengan key untuk avoid flash bug
+
     val event = remember(eventId, allEvents, createdEvents, followedEvents) {
         eventId?.let { id ->
             viewModel.allEvents.value.find { it.id == id }
@@ -165,10 +152,8 @@ fun DetailEventScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // CRITICAL: Only render if event found AND matches the requested eventId
-            // This prevents flash bug from rendering wrong event data
+
             if (event != null && event.id == eventId) {
-                // Check if current user is the event creator
                 val isMyEvent = event.creatorId != null && event.creatorId == currentUserId
                 
                 Card(
@@ -178,10 +163,7 @@ fun DetailEventScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Wrap image section dengan key() untuk force recomposition saat event berubah
-                        // Ini mencegah Coil cache show gambar lama
                         key(event.id) {
-                            // Fix image URL for Android - replace localhost with server IP
                             val imageSource = ImageUrlHelper.fixImageUrl(event.thumbnailUri) 
                                 ?: event.thumbnailResId 
                                 ?: R.drawable.placeholder_poster
@@ -238,12 +220,9 @@ fun DetailEventScreen(
                                 }
                             }
                         } else {
-                            // Check if user is the creator
                             if (isMyEvent) {
-                                // Show "Kelola Event" button for event creators
                                 Button(
                                     onClick = {
-                                        // Navigate ke tab "Dibuat" di MyRegisteredEventScreen
                                         navController.navigate(Screen.MyRegisteredEvent.createRoute(""))
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -259,13 +238,11 @@ fun DetailEventScreen(
                                     Text("Kelola Event", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 }
                             } else {
-                                // Check status event untuk tampilkan tombol yang sesuai
                                 val isStarted = event.let { EventTimeHelper.isEventStarted(it.date, it.timeStart) }
                                 val canRegister = EventTimeHelper.canRegisterForEvent(event.date, event.timeStart)
                                 
                                 when {
                                     isFinished -> {
-                                        // Event sudah selesai
                                         Button(
                                             onClick = { /* Disabled */ },
                                             enabled = false,
@@ -280,9 +257,8 @@ fun DetailEventScreen(
                                         }
                                     }
                                     isStarted && !isFinished -> {
-                                        // Event sudah mulai tapi belum selesai
                                         Button(
-                                            onClick = { /* Disabled */ },
+                                            onClick = {  },
                                             enabled = false,
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(8.dp),
@@ -295,17 +271,14 @@ fun DetailEventScreen(
                                         }
                                     }
                                     else -> {
-                                        // Event belum mulai, cek kuota
                                         val quotaInt = event.quota.toIntOrNull() ?: 0
                                         val isQuotaFull = quotaInt > 0 && registrationCount >= quotaInt
                                         
                                         if (isQuotaFull) {
-                                            // Kuota penuh - tampilkan banner menarik + button disabled
                                             Column(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
-                                                // Banner Kuota Penuh
                                                 Card(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     shape = RoundedCornerShape(12.dp),
@@ -342,10 +315,9 @@ fun DetailEventScreen(
                                                 }
                                                 
                                                 Spacer(modifier = Modifier.height(12.dp))
-                                                
-                                                // Button disabled
+
                                                 Button(
-                                                    onClick = { /* Disabled */ },
+                                                    onClick = { },
                                                     enabled = false,
                                                     modifier = Modifier.fillMaxWidth(),
                                                     shape = RoundedCornerShape(8.dp),
@@ -358,12 +330,10 @@ fun DetailEventScreen(
                                                 }
                                             }
                                         } else {
-                                            // Kuota masih tersedia - tampilkan info kuota + button daftar
                                             Column(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
-                                                // Info sisa kuota
                                                 if (quotaInt > 0 && !isLoadingCount) {
                                                     val sisaKuota = quotaInt - registrationCount
                                                     Card(
@@ -421,7 +391,6 @@ fun DetailEventScreen(
 
 @Composable
 fun EventDetailTable(event: Event) {
-    // List detail event (Status dihapus dari sini)
     val details = listOf(
         "Judul Event" to event.title,
         "Jenis Event" to event.type,
@@ -431,7 +400,6 @@ fun EventDetailTable(event: Event) {
         "Tipe Lokasi" to event.platformType,
         "Lokasi/Link" to event.locationDetail,
         "Kuota" to event.quota
-        // "Status" dihapus sesuai permintaan
     )
 
     Row(modifier = Modifier.fillMaxWidth()) {
